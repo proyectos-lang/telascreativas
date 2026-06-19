@@ -1,0 +1,164 @@
+"use client"
+
+import { useRef, useState } from "react"
+import { Upload, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import { useGD } from "@/lib/gestion-disenos-context"
+
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/postscript",
+  "application/illustrator",
+]
+const ALLOWED_EXTS = ".ai,.pdf,.png,.jpg,.jpeg,.webp"
+const MAX_BYTES = 25 * 1024 * 1024
+
+interface GDFileUploaderProps {
+  label?: string
+  value: string[]
+  onChange: (urls: string[]) => void
+  pathPrefix: string
+  maxFiles?: number
+  disabled?: boolean
+}
+
+function fileIcon(url: string) {
+  const lower = url.toLowerCase()
+  if (lower.endsWith(".pdf")) return <FileText className="size-4 text-red-500" />
+  if (lower.endsWith(".ai")) return <FileText className="size-4 text-orange-500" />
+  return <ImageIcon className="size-4 text-blue-500" />
+}
+
+function isImage(url: string) {
+  return /\.(png|jpg|jpeg|webp)$/i.test(url)
+}
+
+export function GDFileUploader({
+  label,
+  value,
+  onChange,
+  pathPrefix,
+  maxFiles = 5,
+  disabled,
+}: GDFileUploaderProps) {
+  const { uploadFile } = useGD()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const handleFiles = async (files: FileList) => {
+    const remaining = maxFiles - value.length
+    const toUpload = Array.from(files).slice(0, remaining)
+
+    const invalid = toUpload.filter(
+      (f) =>
+        !ALLOWED_TYPES.includes(f.type) &&
+        !f.name.toLowerCase().endsWith(".ai")
+    )
+    if (invalid.length) {
+      toast.error("Formato no permitido", {
+        description: "Solo se permiten: .ai, .pdf, .png, .jpg, .jpeg, .webp",
+      })
+      return
+    }
+    const tooBig = toUpload.filter((f) => f.size > MAX_BYTES)
+    if (tooBig.length) {
+      toast.error("Archivo demasiado grande", {
+        description: "Máximo 25 MB por archivo",
+      })
+      return
+    }
+
+    setUploading(true)
+    try {
+      const urls: string[] = []
+      for (const file of toUpload) {
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+        const path = `${pathPrefix}_${Date.now()}_${safe}`
+        const res = await uploadFile(file, path)
+        if (res.success && res.url) {
+          urls.push(res.url)
+        } else {
+          toast.error(`Error al subir ${file.name}`, { description: res.error })
+        }
+      }
+      if (urls.length) onChange([...value, ...urls])
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ""
+    }
+  }
+
+  const removeFile = (url: string) => {
+    onChange(value.filter((u) => u !== url))
+  }
+
+  return (
+    <div className="space-y-2">
+      {label && <p className="text-sm font-medium text-slate-700">{label}</p>}
+
+      <div className="flex flex-wrap gap-2">
+        {value.map((url) => (
+          <div
+            key={url}
+            className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+          >
+            {isImage(url) ? (
+              <img src={url} alt="prototipo" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                {fileIcon(url)}
+                <span className="max-w-[56px] truncate text-[9px] text-slate-500">
+                  {url.split("/").pop()}
+                </span>
+              </div>
+            )}
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => removeFile(url)}
+                className="absolute right-0.5 top-0.5 hidden rounded-full bg-red-500 p-0.5 text-white group-hover:flex"
+              >
+                <X className="size-2.5" />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {!disabled && value.length < maxFiles && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className={cn(
+              "flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 transition-colors hover:border-indigo-400 hover:text-indigo-500",
+              uploading && "cursor-not-allowed opacity-50"
+            )}
+          >
+            {uploading ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <>
+                <Upload className="size-4" />
+                <span className="text-[10px]">Agregar</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ALLOWED_EXTS}
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleFiles(e.target.files)}
+      />
+    </div>
+  )
+}
