@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, X, ChevronDown, ChevronUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -18,12 +20,12 @@ import { GDColorPicker } from "./gd-color-picker"
 import { GDFileUploader } from "./gd-file-uploader"
 import { GDLogoPlacement } from "./gd-logo-placement"
 import { GDSimboloSelector } from "./gd-simbolo-selector"
-import type { GestionDiseno, TipoDiseno, LogoPosition } from "@/lib/gestion-disenos-types"
+import type { GestionDiseno, TipoDiseno, LogoPosition, CatalogoPrenda } from "@/lib/gestion-disenos-types"
 import {
-  TIPOS_PRENDA_OPTIONS,
   ACCESORIOS_GD_OPTIONS,
   TIPOGRAFIA_GD_OPTIONS,
 } from "@/lib/gestion-disenos-types"
+import { getCatalogoPrendas, CATEGORIAS_PRENDA, prendaLabel } from "@/lib/catalogo-prendas"
 import { cn } from "@/lib/utils"
 
 type FormData = Partial<GestionDiseno>
@@ -80,6 +82,9 @@ export function GDSchematicForm({
 
   const toggleSection = (key: keyof typeof openSections) =>
     setOpenSections((s) => ({ ...s, [key]: !s[key] }))
+
+  const [catalogoPrendas, setCatalogoPrendas] = useState<CatalogoPrenda[]>([])
+  useEffect(() => { getCatalogoPrendas().then(setCatalogoPrendas) }, [])
 
   const tiposPrend = data.tipos_prenda || []
   const cantLogos = data.cantidad_logos || 0
@@ -161,15 +166,27 @@ export function GDSchematicForm({
                   update({ tipos_prenda: [...tiposPrend, v] })
                 }
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-64">
                   <SelectValue placeholder="Agregar prenda..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_PRENDA_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
+                  {CATEGORIAS_PRENDA.map((cat) => {
+                    const items = catalogoPrendas.filter((p) => p.categoria === cat)
+                    if (!items.length) return null
+                    return (
+                      <SelectGroup key={cat}>
+                        <SelectLabel>{cat}</SelectLabel>
+                        {items.map((p) => {
+                          const label = prendaLabel(p)
+                          return (
+                            <SelectItem key={p.id} value={label}>
+                              {label}
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectGroup>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             )}
@@ -414,9 +431,19 @@ export function GDSchematicForm({
                       <SelectValue placeholder="Tipo de segunda prenda..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_PRENDA_OPTIONS.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
+                      {CATEGORIAS_PRENDA.map((cat) => {
+                        const items = catalogoPrendas.filter((p) => p.categoria === cat)
+                        if (!items.length) return null
+                        return (
+                          <SelectGroup key={cat}>
+                            <SelectLabel>{cat}</SelectLabel>
+                            {items.map((p) => {
+                              const label = prendaLabel(p)
+                              return <SelectItem key={p.id} value={label}>{label}</SelectItem>
+                            })}
+                          </SelectGroup>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
 

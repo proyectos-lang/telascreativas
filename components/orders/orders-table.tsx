@@ -120,8 +120,8 @@ export function OrdersTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => (
-          <TableRow key={orden.id}>
+        {pagedOrdenes.map((orden, idx) => (
+          <TableRow key={orden.id ?? orden.pedido ?? idx}>
             <TableCell className="font-medium">{orden.pedido}</TableCell>
             <TableCell>{orden.cliente}</TableCell>
             <TableCell>{orden.origen}</TableCell>

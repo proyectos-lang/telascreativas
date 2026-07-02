@@ -27,6 +27,35 @@ export interface LogoPosition {
   x: number
   y: number
   vista: "frontal" | "trasera"
+  label?: string
+  size?: number  // scale multiplier 0.5–3.0, default 1.0
+}
+
+export interface CatalogoPrenda {
+  id: number
+  nombre: string
+  categoria: string   // 'ATP' | 'Conjunto ATP' | 'TC' | 'Conjunto TC' | 'Promocionales'
+  genero: string | null
+  mangas: string | null
+  medidas: string | null
+  activo: boolean
+  orden: number
+}
+
+export interface CatalogoColor {
+  id: number
+  nombre: string    // "C=0 M=0 Y=100 K=0"
+  hex: string       // "#FFED00"
+  r: number
+  g: number
+  b: number
+  c?: number
+  m?: number
+  y?: number
+  k?: number
+  familia?: string
+  activo: boolean
+  orden: number
 }
 
 export interface CatalogoSimbolo {

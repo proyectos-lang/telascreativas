@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 import {
   Dialog,
   DialogContent,
@@ -13,9 +14,19 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, XCircle } from "lucide-react"
+import { CheckCircle, XCircle, Loader2, User } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+interface Disenador {
+  nombre: string
+  activos: number
+}
 
 interface GDReviewModalProps {
   gestion: GestionDiseno
@@ -29,16 +40,56 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
   const [motivo, setMotivo] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const [disenadores, setDisenadores] = useState<Disenador[]>([])
+  const [loadingDis, setLoadingDis] = useState(false)
+  const [selectedDis, setSelectedDis] = useState("")
+
+  useEffect(() => {
+    if (!open) return
+    setLoadingDis(true)
+    Promise.all([
+      supabase.schema("telas").from("disenadores").select("nombre").order("nombre"),
+      supabase
+        .schema("telas")
+        .from("gestion_disenos")
+        .select("disenador")
+        .not("disenador", "is", null)
+        .not("estado", "in", '("Finalizado","Rechazado")'),
+    ]).then(([disRes, casosRes]) => {
+      const nombres: string[] = (disRes.data ?? []).map((d: { nombre: string }) => d.nombre)
+      const carga = new Map<string, number>(nombres.map((n) => [n, 0]))
+      for (const c of casosRes.data ?? []) {
+        const n = c.disenador as string
+        carga.set(n, (carga.get(n) ?? 0) + 1)
+      }
+      const lista: Disenador[] = nombres
+        .map((n) => ({ nombre: n, activos: carga.get(n) ?? 0 }))
+        .sort((a, b) => a.activos - b.activos)
+      setDisenadores(lista)
+      if (lista.length > 0) setSelectedDis(lista[0].nombre)
+      setLoadingDis(false)
+    })
+  }, [open])
+
   const handleSubmit = async () => {
     if (decision === "rechazar" && !motivo.trim()) {
       toast.error("Indica el motivo del rechazo")
+      return
+    }
+    if (decision === "aceptar" && !selectedDis) {
+      toast.error("Selecciona un diseñador")
       return
     }
     setLoading(true)
     try {
       const updates: Partial<GestionDiseno> =
         decision === "aceptar"
-          ? { estado: "En Progreso", estado_turno: "En Diseño" }
+          ? {
+              estado: "En Progreso",
+              estado_turno: "En Diseño",
+              disenador: selectedDis,
+              fecha_asignacion: new Date().toISOString(),
+            }
           : {
               estado: "Rechazado",
               estado_turno: "En Ventas",
@@ -50,7 +101,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
         toast.success(decision === "aceptar" ? "Esquemático aceptado" : "Esquemático rechazado", {
           description:
             decision === "aceptar"
-              ? "El diseño está ahora En Progreso."
+              ? `Asignado a ${selectedDis}. El diseño está En Progreso.`
               : "Se notificó a Ventas con el motivo.",
         })
         onClose()
@@ -105,9 +156,40 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
             </button>
           </div>
 
+          {decision === "aceptar" && (
+            <div className="space-y-1.5">
+              <Label className="text-sm flex items-center gap-1">
+                <User className="size-3.5" />
+                Asignar diseñador <span className="text-red-500">*</span>
+              </Label>
+              {loadingDis ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Cargando diseñadores...
+                </div>
+              ) : disenadores.length === 0 ? (
+                <p className="text-sm text-slate-400">No hay diseñadores disponibles.</p>
+              ) : (
+                <select
+                  value={selectedDis}
+                  onChange={(e) => setSelectedDis(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {disenadores.map((d, i) => (
+                    <option key={d.nombre} value={d.nombre}>
+                      {d.nombre} ({d.activos} activos){i === 0 ? " — Recomendado" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           {decision === "rechazar" && (
             <div className="space-y-1.5">
-              <Label className="text-sm">Motivo del rechazo <span className="text-red-500">*</span></Label>
+              <Label className="text-sm">
+                Motivo del rechazo <span className="text-red-500">*</span>
+              </Label>
               <Textarea
                 placeholder="Explica qué información falta o qué hay que corregir en el esquemático..."
                 value={motivo}
@@ -115,12 +197,6 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
                 rows={3}
               />
             </div>
-          )}
-
-          {decision === "aceptar" && (
-            <p className="text-sm text-slate-600">
-              Al aceptar, el diseño pasará a estado "En Progreso" y podrás comenzar a trabajar en la propuesta.
-            </p>
           )}
         </div>
 
@@ -130,14 +206,19 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!decision || loading}
+            disabled={
+              !decision ||
+              loading ||
+              (decision === "aceptar" && (!selectedDis || loadingDis)) ||
+              (decision === "rechazar" && !motivo.trim())
+            }
             className={
               decision === "aceptar"
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-red-600 hover:bg-red-700"
             }
           >
-            {loading ? "Procesando..." : decision === "aceptar" ? "Aceptar diseño" : "Rechazar diseño"}
+            {loading ? "Procesando..." : decision === "aceptar" ? "Aceptar y asignar" : "Rechazar diseño"}
           </Button>
         </DialogFooter>
       </DialogContent>

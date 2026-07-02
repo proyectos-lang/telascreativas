@@ -152,7 +152,7 @@ export function CosturaTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => {
+        {pagedOrdenes.map((orden, idx) => {
           // Flujo reducido "Solo Corte / Costura": la orden se salta Diseno,
           // Impresion y Sublimacion. La etapa previa para Costura pasa a ser
           // Corte directamente.
@@ -181,7 +181,7 @@ export function CosturaTable({
 
           return (
             <TableRow
-              key={orden.id}
+              key={orden.id ?? orden.pedido ?? idx}
               className={
                 isReadyForCostura
                   ? "bg-emerald-50/40 hover:bg-emerald-50/60"

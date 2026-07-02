@@ -174,7 +174,7 @@ export function EmpaqueTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => {
+        {pagedOrdenes.map((orden, idx) => {
           const ready = isReadyForEmpaque(orden)
           const isSoloCorteCostura = orden.solo_corte_costura === true
           // VENTA_INVENTARIO salta TODAS las etapas de producción y llega
@@ -183,7 +183,7 @@ export function EmpaqueTable({
           const isYardajeFlujo = isYardaje(orden)
           return (
             <TableRow
-              key={orden.id}
+              key={orden.id ?? orden.pedido ?? idx}
               className={
                 ready
                   ? "bg-emerald-50/40 hover:bg-emerald-50/60"

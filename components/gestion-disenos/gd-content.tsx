@@ -1,19 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Loader2, AlertCircle, ArrowLeft, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { useAuth } from "@/lib/auth-context"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
@@ -21,6 +20,20 @@ import { GDTable } from "./gd-table"
 import { GDDetail } from "./gd-detail"
 import { GDAdminCatalogo } from "./gd-admin-catalogo"
 import { GDSchematicForm } from "./gd-schematic-form"
+import { GDDashboard } from "./gd-dashboard"
+
+type RoleView = "admin" | "ventas" | "diseno"
+
+const ROLE_PASSWORDS: Record<"ventas" | "diseno", string> = {
+  ventas: "Vendedora123",
+  diseno: "Disenador123",
+}
+
+const ROLE_LABELS: Record<RoleView, string> = {
+  admin: "Admin",
+  ventas: "Vendedora",
+  diseno: "Diseñador",
+}
 
 export function GDContent() {
   const { solicitudes, isLoading, error, createSolicitud } = useGD()
@@ -29,7 +42,11 @@ export function GDContent() {
   const esVentas = !!usuarioActual?.gd_ventas
   const esDiseno = !!usuarioActual?.gd_diseno
   const esAdmin = !!usuarioActual?.gd_admin
-  const usuarioRol = { esVentas, esDiseno, esAdmin }
+
+  const [roleView, setRoleView] = useState<RoleView>("admin")
+  const [passwordModalFor, setPasswordModalFor] = useState<"ventas" | "diseno" | null>(null)
+  const [passwordInput, setPasswordInput] = useState("")
+  const [passwordError, setPasswordError] = useState("")
 
   const [selected, setSelected] = useState<GestionDiseno | null>(null)
   const [newModalOpen, setNewModalOpen] = useState(false)
@@ -37,10 +54,46 @@ export function GDContent() {
   const [newFormData, setNewFormData] = useState<Partial<GestionDiseno>>({})
   const [saving, setSaving] = useState(false)
 
-  // Sync selected with latest data after updates
+  const effectiveVentas = roleView === "ventas"
+  const effectiveDiseno = roleView === "diseno"
+  const effectiveAdmin = roleView === "admin"
+  const usuarioRol =
+    roleView === "admin"
+      ? { esVentas, esDiseno, esAdmin }
+      : roleView === "ventas"
+      ? { esVentas: true, esDiseno: false, esAdmin: false }
+      : { esVentas: false, esDiseno: true, esAdmin: false }
+
+  // All views see all solicitudes — the difference is in available action buttons (usuarioRol)
+  const solicitudesFiltradas = solicitudes
+
   const selectedLive = selected
     ? solicitudes.find((s) => s.id === selected.id) ?? selected
     : null
+
+  const switchView = (view: RoleView) => {
+    setRoleView(view)
+    setSelected(null)
+  }
+
+  const openPasswordModal = (role: "ventas" | "diseno") => {
+    if (roleView === role) return
+    setPasswordModalFor(role)
+    setPasswordInput("")
+    setPasswordError("")
+  }
+
+  const handlePasswordSubmit = () => {
+    if (!passwordModalFor) return
+    if (passwordInput === ROLE_PASSWORDS[passwordModalFor]) {
+      switchView(passwordModalFor)
+      setPasswordModalFor(null)
+      setPasswordInput("")
+      setPasswordError("")
+    } else {
+      setPasswordError("Contraseña incorrecta")
+    }
+  }
 
   const handleCreate = async () => {
     if (!newCliente.trim()) {
@@ -118,17 +171,118 @@ export function GDContent() {
     )
   }
 
-  const tabs: { id: string; label: string; show: boolean }[] = [
-    { id: "solicitudes", label: "Solicitudes", show: true },
-    { id: "catalogo", label: "Catálogo", show: esAdmin },
-  ]
+  if (newModalOpen) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mb-4 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setNewModalOpen(false)
+              setNewCliente("")
+              setNewFormData({})
+            }}
+          >
+            <ArrowLeft className="size-4 mr-1" />
+            Volver
+          </Button>
+          <h2 className="text-base font-semibold text-slate-800">
+            Nueva Solicitud de Diseño
+          </h2>
+        </div>
 
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-semibold">
+              Cliente <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={newCliente}
+              onChange={(e) => setNewCliente(e.target.value)}
+              placeholder="Nombre del cliente o empresa..."
+              autoFocus
+            />
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Esquemático (puedes completarlo después)
+            </p>
+            <GDSchematicForm onChange={setNewFormData} />
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-100 pt-3 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setNewModalOpen(false)
+              setNewCliente("")
+              setNewFormData({})
+            }}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleCreate}
+            disabled={saving || !newCliente.trim()}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
+            {saving ? "Creando..." : "Crear solicitud"}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // View switcher bar
+  const viewSwitcher = (
+    <div className="flex items-center gap-1 mb-3 p-1 bg-slate-50 rounded-lg border border-slate-200 w-fit shrink-0 text-xs">
+      <span className="flex items-center gap-1 px-2 text-slate-400 font-medium">
+        <Lock className="size-3" />
+        Vista:
+      </span>
+      {(["admin", "ventas", "diseno"] as RoleView[]).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() =>
+            v === "admin" ? switchView("admin") : openPasswordModal(v as "ventas" | "diseno")
+          }
+          className={`rounded px-2.5 py-1 font-medium transition-colors ${
+            roleView === v
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          {ROLE_LABELS[v]}
+        </button>
+      ))}
+    </div>
+  )
+
+  const canCreate = effectiveAdmin
+    ? esVentas || esAdmin
+    : effectiveVentas
+
+  const tabs = [
+    {
+      id: "solicitudes",
+      label: effectiveDiseno ? "Diseños" : "Solicitudes",
+      show: true,
+    },
+    { id: "dashboard", label: "Control Gerencia", show: effectiveAdmin },
+    { id: "catalogo", label: "Catálogos de Diseño", show: effectiveAdmin },
+  ]
   const visibleTabs = tabs.filter((t) => t.show)
 
-  return (
-    <>
-      {visibleTabs.length > 1 ? (
-        <Tabs defaultValue="solicitudes" className="h-full flex flex-col">
+  if (visibleTabs.length > 1) {
+    return (
+      <div className="flex flex-col h-full">
+        {viewSwitcher}
+        <Tabs defaultValue="solicitudes" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="shrink-0">
             {visibleTabs.map((t) => (
               <TabsTrigger key={t.id} value={t.id}>
@@ -139,78 +293,154 @@ export function GDContent() {
 
           <TabsContent value="solicitudes" className="flex-1 overflow-auto mt-3">
             <GDTable
-              solicitudes={solicitudes}
+              solicitudes={solicitudesFiltradas}
               onSelect={setSelected}
               onNew={() => setNewModalOpen(true)}
-              canCreate={esVentas || esAdmin}
+              canCreate={canCreate}
             />
+          </TabsContent>
+
+          <TabsContent value="dashboard" className="flex-1 overflow-auto mt-3">
+            <GDDashboard solicitudes={solicitudes} onSelect={setSelected} />
           </TabsContent>
 
           <TabsContent value="catalogo" className="flex-1 overflow-auto mt-3">
             <GDAdminCatalogo />
           </TabsContent>
         </Tabs>
-      ) : (
-        <GDTable
-          solicitudes={solicitudes}
-          onSelect={setSelected}
-          onNew={() => setNewModalOpen(true)}
-          canCreate={esVentas || esAdmin}
-        />
-      )}
 
-      {/* New solicitud modal */}
-      <Dialog open={newModalOpen} onOpenChange={setNewModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Nueva Solicitud de Diseño</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-semibold">
-                Cliente <span className="text-red-500">*</span>
-              </Label>
+        {/* Password modal */}
+        <Dialog
+          open={!!passwordModalFor}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPasswordModalFor(null)
+              setPasswordInput("")
+              setPasswordError("")
+            }
+          }}
+        >
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="size-4 text-indigo-600" />
+                Vista {passwordModalFor ? ROLE_LABELS[passwordModalFor] : ""}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500">Ingresa la contraseña para acceder a esta vista.</p>
               <Input
-                value={newCliente}
-                onChange={(e) => setNewCliente(e.target.value)}
-                placeholder="Nombre del cliente o empresa..."
+                type="password"
+                placeholder="Contraseña..."
+                value={passwordInput}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value)
+                  setPasswordError("")
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handlePasswordSubmit()}
                 autoFocus
               />
+              {passwordError && (
+                <p className="text-xs text-red-600">{passwordError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPasswordModalFor(null)
+                    setPasswordInput("")
+                    setPasswordError("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handlePasswordSubmit}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={!passwordInput}
+                >
+                  Entrar
+                </Button>
+              </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    )
+  }
 
-            <div className="border-t border-slate-100 pt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Esquemático (puedes completarlo después)
-              </p>
-              <GDSchematicForm
-                onChange={setNewFormData}
-              />
+  return (
+    <div className="flex flex-col h-full">
+      {viewSwitcher}
+      <div className="flex-1 overflow-auto">
+        <GDTable
+          solicitudes={solicitudesFiltradas}
+          onSelect={setSelected}
+          onNew={() => setNewModalOpen(true)}
+          canCreate={canCreate}
+        />
+      </div>
+
+      {/* Password modal */}
+      <Dialog
+        open={!!passwordModalFor}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordModalFor(null)
+            setPasswordInput("")
+            setPasswordError("")
+          }
+        }}
+      >
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="size-4 text-indigo-600" />
+              Vista {passwordModalFor ? ROLE_LABELS[passwordModalFor] : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Ingresa la contraseña para acceder a esta vista.</p>
+            <Input
+              type="password"
+              placeholder="Contraseña..."
+              value={passwordInput}
+              onChange={(e) => {
+                setPasswordInput(e.target.value)
+                setPasswordError("")
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handlePasswordSubmit()}
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-xs text-red-600">{passwordError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPasswordModalFor(null)
+                  setPasswordInput("")
+                  setPasswordError("")
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePasswordSubmit}
+                className="bg-indigo-600 hover:bg-indigo-700"
+                disabled={!passwordInput}
+              >
+                Entrar
+              </Button>
             </div>
           </div>
-
-          <DialogFooter className="shrink-0 border-t border-slate-100 pt-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setNewModalOpen(false)
-                setNewCliente("")
-                setNewFormData({})
-              }}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={saving || !newCliente.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              {saving ? "Creando..." : "Crear solicitud"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

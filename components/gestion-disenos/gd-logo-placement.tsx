@@ -16,6 +16,8 @@ interface GDLogoPlacementProps {
 const LOGO_COLORS = ["bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500"]
 const LOGO_COLORS_BORDER = ["border-red-600", "border-blue-600", "border-green-600", "border-yellow-600"]
 
+const BASE_SIZE = 28
+
 export function GDLogoPlacement({
   tipo,
   value,
@@ -29,7 +31,6 @@ export function GDLogoPlacement({
 
   const logosForVista = value.filter((p) => p.vista === vista)
   const allLogos = Array.from({ length: cantidadLogos }, (_, i) => i + 1)
-
   const placedLogosInVista = new Set(logosForVista.map((p) => p.logo))
   const unplacedLogos = allLogos.filter((l) => !placedLogosInVista.has(l))
 
@@ -57,7 +58,15 @@ export function GDLogoPlacement({
       e.preventDefault()
       const pos = getRelativePos(e.clientX, e.clientY)
       if (!pos) return
-      const newPos: LogoPosition = { logo: logoNum, x: pos.x, y: pos.y, vista }
+      const existing = value.find((p) => p.logo === logoNum && p.vista === vista)
+      const newPos: LogoPosition = {
+        logo: logoNum,
+        x: pos.x,
+        y: pos.y,
+        vista,
+        label: existing?.label,
+        size: existing?.size ?? 1,
+      }
       const filtered = value.filter((p) => !(p.logo === logoNum && p.vista === vista))
       onChange([...filtered, newPos])
       setDragging(null)
@@ -86,8 +95,19 @@ export function GDLogoPlacement({
     [value, onChange, vista]
   )
 
+  const updateLogoProps = useCallback(
+    (logoNum: number, props: Partial<Pick<LogoPosition, "label" | "size">>) => {
+      const updated = value.map((p) =>
+        p.logo === logoNum && p.vista === vista ? { ...p, ...props } : p
+      )
+      onChange(updated)
+    },
+    [value, onChange, vista]
+  )
+
   return (
     <div className="space-y-3">
+      {/* Vista toggle */}
       <div className="flex gap-1">
         {(["frontal", "trasera"] as const).map((v) => (
           <button
@@ -107,26 +127,119 @@ export function GDLogoPlacement({
       </div>
 
       <div className="flex gap-4">
-        {/* Logos panel */}
-        <div className="w-24 shrink-0 space-y-2">
-          <p className="text-xs font-medium text-slate-500">Logos disponibles</p>
-          {unplacedLogos.map((logoNum) => (
-            <div
-              key={logoNum}
-              draggable={!disabled}
-              onDragStart={() => setDragging(logoNum)}
-              className={cn(
-                "flex h-8 w-8 cursor-grab items-center justify-center rounded-full border-2 text-xs font-bold text-white shadow-sm active:cursor-grabbing",
-                LOGO_COLORS[(logoNum - 1) % 4],
-                LOGO_COLORS_BORDER[(logoNum - 1) % 4],
-                disabled && "cursor-not-allowed opacity-50"
-              )}
-            >
-              {logoNum}
+        {/* Left panel: available logos + placed logos with controls */}
+        <div className="w-48 shrink-0 space-y-3">
+          {/* Available (unplaced) logos */}
+          {unplacedLogos.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Disponibles
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {unplacedLogos.map((logoNum) => (
+                  <div
+                    key={logoNum}
+                    draggable={!disabled}
+                    onDragStart={() => setDragging(logoNum)}
+                    title="Arrastra al diagrama"
+                    className={cn(
+                      "flex h-8 w-8 cursor-grab items-center justify-center rounded-full border-2 text-xs font-bold text-white shadow-sm active:cursor-grabbing select-none",
+                      LOGO_COLORS[(logoNum - 1) % 4],
+                      LOGO_COLORS_BORDER[(logoNum - 1) % 4],
+                      disabled && "cursor-not-allowed opacity-50"
+                    )}
+                  >
+                    {logoNum}
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-          {unplacedLogos.length === 0 && (
-            <p className="text-xs text-slate-400">Todos colocados</p>
+          )}
+
+          {/* Placed logos: label + size */}
+          {logosForVista.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Colocados
+              </p>
+              {logosForVista.map((pos) => {
+                const currentSize = pos.size ?? 1
+                return (
+                  <div
+                    key={pos.logo}
+                    className="rounded-lg border border-slate-200 bg-white p-2 space-y-1.5"
+                  >
+                    {/* Logo badge + remove */}
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={cn(
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[9px] font-bold text-white",
+                          LOGO_COLORS[(pos.logo - 1) % 4],
+                          LOGO_COLORS_BORDER[(pos.logo - 1) % 4]
+                        )}
+                      >
+                        {pos.logo}
+                      </div>
+                      <span className="flex-1 text-[11px] font-medium text-slate-700">
+                        Logo {pos.logo}
+                      </span>
+                      {!disabled && (
+                        <button
+                          type="button"
+                          onClick={() => removeLogo(pos.logo)}
+                          title="Quitar logo"
+                          className="rounded px-1 text-slate-400 hover:bg-red-50 hover:text-red-500 text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Size controls */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-400 w-10 shrink-0">Tamaño</span>
+                      <button
+                        type="button"
+                        disabled={disabled || currentSize <= 0.5}
+                        onClick={() =>
+                          updateLogoProps(pos.logo, { size: Math.max(0.5, currentSize - 0.25) })
+                        }
+                        className="flex h-4 w-4 items-center justify-center rounded bg-slate-100 text-[11px] font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-40"
+                      >
+                        −
+                      </button>
+                      <span className="w-8 text-center text-[10px] text-slate-600 tabular-nums">
+                        {Math.round(currentSize * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        disabled={disabled || currentSize >= 3}
+                        onClick={() =>
+                          updateLogoProps(pos.logo, { size: Math.min(3, currentSize + 0.25) })
+                        }
+                        className="flex h-4 w-4 items-center justify-center rounded bg-slate-100 text-[11px] font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Label input */}
+                    <input
+                      type="text"
+                      value={pos.label ?? ""}
+                      onChange={(e) => updateLogoProps(pos.logo, { label: e.target.value })}
+                      placeholder="Qué logo va aquí (opcional)"
+                      disabled={disabled}
+                      className="w-full rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {unplacedLogos.length === 0 && logosForVista.length === 0 && (
+            <p className="text-xs text-slate-400">Sin logos para colocar</p>
           )}
         </div>
 
@@ -134,7 +247,7 @@ export function GDLogoPlacement({
         <div
           ref={containerRef}
           className="relative flex-1 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden"
-          style={{ minHeight: 200 }}
+          style={{ minHeight: 240 }}
           onDragOver={handleDragOver}
           onDrop={(e) => {
             if (dragging !== null) {
@@ -144,36 +257,40 @@ export function GDLogoPlacement({
             }
           }}
         >
-          <GDGarmentDiagram tipo={tipo} vista={vista} className="h-48 w-full" />
+          <GDGarmentDiagram tipo={tipo} vista={vista} className="h-56 w-full" />
 
-          {logosForVista.map((pos) => (
-            <div
-              key={pos.logo}
-              draggable={!disabled}
-              onDragStart={() => setDragging(pos.logo)}
-              style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%,-50%)" }}
-              className="absolute z-10 cursor-grab active:cursor-grabbing"
-            >
+          {logosForVista.map((pos) => {
+            const sz = Math.round((pos.size ?? 1) * BASE_SIZE)
+            const fs = Math.max(8, Math.round(sz / 3))
+            return (
               <div
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold text-white shadow-md",
-                  LOGO_COLORS[(pos.logo - 1) % 4],
-                  LOGO_COLORS_BORDER[(pos.logo - 1) % 4]
-                )}
+                key={pos.logo}
+                draggable={!disabled}
+                onDragStart={() => setDragging(pos.logo)}
+                style={{
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  transform: "translate(-50%,-50%)",
+                  width: sz,
+                  height: sz,
+                  position: "absolute",
+                  zIndex: 10,
+                }}
+                className="cursor-grab active:cursor-grabbing"
               >
-                {pos.logo}
-              </div>
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => removeLogo(pos.logo)}
-                  className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-700 text-[8px] text-white hover:bg-red-600"
+                <div
+                  className={cn(
+                    "flex h-full w-full items-center justify-center rounded-full border-2 font-bold text-white shadow-md select-none",
+                    LOGO_COLORS[(pos.logo - 1) % 4],
+                    LOGO_COLORS_BORDER[(pos.logo - 1) % 4]
+                  )}
+                  style={{ fontSize: fs }}
                 >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
+                  {pos.logo}
+                </div>
+              </div>
+            )
+          })}
 
           <p className="absolute bottom-1 right-2 text-[10px] text-slate-400">
             Arrastra los logos sobre la prenda

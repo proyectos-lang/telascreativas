@@ -163,12 +163,12 @@ export function PrintTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => {
+        {pagedOrdenes.map((orden, idx) => {
           // Visual hint: design has been delivered -> highlight (informational only).
           const isDesignDelivered = Boolean(orden.dentrega_diseno)
           return (
             <TableRow
-              key={orden.id}
+              key={orden.id ?? orden.pedido ?? idx}
               className={
                 isDesignDelivered
                   ? "bg-emerald-50/40 hover:bg-emerald-50/60"

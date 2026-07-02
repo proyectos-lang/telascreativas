@@ -59,7 +59,7 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ordenes.map((orden) => {
+            {ordenes.map((orden, idx) => {
               const pct = Math.max(
                 0,
                 Math.min(
@@ -100,7 +100,7 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
 
               return (
                 <TableRow
-                  key={orden.id}
+                  key={orden.id ?? orden.pedido ?? idx}
                   className={`cursor-pointer hover:bg-muted/40 ${
                     proximoAVencer
                       ? vencido

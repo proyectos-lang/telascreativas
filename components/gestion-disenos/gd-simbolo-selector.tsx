@@ -52,6 +52,40 @@ export function GDSimboloSelector({ value, onChange, disabled }: GDSimboloSelect
     )
   }
 
+  // Read-only: show only the selected items, no category tabs
+  if (disabled) {
+    const selectedItems = simbolos.filter((s) => value.includes(s.id))
+    if (!selectedItems.length) {
+      return (
+        <p className="text-sm text-slate-400">
+          Sin imágenes, símbolos o texturas seleccionadas.
+        </p>
+      )
+    }
+    return (
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {selectedItems.map((s) => (
+          <div
+            key={s.id}
+            className="relative flex flex-col items-center gap-1 rounded-lg border-2 border-indigo-500 bg-indigo-50 p-2 text-center"
+          >
+            <div className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-indigo-500">
+              <Check className="size-2.5 text-white" />
+            </div>
+            <div className="h-12 w-full overflow-hidden rounded-md bg-slate-100">
+              <img src={s.imagen_url} alt={s.nombre} className="h-full w-full object-cover" />
+            </div>
+            <p className="text-[10px] font-medium leading-tight text-slate-700">{s.nombre}</p>
+            {s.categoria && (
+              <Badge variant="secondary" className="h-4 px-1 text-[9px]">{s.categoria}</Badge>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Editing mode: full catalog with category filter tabs
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1">
@@ -80,13 +114,11 @@ export function GDSimboloSelector({ value, onChange, disabled }: GDSimboloSelect
               key={s.id}
               type="button"
               onClick={() => toggle(s.id)}
-              disabled={disabled}
               className={cn(
                 "relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 text-center transition-all",
                 selected
                   ? "border-indigo-500 bg-indigo-50"
-                  : "border-slate-200 bg-white hover:border-slate-300",
-                disabled && "cursor-not-allowed opacity-60"
+                  : "border-slate-200 bg-white hover:border-slate-300"
               )}
             >
               {selected && (

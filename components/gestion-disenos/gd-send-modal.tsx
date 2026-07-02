@@ -22,22 +22,19 @@ interface GDSendModalProps {
 }
 
 export function GDSendModal({ gestion, open, onClose }: GDSendModalProps) {
-  const { updateSolicitud, autoAssignDesigner } = useGD()
+  const { updateSolicitud } = useGD()
   const [loading, setLoading] = useState(false)
 
   const handleSend = async () => {
     setLoading(true)
     try {
-      const disenador = await autoAssignDesigner()
       const res = await updateSolicitud(gestion.id, {
         estado: "Pendiente Revision",
         estado_turno: "En Diseño",
-        disenador: disenador ?? undefined,
-        fecha_asignacion: disenador ? new Date().toISOString() : undefined,
       })
       if (res.success) {
         toast.success("Esquemático enviado a Diseño", {
-          description: disenador ? `Asignado a ${disenador}` : "Sin diseñador disponible",
+          description: "El diseñador será asignado al momento de aceptar la solicitud.",
         })
         onClose()
       } else {
@@ -78,8 +75,7 @@ export function GDSendModal({ gestion, open, onClose }: GDSendModalProps) {
           </div>
         ) : (
           <p className="text-sm text-slate-600">
-            El esquemático se enviará al equipo de diseño para revisión. Se asignará automáticamente
-            al diseñador con menor carga actual.
+            El esquemático se enviará al equipo de diseño para revisión. El diseñador será asignado cuando se acepte la solicitud.
           </p>
         )}
 

@@ -87,7 +87,8 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   const canVentasResp =
     (esVentas || esAdmin) &&
     gestion.estado === "Esperando Retroalimentacion" &&
-    activeProp?.estado === "Pendiente"
+    activeProp !== null &&
+    (activeProp.estado === "Pendiente" || activeProp.estado === "En Cliente")
   const canShare =
     (esVentas || esAdmin) &&
     gestion.estado === "Esperando Retroalimentacion" &&

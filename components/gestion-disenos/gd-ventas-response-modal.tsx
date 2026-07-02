@@ -47,12 +47,21 @@ export function GDVentasResponseModal({
     }
     setLoading(true)
     try {
+      const now = new Date().toISOString()
       const propRes = await updateProposal(propuesta.id, {
         respuesta_ventas: decision,
         comentario_ventas: comentario.trim() || null,
         imagen_cambio_url: imagenCambio[0] ?? null,
-        fecha_respuesta_ventas: new Date().toISOString(),
+        fecha_respuesta_ventas: now,
         estado: decision === "Aprobada" ? "Aprobada" : "Con Cambios",
+        // If the client link was already active, also register as client response
+        ...(propuesta.estado === "En Cliente"
+          ? {
+              respuesta_cliente: decision === "Aprobada" ? "Aprobada" : "Con Cambios",
+              comentario_cliente: "(Registrado directamente por Ventas)",
+              fecha_respuesta_cliente: now,
+            }
+          : {}),
       })
       if (!propRes.success) {
         toast.error("Error", { description: propRes.error })
@@ -95,6 +104,12 @@ export function GDVentasResponseModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {propuesta.estado === "En Cliente" && (
+            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+              El link del cliente está activo. Al responder aquí, la decisión quedará registrada también en el link del cliente.
+            </div>
+          )}
           {(atLimit || nearLimit) && (
             <div
               className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${

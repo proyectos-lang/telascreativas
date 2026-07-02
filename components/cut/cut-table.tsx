@@ -135,7 +135,7 @@ export function CutTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => {
+        {pagedOrdenes.map((orden, idx) => {
           // Gating normal: por APROBACION del Planner (Corte en paralelo con
           // Diseño). En YARDAJE el Corte va DESPUES de Sublimacion, asi que
           // ademas exige que Sublimacion haya terminado (seta_sublimacion).
@@ -155,7 +155,7 @@ export function CutTable({
             : isApprovedByPlanner
           return (
             <TableRow
-              key={orden.id}
+              key={orden.id ?? orden.pedido ?? idx}
               className={
                 !isApproved
                   ? "bg-muted/40 text-muted-foreground hover:bg-muted/60"

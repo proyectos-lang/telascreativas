@@ -109,11 +109,11 @@ export function DesignTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pagedOrdenes.map((orden) => {
+        {pagedOrdenes.map((orden, idx) => {
           const isApproved = orden.estado_aprobado_rechazado === "Aprobado"
           return (
             <TableRow
-              key={orden.id}
+              key={orden.id ?? orden.pedido ?? idx}
               className={
                 !isApproved
                   ? "bg-muted/40 text-muted-foreground hover:bg-muted/60"

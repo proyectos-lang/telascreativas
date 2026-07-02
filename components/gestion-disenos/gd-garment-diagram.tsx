@@ -13,31 +13,41 @@ function CamisetaSVG({ vista }: { vista: "frontal" | "trasera" }) {
   if (vista === "frontal") {
     return (
       <svg viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <path d="M70 10 Q100 5 130 10 L155 40 L175 35 L185 70 L165 75 L165 220 L35 220 L35 75 L15 70 L25 35 L45 40 Z"
-          stroke="#94a3b8" strokeWidth="2" fill="#f8fafc" />
-        <path d="M70 10 Q85 25 100 28 Q115 25 130 10" stroke="#94a3b8" strokeWidth="1.5" fill="none" />
-        <circle cx="60" cy="100" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="60" y="103.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">C</text>
-        <circle cx="80" cy="90" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="80" y="93.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">B</text>
-        <circle cx="100" cy="88" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="100" y="91.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">A</text>
-        <circle cx="120" cy="90" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="120" y="93.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">D</text>
-        <text x="100" y="15" textAnchor="middle" fontSize="8" fill="#94a3b8">FRONTAL</text>
+        {/* Manga larga: cross-shaped silhouette */}
+        <path
+          d="M10 42 L10 185 L52 185 L52 225 L148 225 L148 185 L190 185 L190 42 L152 42 L126 14 Q100 8 74 14 L48 42 Z"
+          stroke="#94a3b8" strokeWidth="2" fill="#f8fafc"
+        />
+        {/* Collar neckline */}
+        <path d="M74 14 Q87 30 100 34 Q113 30 126 14" stroke="#94a3b8" strokeWidth="1.5" fill="none" />
+        {/* Armhole seam (sleeve ↔ body) */}
+        <line x1="52" y1="52" x2="52" y2="180" stroke="#cbd5e1" strokeWidth="0.75" strokeDasharray="3,2" />
+        <line x1="148" y1="52" x2="148" y2="180" stroke="#cbd5e1" strokeWidth="0.75" strokeDasharray="3,2" />
+        {/* Wrist cuffs */}
+        <line x1="10" y1="175" x2="52" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+        <line x1="148" y1="175" x2="190" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+        <text x="100" y="236" textAnchor="middle" fontSize="8" fill="#94a3b8">FRONTAL</text>
       </svg>
     )
   }
   return (
     <svg viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <path d="M70 10 Q100 5 130 10 L155 40 L175 35 L185 70 L165 75 L165 220 L35 220 L35 75 L15 70 L25 35 L45 40 Z"
-        stroke="#94a3b8" strokeWidth="2" fill="#f8fafc" />
-      <path d="M70 10 Q85 25 100 28 Q115 25 130 10" stroke="#94a3b8" strokeWidth="1.5" fill="none" />
-      <circle cx="100" cy="140" r="12" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-      <text x="100" y="144" textAnchor="middle" fontSize="11" fill="#64748b" fontWeight="700">F</text>
-      <circle cx="80" cy="100" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-      <text x="80" y="103.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">E</text>
-      <text x="100" y="15" textAnchor="middle" fontSize="8" fill="#94a3b8">DETRAS</text>
+      {/* Manga larga: back view */}
+      <path
+        d="M10 42 L10 185 L52 185 L52 225 L148 225 L148 185 L190 185 L190 42 L152 42 L126 14 L74 14 L48 42 Z"
+        stroke="#94a3b8" strokeWidth="2" fill="#f8fafc"
+      />
+      {/* Back collar */}
+      <line x1="74" y1="14" x2="126" y2="14" stroke="#94a3b8" strokeWidth="1.5" />
+      {/* Center back seam */}
+      <line x1="100" y1="14" x2="100" y2="225" stroke="#cbd5e1" strokeWidth="0.75" strokeDasharray="3,2" />
+      {/* Armhole seam */}
+      <line x1="52" y1="52" x2="52" y2="180" stroke="#cbd5e1" strokeWidth="0.75" strokeDasharray="3,2" />
+      <line x1="148" y1="52" x2="148" y2="180" stroke="#cbd5e1" strokeWidth="0.75" strokeDasharray="3,2" />
+      {/* Wrist cuffs */}
+      <line x1="10" y1="175" x2="52" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+      <line x1="148" y1="175" x2="190" y2="175" stroke="#94a3b8" strokeWidth="1.5" />
+      <text x="100" y="236" textAnchor="middle" fontSize="8" fill="#94a3b8">DETRAS</text>
     </svg>
   )
 }
@@ -49,10 +59,6 @@ function ShortSVG({ vista }: { vista: "frontal" | "trasera" }) {
         <path d="M30 20 L170 20 L170 30 L155 160 L110 160 L100 100 L90 160 L45 160 L30 30 Z"
           stroke="#94a3b8" strokeWidth="2" fill="#f8fafc" />
         <path d="M100 20 L100 100" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
-        <circle cx="65" cy="80" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="65" y="83.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">A</text>
-        <circle cx="135" cy="80" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-        <text x="135" y="83.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">B</text>
         <text x="100" y="15" textAnchor="middle" fontSize="8" fill="#94a3b8">FRONTAL</text>
       </svg>
     )
@@ -62,10 +68,6 @@ function ShortSVG({ vista }: { vista: "frontal" | "trasera" }) {
       <path d="M30 20 L170 20 L170 30 L155 160 L110 160 L100 100 L90 160 L45 160 L30 30 Z"
         stroke="#94a3b8" strokeWidth="2" fill="#f8fafc" />
       <path d="M100 20 L100 100" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
-      <circle cx="65" cy="80" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-      <text x="65" y="83.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">C</text>
-      <circle cx="135" cy="80" r="8" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
-      <text x="135" y="83.5" textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="600">D</text>
       <text x="100" y="15" textAnchor="middle" fontSize="8" fill="#94a3b8">DETRAS</text>
     </svg>
   )
