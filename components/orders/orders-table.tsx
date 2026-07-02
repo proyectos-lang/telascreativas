@@ -102,7 +102,7 @@ export function OrdersTable({
 
   return (
     <div className="rounded-md border">
-      <div className="max-h-[calc(100vh-22rem)] overflow-y-auto">
+      <div className="max-h-[calc(100vh-22rem)] overflow-auto">
         <Table>
       <TableHeader>
         <TableRow>

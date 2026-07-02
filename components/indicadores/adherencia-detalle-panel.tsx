@@ -202,7 +202,7 @@ export function AdherenciaDetallePanel({ ano, mes, label, onClose }: Props) {
       </div>
 
       {/* Tabla de ordenes */}
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div className="max-h-[60vh] overflow-auto">
         {loading ? (
           <div className="space-y-2 pt-2">
             {Array.from({ length: 6 }).map((_, i) => (
