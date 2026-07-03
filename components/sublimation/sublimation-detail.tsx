@@ -392,11 +392,10 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
   }
 
   // Gating rule (CRITICAL): Receive is enabled based on the flow:
+  //   - VENTA_INVENTARIO con accesorios: no pasa por Impresión ni Corte;
+  //     lista en cuanto la orden está aprobada.
   //   - YARDAJE / costura_si_no=false: solo requiere ientrega_impresion.
   //   - PRODUCCION_NORMAL con costura: requiere cfecha_de_corte Y ientrega_impresion.
-  // En YARDAJE el Corte se ejecuta DESPUES de Sublimacion (Diseño ->
-  // Impresion -> Sublimacion -> Corte), por lo que aqui NO se espera al
-  // corte: basta con que Impresion haya entregado.
   const isCutFinished = Boolean(orden.cfecha_de_corte)
   const isPrintDelivered = Boolean(orden.ientrega_impresion)
   const sinCostura =
@@ -404,8 +403,15 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
   const isYardaje =
     (orden.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
     "YARDAJE"
+  const isVentaInventarioConAccesorios =
+    (orden.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
+      "VENTA_INVENTARIO" &&
+    typeof orden.accesorios_inventario === "string" &&
+    orden.accesorios_inventario.trim().length > 0
   const isReadyToReceive =
-    sinCostura || isYardaje
+    isVentaInventarioConAccesorios
+      ? true
+      : sinCostura || isYardaje
       ? isPrintDelivered
       : isCutFinished && isPrintDelivered
 
@@ -545,8 +551,8 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
     : "Recibir"
   const recibirTooltip = !isReadyToReceive
     ? sinCostura || isYardaje
-      ? "Impresion debe estar terminada antes de recibir en Sublimacion"
-      : "Corte e Impresion deben estar terminados antes de recibir en Sublimacion"
+      ? "Impresión debe estar terminada antes de recibir en Sublimación"
+      : "Corte e Impresión deben estar terminados antes de recibir en Sublimación"
     : undefined
 
   return (
