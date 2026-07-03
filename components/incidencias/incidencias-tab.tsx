@@ -93,6 +93,10 @@ export function IncidenciasTab({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Proceso de reposicion que corresponde a este modulo (null si no aplica).
+  // Se calcula una vez al montar ya que `area` es una prop estable.
+  const procesoForThisArea = procesoReposicionForArea(area)
+
   // Estado del flujo de confirmacion para Procesar Reposicion
   const [toProcess, setToProcess] = useState<Incidencia | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -119,8 +123,6 @@ export function IncidenciasTab({
     // del pedido relevante (filtro amplio en BD) y luego refinamos en
     // cliente. Esto es mas simple que combinar dos queries con OR sobre
     // arrays, y la cantidad de incidencias por modulo es baja.
-    const procesoForThisArea = procesoReposicionForArea(area)
-
     const { data, error: fetchError } = await supabase
       .schema("telas")
       .from("incidencias")
@@ -134,20 +136,24 @@ export function IncidenciasTab({
 
     const rawRows = (data ?? []) as Incidencia[]
 
-    // Aplicamos el filtro de visibilidad combinando el array nuevo con el
-    // fallback legacy. Si el area actual no mapea a ningun proceso (ej.
-    // Diseno o Empaque), unicamente respetamos el comportamiento legacy
-    // de `area_genera` para no romper nada.
+    // Regla de visibilidad:
+    //  1. Siempre visible si este modulo ES el area que genero el error
+    //     (area_genera). El area responsable siempre debe ver y gestionar
+    //     la incidencia que originó, independientemente del ruteo de
+    //     reposicion.
+    //  2. Tambien visible si el area actual esta listada en
+    //     procesos_reposicion (la reposicion fisica pasa por aqui).
+    //  Las dos condiciones son independientes; una incidencia puede cumplir
+    //  ambas al mismo tiempo sin duplicarse.
     const rows = rawRows.filter((inc) => {
+      // Condicion 1: esta area genero el error.
+      if (inc.area_genera === area) return true
+
+      // Condicion 2: esta area debe procesar la reposicion.
       const procesos = inc.procesos_reposicion
-      if (Array.isArray(procesos) && procesos.length > 0) {
-        // Modelo nuevo: la incidencia define explicitamente su ruteo.
-        // Solo aparece si el modulo actual esta listado.
-        if (!procesoForThisArea) return false
-        return procesos.includes(procesoForThisArea)
-      }
-      // Modelo legacy / sin ruteo definido -> filtrar por area_genera.
-      return inc.area_genera === area
+      if (!Array.isArray(procesos) || procesos.length === 0) return false
+      if (!procesoForThisArea) return false
+      return procesos.includes(procesoForThisArea)
     })
 
     // Ordenamos mas recientes primero. Usamos fecha_reporte, con fallback a
@@ -281,8 +287,9 @@ export function IncidenciasTab({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Incidencias donde esta area es la responsable (
-          <span className="font-medium text-foreground">{area}</span>).
+          Incidencias generadas por{" "}
+          <span className="font-medium text-foreground">{area}</span> o donde
+          esta area debe procesar la reposicion.
         </p>
         <Button
           variant="outline"
@@ -335,6 +342,7 @@ export function IncidenciasTab({
                 <TableHead className="whitespace-nowrap">
                   Motivo Especifico
                 </TableHead>
+                <TableHead className="whitespace-nowrap">Rol</TableHead>
                 <TableHead className="whitespace-nowrap">
                   Area que Reporta
                 </TableHead>
@@ -362,6 +370,13 @@ export function IncidenciasTab({
 
                 const fechaReporte = inc.fecha_reporte || inc.created_at || ""
 
+                // Determinar por que razon este modulo ve la incidencia
+                const esGenerador = inc.area_genera === area
+                const esReposicion =
+                  procesoForThisArea !== null &&
+                  Array.isArray(inc.procesos_reposicion) &&
+                  inc.procesos_reposicion.includes(procesoForThisArea)
+
                 return (
                   <TableRow
                     key={inc.id}
@@ -387,6 +402,21 @@ export function IncidenciasTab({
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {inc.motivo_especifico || <span className="italic">-</span>}
+                    </TableCell>
+                    {/* Rol: por que este modulo ve la incidencia */}
+                    <TableCell className="whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        {esGenerador && (
+                          <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-300 text-[10px] px-1.5 py-0 font-medium">
+                            Generó error
+                          </Badge>
+                        )}
+                        {esReposicion && (
+                          <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-300 text-[10px] px-1.5 py-0 font-medium">
+                            Procesa reposición
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       <Badge variant="outline">{inc.area_reporta}</Badge>

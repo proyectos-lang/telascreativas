@@ -93,21 +93,45 @@ export function GDClienteReviewClient({
     setLoading(true)
     setSubmitError(null)
     try {
-      const { error: dbError } = await supabase
+      const now = new Date().toISOString()
+
+      // 1. Update the proposal record
+      const { error: propError } = await supabase
         .schema("telas")
         .from("gestion_disenos_propuestas")
         .update({
           respuesta_cliente: decision,
           comentario_cliente: comentario.trim() || null,
-          fecha_respuesta_cliente: new Date().toISOString(),
+          fecha_respuesta_cliente: now,
+          estado: decision === "Aprobada" ? "Aprobada" : "Con Cambios",
         })
         .eq("cliente_token", token)
 
-      if (dbError) {
+      if (propError) {
         setSubmitError("Error al enviar tu respuesta. Por favor intenta de nuevo.")
-      } else {
-        setDone(true)
+        return
       }
+
+      // 2. Advance gestion_disenos state automatically:
+      //    Aprobada → Aprobado / En Diseño (diseñador entrega archivos finales)
+      //    Con Cambios → En Progreso / En Ventas (Ventas revisa el feedback antes de reenviar)
+      const gdUpdates =
+        decision === "Aprobada"
+          ? { estado: "Aprobado", estado_turno: "En Diseño" }
+          : { estado: "En Progreso", estado_turno: "En Ventas" }
+
+      const { error: gdError } = await supabase
+        .schema("telas")
+        .from("gestion_disenos")
+        .update(gdUpdates)
+        .eq("id", propuesta.gestion_id)
+
+      if (gdError) {
+        setSubmitError("Error al actualizar el estado del diseño. Por favor intenta de nuevo.")
+        return
+      }
+
+      setDone(true)
     } catch {
       setSubmitError("Error de conexión. Por favor intenta de nuevo.")
     } finally {

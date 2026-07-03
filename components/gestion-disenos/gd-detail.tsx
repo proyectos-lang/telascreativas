@@ -12,6 +12,8 @@ import {
   RotateCcw,
   FolderCheck,
   Pencil,
+  Download,
+  FileCheck2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +59,9 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
 
   const propuestas = gestion.propuestas ?? []
   const activeProp = selectedProp ?? propuestas[propuestas.length - 1] ?? null
+
+  // Collect final files from all proposals (only the approved one should have them)
+  const archivosFinalUrls = propuestas.flatMap((p) => p.archivos_finales_urls ?? []).filter(Boolean)
 
   const { esVentas, esDiseno, esAdmin } = usuarioRol
 
@@ -238,6 +243,38 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
               <p className="text-xs text-slate-400">Sin propuestas aún.</p>
             )}
           </div>
+
+          {/* Final files download — visible when Finalizado and files exist */}
+          {gestion.estado === "Finalizado" && archivosFinalUrls.length > 0 && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shrink-0">
+              <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                <FileCheck2 className="size-3.5" />
+                Archivos Finales
+              </h3>
+              <ul className="space-y-1.5">
+                {archivosFinalUrls.map((url, i) => {
+                  const filename = decodeURIComponent(url.split("/").pop()?.split("?")[0] ?? `archivo-${i + 1}`)
+                  return (
+                    <li key={i}>
+                      <a
+                        href={url}
+                        download={filename}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-emerald-100 transition-colors"
+                      >
+                        <Download className="size-3.5 shrink-0 text-emerald-600" />
+                        <span className="truncate">{filename}</span>
+                      </a>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="mt-2 text-[10px] text-emerald-600">
+                {archivosFinalUrls.length} archivo{archivosFinalUrls.length !== 1 ? "s" : ""} entregado{archivosFinalUrls.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          )}
 
           {/* Chat history */}
           <div className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white">

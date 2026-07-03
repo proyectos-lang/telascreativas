@@ -51,7 +51,7 @@ export function GDFinalFilesModal({
       }
       const solRes = await updateSolicitud(gestion.id, {
         estado: "Finalizado",
-        estado_turno: "En Ventas",
+        estado_turno: "Finalizado",
       })
       if (solRes.success) {
         toast.success("Archivos entregados — Solicitud finalizada", {
