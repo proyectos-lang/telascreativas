@@ -64,25 +64,31 @@ export function EntregasProvider({ children }: { children: ReactNode }) {
           (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
           "YARDAJE"
 
+        const isCompraExterna = (o: Orden) =>
+          (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
+          "COMPRA_EXTERNA"
+
         const sinCostura = (o: Orden) =>
           String(o.costura_si_no ?? "true").trim().toLowerCase() === "false"
 
         // Determina si una orden ya esta lista para Entrega segun su flujo:
+        // - COMPRA_EXTERNA: no pasa por ningun proceso; lista en cuanto esta
+        //   programada (tiene fecha_programacion).
         // - YARDAJE sin costura: salta Costura y Empaque; lista en cuanto
         //   Sublimacion termino (seta_sublimacion).
         // - Resto de flujos: requiere Empaque cerrado (efecha_de_empaque).
-        const isReadyForEntrega = (o: Orden) =>
-          isYardaje(o) && sinCostura(o)
-            ? hasValue(o.seta_sublimacion)
-            : hasValue(o.efecha_de_empaque)
+        const isReadyForEntrega = (o: Orden) => {
+          if (isCompraExterna(o)) return hasValue(o.fecha_programacion)
+          if (isYardaje(o) && sinCostura(o)) return hasValue(o.seta_sublimacion)
+          return hasValue(o.efecha_de_empaque)
+        }
 
-        // Fecha de referencia para ordenar (Empaque normal o Sublimacion en
-        // el caso YARDAJE sin costura).
+        // Fecha de referencia para ordenar.
         const refDate = (o: Orden) => {
-          const raw =
-            isYardaje(o) && sinCostura(o)
-              ? o.seta_sublimacion
-              : o.efecha_de_empaque
+          let raw: string | null | undefined
+          if (isCompraExterna(o)) raw = o.fecha_programacion
+          else if (isYardaje(o) && sinCostura(o)) raw = o.seta_sublimacion
+          else raw = o.efecha_de_empaque
           return raw ? new Date(raw).getTime() : 0
         }
 
