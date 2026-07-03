@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getDaysUntil } from "@/lib/date-utils"
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock } from "lucide-react"
+import { AlertTriangle, ArrowRight, Ban, CheckCircle2, Clock } from "lucide-react"
 
 interface TrazabilidadListProps {
   ordenes: Orden[]
@@ -70,6 +70,11 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
                 )
               )
               const entregado = orden.entregado_cliente_si_no === true
+              const cancelado =
+                (orden.estado_aprobado_rechazado ?? "")
+                  .toString()
+                  .trim()
+                  .toLowerCase() === "cancelado"
               const progressColor = entregado
                 ? "bg-emerald-500"
                 : pct >= 70
@@ -79,10 +84,11 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
                 : "bg-rose-500"
 
               // Alerta: faltan 3 dias o menos para la entrega (o ya vencio)
-              // y el pedido aun no ha sido entregado.
+              // y el pedido aun no ha sido entregado ni cancelado.
               const diasRestantes = getDaysUntil(orden.fecha_de_entrega)
               const proximoAVencer =
                 !entregado &&
+                !cancelado &&
                 diasRestantes !== null &&
                 diasRestantes <= 3
               const vencido =
@@ -191,7 +197,12 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
                     </div>
                   </TableCell>
                   <TableCell className="max-w-[180px]">
-                    {entregado ? (
+                    {cancelado ? (
+                      <Badge className="bg-slate-500 text-white hover:bg-slate-600">
+                        <Ban className="mr-1 size-3" />
+                        Cancelada
+                      </Badge>
+                    ) : entregado ? (
                       <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
                         <CheckCircle2 className="mr-1 size-3" />
                         Entregado

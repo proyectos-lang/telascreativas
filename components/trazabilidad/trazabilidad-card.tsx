@@ -8,6 +8,7 @@ import { getDaysUntil } from "@/lib/date-utils"
 import {
   AlertTriangle,
   ArrowRight,
+  Ban,
   Calendar,
   CalendarCheck,
   CheckCircle2,
@@ -38,12 +39,15 @@ export function TrazabilidadCard({ orden, onSelect }: TrazabilidadCardProps) {
     Math.min(100, typeof orden.porcentaje_avance === "number" ? orden.porcentaje_avance : 0)
   )
   const entregado = orden.entregado_cliente_si_no === true
+  const cancelado =
+    (orden.estado_aprobado_rechazado ?? "").toString().trim().toLowerCase() ===
+    "cancelado"
 
   // Alerta de proximidad a vencimiento: 3 dias o menos (incluye vencidos).
-  // Solo aplica si el pedido aun no ha sido entregado.
+  // Solo aplica si el pedido aun no ha sido entregado ni cancelado.
   const diasRestantes = getDaysUntil(orden.fecha_de_entrega)
   const proximoAVencer =
-    !entregado && diasRestantes !== null && diasRestantes <= 3
+    !entregado && !cancelado && diasRestantes !== null && diasRestantes <= 3
   const vencido = proximoAVencer && diasRestantes !== null && diasRestantes < 0
 
   const alertaLabel = vencido
@@ -108,6 +112,12 @@ export function TrazabilidadCard({ orden, onSelect }: TrazabilidadCardProps) {
                 <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
                   <CheckCircle2 className="mr-1 size-3" />
                   Entregado
+                </Badge>
+              )}
+              {cancelado && (
+                <Badge className="bg-slate-500 text-white hover:bg-slate-600">
+                  <Ban className="mr-1 size-3" />
+                  Cancelada
                 </Badge>
               )}
             </div>
