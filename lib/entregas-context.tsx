@@ -71,14 +71,22 @@ export function EntregasProvider({ children }: { children: ReactNode }) {
         const sinCostura = (o: Orden) =>
           String(o.costura_si_no ?? "true").trim().toLowerCase() === "false"
 
+        const isVentaInventarioConAccesorios = (o: Orden) =>
+          (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
+            "VENTA_INVENTARIO" &&
+          hasValue(o.accesorios_inventario)
+
         // Determina si una orden ya esta lista para Entrega segun su flujo:
         // - COMPRA_EXTERNA: no pasa por ningun proceso; lista en cuanto esta
         //   programada (tiene fecha_programacion).
+        // - VENTA_INVENTARIO con accesorios: pasa por Sublimacion y llega
+        //   directo a Entregas; lista en cuanto Sublimacion termino.
         // - YARDAJE sin costura: salta Costura y Empaque; lista en cuanto
         //   Sublimacion termino (seta_sublimacion).
         // - Resto de flujos: requiere Empaque cerrado (efecha_de_empaque).
         const isReadyForEntrega = (o: Orden) => {
           if (isCompraExterna(o)) return hasValue(o.fecha_programacion)
+          if (isVentaInventarioConAccesorios(o)) return hasValue(o.seta_sublimacion)
           if (isYardaje(o) && sinCostura(o)) return hasValue(o.seta_sublimacion)
           return hasValue(o.efecha_de_empaque)
         }
@@ -87,6 +95,7 @@ export function EntregasProvider({ children }: { children: ReactNode }) {
         const refDate = (o: Orden) => {
           let raw: string | null | undefined
           if (isCompraExterna(o)) raw = o.fecha_programacion
+          else if (isVentaInventarioConAccesorios(o)) raw = o.seta_sublimacion
           else if (isYardaje(o) && sinCostura(o)) raw = o.seta_sublimacion
           else raw = o.efecha_de_empaque
           return raw ? new Date(raw).getTime() : 0

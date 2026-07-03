@@ -54,11 +54,26 @@ export function SublimationProvider({ children }: { children: ReactNode }) {
         // YARDAJE: Sublimacion recibe de Impresion directamente (sin Corte previo).
         // Solo necesita ientrega_impresion para estar lista.
         // PRODUCCION_NORMAL: necesita cfecha_de_corte + ientrega_impresion.
+        // VENTA_INVENTARIO con accesorios: no pasa por Impresion ni Corte;
+        // lista en cuanto esta aprobada por el planner.
         const isYardaje = (o: Orden) =>
           (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
           "YARDAJE"
 
+        const hasAccesorios = (v: string | undefined | null) =>
+          typeof v === "string" && v.trim().length > 0
+
         const isReadyForSublimation = (o: Orden) => {
+          const flujo = (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase()
+          if (flujo === "VENTA_INVENTARIO" && hasAccesorios(o.accesorios_inventario)) {
+            // No pasa por Impresión ni Corte: lista en cuanto está aprobada.
+            return (
+              (o.estado_aprobado_rechazado ?? "")
+                .toString()
+                .trim()
+                .toLowerCase() === "aprobado"
+            )
+          }
           if (isYardaje(o)) {
             return Boolean(o.ientrega_impresion)
           }
@@ -78,8 +93,6 @@ export function SublimationProvider({ children }: { children: ReactNode }) {
         //    especial, VENTA_INVENTARIO si tiene accesorios_inventario.
         //    COMPRA_EXTERNA queda fuera. null/undefined se trata como
         //    normal por compatibilidad hacia atrás.
-        const hasAccesorios = (v: string | undefined | null) =>
-          typeof v === "string" && v.trim().length > 0
         const notRejected = (data || []).filter((o) => {
           const estado = (o.estado_aprobado_rechazado || "")
             .toString()

@@ -74,8 +74,13 @@ export function EmpaqueProvider({ children }: { children: ReactNode }) {
           )
         }
 
+        const hasAccesorios = (v: string | undefined | null) =>
+          typeof v === "string" && v.trim().length > 0
+
         // Excluir rechazadas. Empaque acepta PRODUCCION_NORMAL, YARDAJE y
-        // VENTA_INVENTARIO. COMPRA_EXTERNA queda fuera.
+        // VENTA_INVENTARIO (sin accesorios). COMPRA_EXTERNA queda fuera.
+        // VENTA_INVENTARIO con accesorios_inventario pasa por Sublimación,
+        // no por Empaque.
         const notRejected = (data || []).filter((o) => {
           const estado = (o.estado_aprobado_rechazado || "")
             .toString()
@@ -92,6 +97,9 @@ export function EmpaqueProvider({ children }: { children: ReactNode }) {
             flujo !== "VENTA_INVENTARIO" &&
             flujo !== "YARDAJE"
           )
+            return false
+          // VENTA_INVENTARIO con accesorios va a Sublimación → Entregas, no a Empaque.
+          if (flujo === "VENTA_INVENTARIO" && hasAccesorios(o.accesorios_inventario))
             return false
           // YARDAJE sin costura (costura_si_no = false) NO pasa por Empaque:
           // va directo de Sublimacion a Entregas, asi que se excluye aqui.
