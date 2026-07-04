@@ -27,14 +27,14 @@ interface GDUploadProposalModalProps {
 export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadProposalModalProps) {
   const { addProposal, updateSolicitud } = useGD()
   const [comentario, setComentario] = useState("")
-  const [imagenUrl, setImagenUrl] = useState<string[]>([])
+  const [imagenesUrls, setImagenesUrls] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
   const nextNum = (gestion.propuestas?.length ?? 0) + 1
   const prefix = `gd_${gestion.id}_prop${nextNum}`
 
   const handleSubmit = async () => {
-    if (!imagenUrl.length) {
+    if (!imagenesUrls.length) {
       toast.error("Debes subir al menos una imagen de mockup")
       return
     }
@@ -43,7 +43,8 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
       const [propRes] = await Promise.all([
         addProposal(gestion.id, {
           numero_propuesta: nextNum,
-          imagen_mockup_url: imagenUrl[0],
+          imagen_mockup_url: imagenesUrls[0],
+          imagenes_propuesta_urls: imagenesUrls,
           comentario_diseno: comentario.trim() || null,
           fecha_subida: new Date().toISOString(),
           estado: "Pendiente",
@@ -63,7 +64,7 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
           description: "Ventas recibirá la notificación para revisar.",
         })
         setComentario("")
-        setImagenUrl([])
+        setImagenesUrls([])
         onClose()
       } else {
         toast.error("Error al actualizar solicitud", { description: updateRes.error })
@@ -105,11 +106,11 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
             )}
 
             <GDFileUploader
-              label="Imagen del mockup *"
-              value={imagenUrl}
-              onChange={setImagenUrl}
+              label="Imágenes del mockup * (máx. 5)"
+              value={imagenesUrls}
+              onChange={setImagenesUrls}
               pathPrefix={prefix}
-              maxFiles={1}
+              maxFiles={5}
             />
 
             <div className="space-y-1.5">
@@ -131,7 +132,7 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
           {!atLimit && (
             <Button
               onClick={handleSubmit}
-              disabled={loading || !imagenUrl.length}
+              disabled={loading || !imagenesUrls.length}
               className="gap-2 bg-blue-600 hover:bg-blue-700"
             >
               <Upload className="size-4" />

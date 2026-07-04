@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, RefreshCw, AlertCircle } from "lucide-react"
+import { CheckCircle, RefreshCw, AlertCircle, Download } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDFileUploader } from "./gd-file-uploader"
 import type { GestionDiseno, GestionDisenoProposal } from "@/lib/gestion-disenos-types"
@@ -104,6 +104,21 @@ export function GDVentasResponseModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {propuesta.imagen_mockup_url && (
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="text-xs text-slate-500">Imagen del mockup</span>
+              <a
+                href={propuesta.imagen_mockup_url}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Download className="size-3.5" />
+                Descargar
+              </a>
+            </div>
+          )}
           {propuesta.estado === "En Cliente" && (
             <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
               <AlertCircle className="mt-0.5 size-3.5 shrink-0" />

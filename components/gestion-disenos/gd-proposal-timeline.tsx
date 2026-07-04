@@ -70,11 +70,18 @@ function ProposalCard({
       </div>
 
       {p.imagen_mockup_url && (
-        <img
-          src={p.imagen_mockup_url}
-          alt={`Propuesta ${p.numero_propuesta}`}
-          className="h-10 w-10 rounded object-cover border border-white shadow-sm"
-        />
+        <div className="relative">
+          <img
+            src={p.imagen_mockup_url}
+            alt={`Propuesta ${p.numero_propuesta}`}
+            className="h-10 w-10 rounded object-cover border border-white shadow-sm"
+          />
+          {(p.imagenes_propuesta_urls?.length ?? 0) > 1 && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-bold text-white shadow-sm">
+              +{(p.imagenes_propuesta_urls?.length ?? 1) - 1}
+            </span>
+          )}
+        </div>
       )}
     </button>
   )

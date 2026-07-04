@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   useCallback,
   ReactNode,
 } from "react"
@@ -16,12 +17,23 @@ import type {
   EstadoGD,
   EstadoTurno,
 } from "@/lib/gestion-disenos-types"
+import { useAuth } from "@/lib/auth-context"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const GD_BUCKET = "gd-archivos"
+
+export interface GDNotification {
+  id: string
+  solicitudId: number
+  numero: string
+  cliente: string
+  nuevoEstado: EstadoGD
+  nuevoTurno: EstadoTurno
+  timestamp: number
+}
 
 interface GDContextType {
   solicitudes: GestionDiseno[]
@@ -52,7 +64,8 @@ interface GDContextType {
   ) => Promise<{ success: boolean; url?: string; error?: string }>
   getCatalogoSimbolos: () => Promise<CatalogoSimbolo[]>
   getNextNumero: () => Promise<string>
-  autoAssignDesigner: () => Promise<string | null>
+  gdNotifications: GDNotification[]
+  dismissGDNotification: (id: string) => void
 }
 
 const GDContext = createContext<GDContextType | undefined>(undefined)
@@ -61,6 +74,11 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
   const [solicitudes, setSolicitudes] = useState<GestionDiseno[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gdNotifications, setGdNotifications] = useState<GDNotification[]>([])
+
+  const { usuarioActual } = useAuth()
+  const usuarioActualRef = useRef(usuarioActual)
+  useEffect(() => { usuarioActualRef.current = usuarioActual }, [usuarioActual])
 
   const fetchSolicitudes = useCallback(async () => {
     setIsLoading(true)
@@ -89,7 +107,62 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchSolicitudes()
+
+    const channel = supabase
+      .channel("gd_state_changes")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "telas", table: "gestion_disenos" },
+        (payload) => {
+          fetchSolicitudes()
+
+          const updated = payload.new as {
+            id: number
+            numero: string
+            cliente: string
+            estado: EstadoGD
+            estado_turno: EstadoTurno
+            disenador: string | null
+          }
+
+          const u = usuarioActualRef.current
+          if (!u) return
+
+          const esVentas = !!u.gd_ventas
+          const esDiseno = !!u.gd_diseno
+          const esAdmin = !!u.gd_admin
+
+          const shouldNotify =
+            (esVentas && updated.estado_turno === "En Ventas") ||
+            (esDiseno && updated.estado_turno === "En Diseño" && updated.disenador === u.nombre) ||
+            esAdmin
+
+          if (shouldNotify) {
+            setGdNotifications((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                solicitudId: updated.id,
+                numero: updated.numero,
+                cliente: updated.cliente,
+                nuevoEstado: updated.estado,
+                nuevoTurno: updated.estado_turno,
+                timestamp: Date.now(),
+              },
+            ])
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [fetchSolicitudes])
+
+  const dismissGDNotification = useCallback((id: string) => {
+    setGdNotifications((prev) => prev.filter((n) => n.id !== id))
+  }, [])
 
   const getNextNumero = useCallback(async (): Promise<string> => {
     const { data } = await supabase
@@ -103,31 +176,6 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
     if (!data?.numero) return "GD-0001"
     const lastNum = parseInt(data.numero.replace("GD-", ""), 10) || 0
     return `GD-${String(lastNum + 1).padStart(4, "0")}`
-  }, [])
-
-  const autoAssignDesigner = useCallback(async (): Promise<string | null> => {
-    const [{ data: designers }, { data: actives }] = await Promise.all([
-      supabase.schema("telas").from("disenadores").select("nombre").order("nombre"),
-      supabase
-        .schema("telas")
-        .from("gestion_disenos")
-        .select("disenador")
-        .not("estado", "in", '("Finalizado","Rechazado")'),
-    ])
-
-    if (!designers?.length) return null
-
-    const counts: Record<string, number> = {}
-    designers.forEach((d: { nombre: string }) => {
-      counts[d.nombre] = 0
-    })
-    actives?.forEach((a: { disenador: string | null }) => {
-      if (a.disenador && counts[a.disenador] !== undefined) {
-        counts[a.disenador]++
-      }
-    })
-
-    return Object.entries(counts).sort((a, b) => a[1] - b[1])[0]?.[0] ?? null
   }, [])
 
   const createSolicitud = useCallback(
@@ -271,7 +319,8 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
         uploadFile,
         getCatalogoSimbolos,
         getNextNumero,
-        autoAssignDesigner,
+        gdNotifications,
+        dismissGDNotification,
       }}
     >
       {children}

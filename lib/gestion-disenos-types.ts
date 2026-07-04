@@ -8,6 +8,7 @@ export type EstadoGD =
   | "Finalizando"
   | "Finalizado"
   | "Rechazado"
+  | "Devuelto"
 
 export type EstadoTurno = "En Ventas" | "En Diseño" | "En Cliente" | "Finalizado"
 
@@ -72,6 +73,7 @@ export interface GestionDisenoProposal {
   gestion_id: number
   numero_propuesta: number
   imagen_mockup_url: string | null
+  imagenes_propuesta_urls: string[] | null
   comentario_diseno: string | null
   fecha_subida: string | null
   estado: EstadoPropuesta
@@ -195,4 +197,5 @@ export const ESTADO_GD_COLORS: Record<EstadoGD, string> = {
   Finalizando: "bg-teal-100 text-teal-700",
   Finalizado: "bg-emerald-100 text-emerald-700",
   Rechazado: "bg-red-100 text-red-700",
+  Devuelto: "bg-orange-100 text-orange-700",
 }

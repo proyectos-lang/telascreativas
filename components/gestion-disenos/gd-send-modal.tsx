@@ -31,6 +31,7 @@ export function GDSendModal({ gestion, open, onClose }: GDSendModalProps) {
       const res = await updateSolicitud(gestion.id, {
         estado: "Pendiente Revision",
         estado_turno: "En Diseño",
+        motivo_rechazo_diseno: null,
       })
       if (res.success) {
         toast.success("Esquemático enviado a Diseño", {

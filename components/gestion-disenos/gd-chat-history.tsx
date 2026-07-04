@@ -1,10 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { FileText, Image as ImageIcon } from "lucide-react"
+import { FileText, Expand } from "lucide-react"
 import type { GestionDiseno, GestionDisenoProposal } from "@/lib/gestion-disenos-types"
 import { cn } from "@/lib/utils"
+import { GDImageLightbox } from "./gd-image-lightbox"
 
 interface ChatEntry {
   id: string
@@ -13,6 +15,7 @@ interface ChatEntry {
   tipo: "sistema" | "diseno" | "ventas" | "cliente"
   texto: string
   imagenUrl?: string | null
+  imagenesUrls?: string[] | null
   propuestaNum?: number
 }
 
@@ -33,20 +36,22 @@ function buildEntries(g: GestionDiseno): ChatEntry[] {
       fecha: g.fecha_creacion,
       autor: g.disenador || "Diseño",
       tipo: "diseno",
-      texto: `Esquemático rechazado. Motivo: ${g.motivo_rechazo_diseno}`,
+      texto: `Esquemático devuelto para corrección. Comentario: ${g.motivo_rechazo_diseno}`,
     })
   }
 
   const propuestas = g.propuestas || []
   for (const p of propuestas) {
-    if (p.imagen_mockup_url || p.comentario_diseno) {
+    const imagenes = p.imagenes_propuesta_urls?.length ? p.imagenes_propuesta_urls : null
+    if (imagenes || p.comentario_diseno) {
       entries.push({
         id: `prop-subida-${p.id}`,
         fecha: p.fecha_subida || p.created_at,
         autor: g.disenador || "Diseño",
         tipo: "diseno",
         texto: p.comentario_diseno || `Propuesta ${p.numero_propuesta} subida.`,
-        imagenUrl: p.imagen_mockup_url,
+        imagenUrl: imagenes ? null : p.imagen_mockup_url,
+        imagenesUrls: imagenes,
         propuestaNum: p.numero_propuesta,
       })
     }
@@ -133,8 +138,29 @@ function isImg(url: string) {
   return /\.(png|jpg|jpeg|webp)$/i.test(url)
 }
 
+function ClickableImage({ url, onExpand }: { url: string; onExpand: (src: string) => void }) {
+  return (
+    <div
+      className="relative group cursor-pointer overflow-hidden rounded-lg border border-slate-200"
+      onClick={() => onExpand(url)}
+    >
+      <img
+        src={url}
+        alt="referencia"
+        className="max-h-40 w-auto object-contain"
+      />
+      <div className="absolute inset-0 flex items-end justify-end p-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/10">
+        <div className="rounded-full bg-black/50 p-1">
+          <Expand className="size-3 text-white" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
   const entries = buildEntries(gestion)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   if (!entries.length) {
     return (
@@ -145,62 +171,91 @@ export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 pb-2">
-      {entries.map((e) => {
-        const style = TIPO_STYLES[e.tipo]
-        const isRight = style.align === "right"
+    <>
+      <div className="flex flex-col gap-3 pb-2">
+        {entries.map((e) => {
+          const style = TIPO_STYLES[e.tipo]
+          const isRight = style.align === "right"
 
-        return (
-          <div
-            key={e.id}
-            className={cn("flex gap-2", isRight && "flex-row-reverse")}
-          >
-            <Avatar autor={e.autor} color={style.avatar} />
+          return (
+            <div
+              key={e.id}
+              className={cn("flex gap-2", isRight && "flex-row-reverse")}
+            >
+              <Avatar autor={e.autor} color={style.avatar} />
 
-            <div className={cn("flex max-w-[78%] flex-col gap-1", isRight && "items-end")}>
-              <div className={cn("flex items-center gap-1.5 text-[10px] text-slate-500", isRight && "flex-row-reverse")}>
-                <span className="font-medium">{e.autor}</span>
-                <span>·</span>
-                <span>{format(new Date(e.fecha), "dd MMM yy HH:mm", { locale: es })}</span>
-                {e.propuestaNum != null && (
-                  <>
-                    <span>·</span>
-                    <span className="rounded-full bg-indigo-100 px-1.5 text-indigo-600 font-medium">
-                      V{e.propuestaNum}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              <div className={cn("rounded-xl px-3 py-2 text-xs leading-relaxed", style.bubble)}>
-                {e.texto}
-              </div>
-
-              {e.imagenUrl && (
-                <div className="overflow-hidden rounded-lg border border-slate-200">
-                  {isImg(e.imagenUrl) ? (
-                    <img
-                      src={e.imagenUrl}
-                      alt="referencia"
-                      className="max-h-40 w-auto object-contain"
-                    />
-                  ) : (
-                    <a
-                      href={e.imagenUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs text-indigo-600 hover:underline"
-                    >
-                      <FileText className="size-3.5" />
-                      Ver archivo adjunto
-                    </a>
+              <div className={cn("flex max-w-[78%] flex-col gap-1", isRight && "items-end")}>
+                <div className={cn("flex items-center gap-1.5 text-[10px] text-slate-500", isRight && "flex-row-reverse")}>
+                  <span className="font-medium">{e.autor}</span>
+                  <span>·</span>
+                  <span>{format(new Date(e.fecha), "dd MMM yy HH:mm", { locale: es })}</span>
+                  {e.propuestaNum != null && (
+                    <>
+                      <span>·</span>
+                      <span className="rounded-full bg-indigo-100 px-1.5 text-indigo-600 font-medium">
+                        V{e.propuestaNum}
+                      </span>
+                    </>
                   )}
                 </div>
-              )}
+
+                <div className={cn("rounded-xl px-3 py-2 text-xs leading-relaxed", style.bubble)}>
+                  {e.texto}
+                </div>
+
+                {/* Multi-image gallery */}
+                {e.imagenesUrls && e.imagenesUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {e.imagenesUrls.map((url, i) =>
+                      isImg(url) ? (
+                        <ClickableImage key={i} url={url} onExpand={setLightboxSrc} />
+                      ) : (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs text-indigo-600 hover:underline"
+                        >
+                          <FileText className="size-3.5" />
+                          Archivo {i + 1}
+                        </a>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Single image (non-proposal or legacy) */}
+                {!e.imagenesUrls && e.imagenUrl && (
+                  <div className="overflow-hidden rounded-lg border border-slate-200 mt-0.5">
+                    {isImg(e.imagenUrl) ? (
+                      <ClickableImage url={e.imagenUrl} onExpand={setLightboxSrc} />
+                    ) : (
+                      <a
+                        href={e.imagenUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs text-indigo-600 hover:underline"
+                      >
+                        <FileText className="size-3.5" />
+                        Ver archivo adjunto
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )
-      })}
-    </div>
+          )
+        })}
+      </div>
+
+      {lightboxSrc && (
+        <GDImageLightbox
+          src={lightboxSrc}
+          open
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
+    </>
   )
 }

@@ -21,6 +21,7 @@ import { GDDetail } from "./gd-detail"
 import { GDAdminCatalogo } from "./gd-admin-catalogo"
 import { GDSchematicForm } from "./gd-schematic-form"
 import { GDDashboard } from "./gd-dashboard"
+import { GDNotificationBanner } from "./gd-notification-banner"
 
 type RoleView = "admin" | "ventas" | "diseno"
 
@@ -70,6 +71,11 @@ export function GDContent() {
   const selectedLive = selected
     ? solicitudes.find((s) => s.id === selected.id) ?? selected
     : null
+
+  const handleSelectFromNotification = (id: number) => {
+    const s = solicitudes.find((sol) => sol.id === id)
+    if (s) setSelected(s)
+  }
 
   const switchView = (view: RoleView) => {
     setRoleView(view)
@@ -167,6 +173,7 @@ export function GDContent() {
           usuarioRol={usuarioRol}
           onBack={() => setSelected(null)}
         />
+        <GDNotificationBanner onSelectSolicitud={handleSelectFromNotification} />
       </div>
     )
   }
@@ -309,6 +316,8 @@ export function GDContent() {
           </TabsContent>
         </Tabs>
 
+        <GDNotificationBanner onSelectSolicitud={handleSelectFromNotification} />
+
         {/* Password modal */}
         <Dialog
           open={!!passwordModalFor}
@@ -382,6 +391,8 @@ export function GDContent() {
           canCreate={canCreate}
         />
       </div>
+
+      <GDNotificationBanner onSelectSolicitud={handleSelectFromNotification} />
 
       {/* Password modal */}
       <Dialog

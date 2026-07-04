@@ -7,9 +7,10 @@ interface GDWatermarkImageProps {
   src: string
   alt?: string
   className?: string
+  fullSize?: boolean
 }
 
-export function GDWatermarkImage({ src, alt = "mockup", className }: GDWatermarkImageProps) {
+export function GDWatermarkImage({ src, alt = "mockup", className, fullSize = false }: GDWatermarkImageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -26,7 +27,7 @@ export function GDWatermarkImage({ src, alt = "mockup", className }: GDWatermark
       if (!canvas) return
 
       const MAX = 800
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      const scale = fullSize ? 1 : Math.min(1, MAX / Math.max(img.width, img.height))
       canvas.width = img.width * scale
       canvas.height = img.height * scale
 

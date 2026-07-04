@@ -54,7 +54,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
         .from("gestion_disenos")
         .select("disenador")
         .not("disenador", "is", null)
-        .not("estado", "in", '("Finalizado","Rechazado")'),
+        .not("estado", "in", '("Finalizado","Rechazado","Devuelto")'),
     ]).then(([disRes, casosRes]) => {
       const nombres: string[] = (disRes.data ?? []).map((d: { nombre: string }) => d.nombre)
       const carga = new Map<string, number>(nombres.map((n) => [n, 0]))
@@ -91,18 +91,18 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
               fecha_asignacion: new Date().toISOString(),
             }
           : {
-              estado: "Rechazado",
+              estado: "Devuelto",
               estado_turno: "En Ventas",
               motivo_rechazo_diseno: motivo.trim(),
             }
 
       const res = await updateSolicitud(gestion.id, updates)
       if (res.success) {
-        toast.success(decision === "aceptar" ? "Esquemático aceptado" : "Esquemático rechazado", {
+        toast.success(decision === "aceptar" ? "Esquemático aceptado" : "Esquemático devuelto a Ventas", {
           description:
             decision === "aceptar"
               ? `Asignado a ${selectedDis}. El diseño está En Progreso.`
-              : "Se notificó a Ventas con el motivo.",
+              : "Se notificó a Ventas con los comentarios de corrección.",
         })
         onClose()
       } else {
@@ -145,14 +145,14 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
               onClick={() => setDecision("rechazar")}
               className={`flex flex-1 flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
                 decision === "rechazar"
-                  ? "border-red-500 bg-red-50"
-                  : "border-slate-200 hover:border-red-300"
+                  ? "border-orange-500 bg-orange-50"
+                  : "border-slate-200 hover:border-orange-300"
               }`}
             >
               <XCircle
-                className={decision === "rechazar" ? "size-6 text-red-600" : "size-6 text-slate-400"}
+                className={decision === "rechazar" ? "size-6 text-orange-600" : "size-6 text-slate-400"}
               />
-              <span className="text-sm font-medium">Rechazar</span>
+              <span className="text-sm font-medium">Devolver a Ventas</span>
             </button>
           </div>
 
@@ -188,7 +188,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           {decision === "rechazar" && (
             <div className="space-y-1.5">
               <Label className="text-sm">
-                Motivo del rechazo <span className="text-red-500">*</span>
+                Comentario para Ventas <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 placeholder="Explica qué información falta o qué hay que corregir en el esquemático..."
@@ -215,10 +215,10 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
             className={
               decision === "aceptar"
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
+                : "bg-orange-600 hover:bg-orange-700"
             }
           >
-            {loading ? "Procesando..." : decision === "aceptar" ? "Aceptar y asignar" : "Rechazar diseño"}
+            {loading ? "Procesando..." : decision === "aceptar" ? "Aceptar y asignar" : "Devolver a Ventas"}
           </Button>
         </DialogFooter>
       </DialogContent>

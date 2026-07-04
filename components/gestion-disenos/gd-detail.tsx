@@ -14,6 +14,9 @@ import {
   Pencil,
   Download,
   FileCheck2,
+  AlertTriangle,
+  UserCog,
+  Expand,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +35,9 @@ import { GDShareClientModal } from "./gd-share-client-modal"
 import { GDVentasResponseModal } from "./gd-ventas-response-modal"
 import { GDApproveModal } from "./gd-approve-modal"
 import { GDFinalFilesModal } from "./gd-final-files-modal"
+import { GDReassignModal } from "./gd-reassign-modal"
+import { GDImageLightbox } from "./gd-image-lightbox"
+import { GDWatermarkImage } from "./gd-watermark-image"
 import { useGD } from "@/lib/gestion-disenos-context"
 
 interface GDDetailProps {
@@ -48,6 +54,7 @@ type Modal =
   | "ventas-resp"
   | "approve"
   | "final-files"
+  | "reassign"
   | null
 
 export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
@@ -56,6 +63,7 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   const [selectedProp, setSelectedProp] = useState<GestionDisenoProposal | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<GestionDiseno>>(gestion)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   const propuestas = gestion.propuestas ?? []
   const activeProp = selectedProp ?? propuestas[propuestas.length - 1] ?? null
@@ -82,9 +90,13 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
 
   const canEdit =
     (esVentas || esAdmin) &&
-    (gestion.estado === "Borrador" || gestion.estado === "Rechazado")
-  const canSend = canEdit && gestion.estado !== "Finalizado"
+    (gestion.estado === "Borrador" || gestion.estado === "Rechazado" || gestion.estado === "Devuelto")
+  const canSend = canEdit
   const canReview = (esDiseno || esAdmin) && gestion.estado === "Pendiente Revision"
+  const canReassign =
+    (esDiseno || esAdmin) &&
+    !!gestion.disenador &&
+    !["Finalizado", "Rechazado", "Borrador", "Pendiente Revision"].includes(gestion.estado)
   const canUpload =
     (esDiseno || esAdmin) &&
     gestion.estado === "En Progreso" &&
@@ -103,6 +115,22 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
 
   return (
     <div className="flex flex-col h-full gap-3">
+      {/* Devuelto banner */}
+      {gestion.estado === "Devuelto" && gestion.motivo_rechazo_diseno && (esVentas || esAdmin) && (
+        <div className="flex gap-2 items-start rounded-lg border border-orange-300 bg-orange-50 px-4 py-3">
+          <AlertTriangle className="text-orange-600 size-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-orange-800">
+              Diseño devolvió esta solicitud para corrección
+            </p>
+            <p className="text-sm text-orange-700 mt-0.5">{gestion.motivo_rechazo_diseno}</p>
+            <p className="text-xs text-orange-600 mt-1">
+              Corrige el esquemático y vuelve a enviar a Diseño.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
@@ -207,6 +235,17 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
               Entregar archivos
             </Button>
           )}
+          {canReassign && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setModal("reassign")}
+              className="gap-1.5 h-8 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+            >
+              <UserCog className="size-3.5" />
+              Reasignar diseñador
+            </Button>
+          )}
         </div>
       </div>
 
@@ -243,6 +282,46 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
               <p className="text-xs text-slate-400">Sin propuestas aún.</p>
             )}
           </div>
+
+          {/* Active proposal image preview */}
+          {activeProp?.imagen_mockup_url && (
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Vista previa — V{activeProp.numero_propuesta}
+                </h3>
+                <div className="flex items-center gap-1.5">
+                  {(esVentas || esAdmin) && (
+                    <a
+                      href={activeProp.imagen_mockup_url}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Download className="size-3" />
+                      Descargar
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(activeProp.imagen_mockup_url)}
+                    className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <Expand className="size-3" />
+                    Ampliar
+                  </button>
+                </div>
+              </div>
+              <div className="relative group overflow-hidden rounded-lg cursor-pointer" onClick={() => setLightboxSrc(activeProp.imagen_mockup_url)}>
+                <GDWatermarkImage
+                  src={activeProp.imagen_mockup_url}
+                  alt={`Propuesta ${activeProp.numero_propuesta}`}
+                  className="rounded-lg"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Final files download — visible when Finalizado and files exist */}
           {gestion.estado === "Finalizado" && archivosFinalUrls.length > 0 && (
@@ -328,6 +407,12 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           open
           onClose={() => setModal(null)}
         />
+      )}
+      {modal === "reassign" && (
+        <GDReassignModal gestion={gestion} open onClose={() => setModal(null)} />
+      )}
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
       )}
     </div>
   )
