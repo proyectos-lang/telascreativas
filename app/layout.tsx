@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
+import Script from 'next/script'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 import './globals.css'
 
@@ -27,23 +28,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'TelasPro',
   },
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    // apple-icon generated dynamically via app/apple-icon.tsx
-  },
+  // favicon generated via app/icon.tsx; apple-icon via app/apple-icon.tsx
 }
 
 export default function RootLayout({
@@ -53,6 +38,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="bg-background">
+      <head>
+        {/*
+          Capture beforeinstallprompt BEFORE React hydrates so we never miss it.
+          React useEffect runs after hydration — this script runs immediately.
+        */}
+        <Script
+          id="pwa-capture"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.__pwaPrompt = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.__pwaPrompt = e;
+              });
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' });
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
         {children}
         <Toaster richColors position="top-right" />
