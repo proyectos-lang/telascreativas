@@ -1,16 +1,32 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  themeColor: '#4f46e5',
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
-  title: 'TextilPro - Programacion de Ordenes',
-  description: 'Sistema de produccion textil - Gestion y programacion de ordenes',
-  generator: 'v0.app',
+  title: 'Telas Creativas — Sistema de Producción',
+  description: 'Sistema interno de gestión y programación de producción textil',
+  applicationName: 'TelasPro',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TelasPro',
+  },
   icons: {
     icon: [
       {
@@ -40,6 +56,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         {children}
         <Toaster richColors position="top-right" />
+        <PWAInstallPrompt />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
