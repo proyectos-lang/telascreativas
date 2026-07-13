@@ -42,30 +42,16 @@ function dotClasses(status?: StatusArea | null): {
 } {
   switch (status) {
     case "Terminado":
-      return {
-        bg: "bg-emerald-500",
-        ring: "ring-emerald-200",
-        text: "text-white",
-      }
+      return { bg: "bg-emerald-500", ring: "ring-emerald-200", text: "text-white" }
     case "Recibido":
-      return {
-        bg: "bg-blue-500",
-        ring: "ring-blue-200",
-        text: "text-white",
-      }
+      return { bg: "bg-blue-500", ring: "ring-blue-200", text: "text-white" }
     case "Pendiente":
-      return {
-        bg: "bg-orange-500",
-        ring: "ring-orange-200",
-        text: "text-white",
-      }
+      return { bg: "bg-orange-500", ring: "ring-orange-200", text: "text-white" }
+    case "N/A":
+      return { bg: "bg-slate-100", ring: "ring-slate-200", text: "text-slate-400" }
     case "En espera":
     default:
-      return {
-        bg: "bg-slate-200",
-        ring: "ring-slate-100",
-        text: "text-slate-500",
-      }
+      return { bg: "bg-slate-200", ring: "ring-slate-100", text: "text-slate-500" }
   }
 }
 
@@ -144,7 +130,7 @@ export function FlowStepper({ row }: FlowStepperProps) {
                 <TooltipContent side="top" className="text-xs">
                   <p className="font-semibold">{step.label}</p>
                   <p className="text-muted-foreground">
-                    {step.status || "En espera"}
+                    {step.status === "N/A" ? "No aplica para este flujo" : (step.status || "En espera")}
                   </p>
                   {step.fecha && (
                     <p className="text-muted-foreground">

@@ -52,10 +52,10 @@ function riskBadge(n?: NivelRiesgo | null) {
           Vencido
         </Badge>
       )
-    case "Riesgo Critico":
+    case "Riesgo Crítico":
       return (
         <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border border-rose-200">
-          Critico
+          Crítico
         </Badge>
       )
     case "Riesgo Medio":

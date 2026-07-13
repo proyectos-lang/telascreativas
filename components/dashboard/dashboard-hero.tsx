@@ -73,7 +73,6 @@ export function DashboardHero() {
     overdueCount,
     criticalAlerts,
     totalOrders,
-    activeOrdersCount,
     totalPcs,
     lastUpdated,
     refresh,
@@ -124,7 +123,7 @@ export function DashboardHero() {
                   <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
                 </span>
                 <span className="text-[11px] uppercase tracking-widest font-semibold text-emerald-300">
-                  En vivo
+                  Producción activa
                 </span>
               </div>
 
@@ -149,9 +148,9 @@ export function DashboardHero() {
           {/* Mini-stat strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-800">
             <MiniStat
-              label="Pedidos totales"
+              label="Pedidos activos"
               value={new Intl.NumberFormat("es-CO").format(totalOrders)}
-              sub={`${activeOrdersCount} activos`}
+              sub="Sin empacar en planta"
               accent="text-white"
             />
             <MiniStat

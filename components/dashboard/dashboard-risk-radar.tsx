@@ -136,7 +136,7 @@ export function DashboardRiskRadar() {
               </Badge>
             </CardTitle>
             <CardDescription className="text-xs">
-              Vencidos y en Riesgo Critico
+              Vencidos y en Riesgo Crítico
             </CardDescription>
           </div>
         </div>

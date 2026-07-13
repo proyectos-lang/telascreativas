@@ -44,7 +44,6 @@ interface DashboardContextType {
   mediumRiskCount: number
   overdueCount: number
   bottleneckKey: AreaKey | null // Area with highest active load
-  activeOrdersCount: number // Orders not yet fully terminated
 }
 
 export interface AreaWorkload {
@@ -187,26 +186,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     () =>
       activeRows.filter((r) => {
         const n = (r.nivel_riesgo || "") as NivelRiesgo
-        return n === "Vencido" || n === "Riesgo Critico"
+        return n === "Vencido" || n === "Riesgo Crítico"
       }).length,
     [activeRows]
   )
 
-  // Promedio global de lead time por orden (suma de dias por area / cant. de areas con datos)
+  // Promedio de dias acumulados en produccion, calculado solo sobre ordenes
+  // que tienen al menos un area completada (dias > 0). Excluir ordenes sin
+  // ningun area terminada evita que diluyan el promedio.
   const avgLeadTime = useMemo(() => {
-    if (activeRows.length === 0) return 0
-    const leadTimes = activeRows.map((r) => {
-      const values = [
-        r.dias_en_diseno,
-        r.dias_en_corte,
-        r.dias_en_impresion,
-        r.dias_en_sublimacion,
-        r.dias_en_costura,
-      ].filter((v): v is number => typeof v === "number" && !Number.isNaN(v))
-      return values.reduce((s, v) => s + v, 0)
-    })
-    const total = leadTimes.reduce((s, v) => s + v, 0)
-    return +(total / activeRows.length).toFixed(1)
+    const leadTimes = activeRows
+      .map((r) => {
+        const values = [
+          r.dias_en_diseno,
+          r.dias_en_corte,
+          r.dias_en_impresion,
+          r.dias_en_sublimacion,
+          r.dias_en_costura,
+        ].filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && v > 0)
+        return values.length > 0 ? values.reduce((s, v) => s + v, 0) : null
+      })
+      .filter((v): v is number => v !== null)
+    if (leadTimes.length === 0) return 0
+    return +(leadTimes.reduce((s, v) => s + v, 0) / leadTimes.length).toFixed(1)
   }, [activeRows])
 
   // Embudos de carga de trabajo por departamento
@@ -324,19 +326,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return top.key
   }, [workloadByArea])
 
-  // Ordenes activas: tomamos directamente la cantidad de activeRows.
-  // El criterio principal es s_estado_entrega !== "Completado", lo que
-  // sustituye la heuristica previa basada en status_empaque.
-  const activeOrdersCount = activeRows.length
-
-  // Radar de Riesgo (solo Vencido + Riesgo Critico, ordenados por dias_para_entrega asc).
+  // Radar de Riesgo (solo Vencido + Riesgo Crítico, ordenados por dias_para_entrega asc).
   // Calculado sobre activeRows para no incluir ordenes ya entregadas.
   const riskRows = useMemo(
     () =>
       activeRows
         .filter((r) => {
           const n = (r.nivel_riesgo || "") as NivelRiesgo
-          return n === "Vencido" || n === "Riesgo Critico"
+          return n === "Vencido" || n === "Riesgo Crítico"
         })
         .sort((a, b) => {
           const da =
@@ -373,7 +370,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         mediumRiskCount,
         overdueCount,
         bottleneckKey,
-        activeOrdersCount,
       }}
     >
       {children}

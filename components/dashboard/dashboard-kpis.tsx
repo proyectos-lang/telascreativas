@@ -142,7 +142,7 @@ export function DashboardKpis() {
       <KpiCard
         label="Alertas Criticas"
         value={new Intl.NumberFormat("es-CO").format(criticalAlerts)}
-        sub="Vencidos + Riesgo Critico"
+        sub="Vencidos + Riesgo Crítico"
         icon={AlertTriangle}
         accentClass="bg-rose-500"
         emphasis={criticalAlerts > 0}
@@ -156,9 +156,9 @@ export function DashboardKpis() {
         }
       />
       <KpiCard
-        label="Lead Time Promedio"
+        label="Dias en Planta Prom."
         value={`${avgLeadTime} d`}
-        sub="Dias de produccion por orden"
+        sub="Acumulado por areas completadas"
         icon={CheckCircle2}
         accentClass="bg-emerald-500"
       />

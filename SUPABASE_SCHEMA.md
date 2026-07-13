@@ -314,7 +314,7 @@ Dashboard de coordinación de producción.
 | dias_en_sublimacion | integer | |
 | dias_en_costura | integer | |
 | dias_para_entrega | integer | |
-| nivel_riesgo | text | "Vencido"/"Riesgo Critico"/"Riesgo Medio"/"A Tiempo" |
+| nivel_riesgo | text | "Vencido"/"Riesgo Crítico"/"Riesgo Medio"/"A Tiempo" |
 
 ---
 
@@ -470,4 +470,4 @@ VENTA_INVENTARIO:   [Sublimación si accesorios_inventario != null] → Empaque 
 - `"Terminado"` — área cerró la orden
 
 ## Nivel de riesgo (`nivel_riesgo`)
-- `"Vencido"` / `"Riesgo Critico"` / `"Riesgo Medio"` / `"A Tiempo"`
+- `"Vencido"` / `"Riesgo Crítico"` / `"Riesgo Medio"` / `"A Tiempo"`

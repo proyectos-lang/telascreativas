@@ -308,9 +308,10 @@ export type StatusArea =
   | "Recibido"
   | "Pendiente"
   | "En espera"
+  | "N/A"
 export type NivelRiesgo =
   | "Vencido"
-  | "Riesgo Critico"
+  | "Riesgo Crítico"
   | "Riesgo Medio"
   | "A Tiempo"
 
