@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, RefreshCw, AlertCircle, Download } from "lucide-react"
+import { CheckCircle, RefreshCw, AlertCircle, Download, Expand } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDFileUploader } from "./gd-file-uploader"
+import { GDWatermarkImage } from "./gd-watermark-image"
+import { GDImageLightbox } from "./gd-image-lightbox"
 import type { GestionDiseno, GestionDisenoProposal } from "@/lib/gestion-disenos-types"
 
 interface GDVentasResponseModalProps {
@@ -36,6 +38,13 @@ export function GDVentasResponseModal({
   const [comentario, setComentario] = useState("")
   const [imagenCambio, setImagenCambio] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  const imagenesUrls = propuesta.imagenes_propuesta_urls?.length
+    ? propuesta.imagenes_propuesta_urls
+    : propuesta.imagen_mockup_url
+    ? [propuesta.imagen_mockup_url]
+    : []
 
   const atLimit = gestion.total_propuestas >= 5
   const nearLimit = gestion.total_propuestas === 4
@@ -95,7 +104,7 @@ export function GDVentasResponseModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Respuesta de Ventas</DialogTitle>
           <DialogDescription>
@@ -104,19 +113,64 @@ export function GDVentasResponseModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {propuesta.imagen_mockup_url && (
-            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="text-xs text-slate-500">Imagen del mockup</span>
-              <a
-                href={propuesta.imagen_mockup_url}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Download className="size-3.5" />
-                Descargar
-              </a>
+          {/* Image preview */}
+          {imagenesUrls.length > 0 && (
+            <div className="space-y-2">
+              {imagenesUrls.length === 1 ? (
+                <div
+                  className="relative group overflow-hidden rounded-lg border border-slate-200 cursor-pointer"
+                  onClick={() => setLightboxSrc(imagenesUrls[0])}
+                >
+                  <GDWatermarkImage src={imagenesUrls[0]} alt="mockup propuesta" className="rounded-lg" />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/10">
+                    <div className="rounded-full bg-black/50 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Expand className="size-5 text-white" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {imagenesUrls.map((url, i) => (
+                    <div
+                      key={i}
+                      className="relative group aspect-square overflow-hidden rounded-lg border border-slate-200 cursor-pointer"
+                      onClick={() => setLightboxSrc(url)}
+                    >
+                      <img src={url} alt={`imagen ${i + 1}`} className="h-full w-full object-cover" />
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                        <Expand className="size-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400">
+                  {imagenesUrls.length > 1 ? `${imagenesUrls.length} imágenes` : "Propuesta de diseño"}
+                </span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(imagenesUrls[0])}
+                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <Expand className="size-3" />
+                    Ampliar
+                  </button>
+                  {propuesta.imagen_mockup_url && (
+                    <a
+                      href={propuesta.imagen_mockup_url}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Download className="size-3" />
+                      Descargar
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           {propuesta.estado === "En Cliente" && (
@@ -223,6 +277,10 @@ export function GDVentasResponseModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+      )}
     </Dialog>
   )
 }

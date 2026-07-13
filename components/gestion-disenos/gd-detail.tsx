@@ -284,44 +284,85 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           </div>
 
           {/* Active proposal image preview */}
-          {activeProp?.imagen_mockup_url && (
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Vista previa — V{activeProp.numero_propuesta}
-                </h3>
-                <div className="flex items-center gap-1.5">
-                  {(esVentas || esAdmin) && (
-                    <a
-                      href={activeProp.imagen_mockup_url}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
+          {(() => {
+            const allImages = activeProp?.imagenes_propuesta_urls?.length
+              ? activeProp.imagenes_propuesta_urls
+              : activeProp?.imagen_mockup_url
+              ? [activeProp.imagen_mockup_url]
+              : []
+            if (!allImages.length) return null
+            const mainImage = allImages[0]
+            return (
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Vista previa — V{activeProp!.numero_propuesta}
+                    {allImages.length > 1 && (
+                      <span className="ml-1.5 font-normal text-slate-400">({allImages.length} imágenes)</span>
+                    )}
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    {(esVentas || esAdmin) && (
+                      <a
+                        href={mainImage}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        <Download className="size-3" />
+                        Descargar
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setLightboxSrc(mainImage)}
                       className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                     >
-                      <Download className="size-3" />
-                      Descargar
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setLightboxSrc(activeProp.imagen_mockup_url)}
-                    className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    <Expand className="size-3" />
-                    Ampliar
-                  </button>
+                      <Expand className="size-3" />
+                      Ampliar
+                    </button>
+                  </div>
                 </div>
+
+                {/* Main image with hover overlay */}
+                <div
+                  className="relative group overflow-hidden rounded-lg cursor-pointer"
+                  onClick={() => setLightboxSrc(mainImage)}
+                >
+                  <GDWatermarkImage
+                    src={mainImage}
+                    alt={`Propuesta ${activeProp!.numero_propuesta}`}
+                    className="rounded-lg"
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/10">
+                    <div className="rounded-full bg-black/50 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Expand className="size-5 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thumbnail strip for multiple images */}
+                {allImages.length > 1 && (
+                  <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+                    {allImages.map((url, i) => (
+                      <div
+                        key={i}
+                        className="relative group shrink-0 h-14 w-14 overflow-hidden rounded-md border-2 cursor-pointer transition-colors"
+                        style={{ borderColor: url === mainImage ? "#6366f1" : "#e2e8f0" }}
+                        onClick={() => setLightboxSrc(url)}
+                      >
+                        <img src={url} alt={`imagen ${i + 1}`} className="h-full w-full object-cover" />
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                          <Expand className="size-3 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="relative group overflow-hidden rounded-lg cursor-pointer" onClick={() => setLightboxSrc(activeProp.imagen_mockup_url)}>
-                <GDWatermarkImage
-                  src={activeProp.imagen_mockup_url}
-                  alt={`Propuesta ${activeProp.numero_propuesta}`}
-                  className="rounded-lg"
-                />
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Final files download — visible when Finalizado and files exist */}
           {gestion.estado === "Finalizado" && archivosFinalUrls.length > 0 && (

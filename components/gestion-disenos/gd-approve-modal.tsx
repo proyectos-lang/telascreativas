@@ -13,9 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, XCircle } from "lucide-react"
+import { CheckCircle, XCircle, Expand } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDFileUploader } from "./gd-file-uploader"
+import { GDImageLightbox } from "./gd-image-lightbox"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
 
 interface GDApproveModalProps {
@@ -30,6 +31,15 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
   const [comentario, setComentario] = useState("")
   const [imagenAprobada, setImagenAprobada] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  const propuestas = gestion.propuestas ?? []
+  const activeProp = propuestas[propuestas.length - 1] ?? null
+  const previewImages = activeProp?.imagenes_propuesta_urls?.length
+    ? activeProp.imagenes_propuesta_urls
+    : activeProp?.imagen_mockup_url
+    ? [activeProp.imagen_mockup_url]
+    : []
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -72,6 +82,24 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Thumbnail strip de la propuesta */}
+          {previewImages.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {previewImages.map((url, i) => (
+                <div
+                  key={i}
+                  className="relative group shrink-0 h-20 w-20 overflow-hidden rounded-lg border border-slate-200 cursor-pointer"
+                  onClick={() => setLightboxSrc(url)}
+                >
+                  <img src={url} alt={`imagen ${i + 1}`} className="h-full w-full object-cover" />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                    <Expand className="size-3.5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <p className="text-sm text-slate-600">
             Esta es la aprobación definitiva. Si apruebas, el diseñador procederá a entregar los archivos finales.
           </p>
@@ -160,6 +188,10 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+      )}
     </Dialog>
   )
 }
