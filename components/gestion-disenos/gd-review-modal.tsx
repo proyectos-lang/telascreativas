@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, XCircle, Loader2, User } from "lucide-react"
+import { CheckCircle, Expand, XCircle, Loader2, User } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
+import { GDImageLightbox } from "./gd-image-lightbox"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
 
 const supabase = createClient(
@@ -39,6 +40,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
   const [decision, setDecision] = useState<"aceptar" | "rechazar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const [loading, setLoading] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   const [disenadores, setDisenadores] = useState<Disenador[]>([])
   const [loadingDis, setLoadingDis] = useState(false)
@@ -113,9 +115,19 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
     }
   }
 
+  const imageGroups = [
+    { label: "Prototipo de prenda", urls: gestion.urls_prototipo_prenda },
+    { label: "Prototipo segunda", urls: gestion.urls_prototipo_segunda },
+    { label: "Diseño base", urls: gestion.urls_diseno_base },
+    { label: "Imágenes / símbolos", urls: gestion.urls_imagenes_simbolos },
+    { label: "Referencia a recrear", urls: gestion.urls_recreacion },
+  ].filter((g) => g.urls && g.urls.length > 0)
+
+  const allImages = imageGroups.flatMap((g) => g.urls as string[])
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Revisar Esquemático</DialogTitle>
           <DialogDescription>
@@ -124,6 +136,37 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Galería de imágenes del esquemático */}
+          {imageGroups.length > 0 && (
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Imágenes del esquemático ({allImages.length})
+              </p>
+              {imageGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-1.5 text-[11px] font-medium text-slate-500">{group.label}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(group.urls as string[]).map((url, i) => (
+                      <div
+                        key={i}
+                        className="group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white"
+                        onClick={() => setLightboxSrc(url)}
+                      >
+                        <img
+                          src={url}
+                          alt={`${group.label} ${i + 1}`}
+                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
+                          <Expand className="size-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex gap-3">
             <button
               type="button"
@@ -222,6 +265,10 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+      )}
     </Dialog>
   )
 }
