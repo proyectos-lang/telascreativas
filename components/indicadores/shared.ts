@@ -79,6 +79,24 @@ export interface KpiLeadTimeRow extends Periodo {
   cola_costura_a_empaque: number | null
 }
 
+export interface LtHistoricoRow {
+  pedido: string
+  cliente: string | null
+  es_urgente: boolean | null
+  estilo_de_la_prenda: string | null
+  vendedora: string | null
+  tipo_flujo_especial: string | null
+  fecha_de_ingreso: string | null
+  pcs: number | null
+  ano: number
+  mes: number
+  dias_en_diseno: number | null
+  dias_en_corte: number | null
+  dias_en_impresion: number | null
+  dias_en_sublimacion: number | null
+  dias_en_costura: number | null
+}
+
 export interface KpiReprocesoRow extends Periodo {
   area_responsable: string | null
   total_piezas_entregadas: number | null

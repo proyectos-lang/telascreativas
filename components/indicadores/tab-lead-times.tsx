@@ -36,6 +36,7 @@ import {
   fmtDias,
   num,
 } from "./shared"
+import { LeadTimesHistorico } from "./lead-times-historico"
 
 interface Props {
   rows: KpiLeadTimeRow[]
@@ -460,6 +461,16 @@ export function TabLeadTimes({ rows }: Props) {
           </TableBody>
         </Table>
       </Card>
+      {/* ── Análisis Histórico ── */}
+      <div className="flex items-center gap-3 pt-2">
+        <div className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Análisis Histórico de Tiempos por Área
+        </span>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <LeadTimesHistorico />
     </div>
   )
 }
