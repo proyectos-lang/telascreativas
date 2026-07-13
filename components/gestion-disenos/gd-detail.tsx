@@ -39,6 +39,7 @@ import { GDReassignModal } from "./gd-reassign-modal"
 import { GDImageLightbox } from "./gd-image-lightbox"
 import { GDWatermarkImage } from "./gd-watermark-image"
 import { useGD } from "@/lib/gestion-disenos-context"
+import { toast } from "sonner"
 
 interface GDDetailProps {
   gestion: GestionDiseno
@@ -74,7 +75,14 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   const { esVentas, esDiseno, esAdmin } = usuarioRol
 
   const handleSaveEdit = async () => {
-    await updateSolicitud(gestion.id, editData)
+    // Excluir propuestas: viene del join y no es columna real en gestion_disenos.
+    // Enviarlo causaba un error silencioso en Supabase que impedía el guardado.
+    const { propuestas: _p, ...dataToSave } = editData as GestionDiseno
+    const res = await updateSolicitud(gestion.id, dataToSave)
+    if (!res.success) {
+      toast.error("Error al guardar el esquemático", { description: res.error })
+      return
+    }
     setIsEditing(false)
   }
 
