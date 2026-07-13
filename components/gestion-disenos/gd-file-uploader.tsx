@@ -1,11 +1,12 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Upload, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Upload, X, FileText, Image as ImageIcon, Loader2, Expand } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGD } from "@/lib/gestion-disenos-context"
+import { GDImageLightbox } from "./gd-image-lightbox"
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -49,6 +50,7 @@ export function GDFileUploader({
   const { uploadFile } = useGD()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   const handleFiles = async (files: FileList) => {
     const remaining = maxFiles - value.length
@@ -105,10 +107,19 @@ export function GDFileUploader({
         {value.map((url) => (
           <div
             key={url}
-            className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+            className={cn(
+              "group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50",
+              isImage(url) && "cursor-pointer"
+            )}
+            onClick={() => isImage(url) && setLightboxSrc(url)}
           >
             {isImage(url) ? (
-              <img src={url} alt="prototipo" className="h-full w-full object-cover" />
+              <>
+                <img src={url} alt="prototipo" className="h-full w-full object-cover" />
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                  <Expand className="size-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center gap-1">
                 {fileIcon(url)}
@@ -120,7 +131,7 @@ export function GDFileUploader({
             {!disabled && (
               <button
                 type="button"
-                onClick={() => removeFile(url)}
+                onClick={(e) => { e.stopPropagation(); removeFile(url) }}
                 className="absolute right-0.5 top-0.5 hidden rounded-full bg-red-500 p-0.5 text-white group-hover:flex"
               >
                 <X className="size-2.5" />
@@ -159,6 +170,10 @@ export function GDFileUploader({
         className="hidden"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
       />
+
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   )
 }
