@@ -8,6 +8,7 @@ import { useCostura } from "@/lib/costura-context"
 import { CosturaReceiveModal } from "./costura-receive-modal"
 import { CosturaFinishModal } from "./costura-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +49,7 @@ import {
   TrendingUp,
   PackageCheck,
   CheckCheck,
+  RotateCcw,
 } from "lucide-react"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -93,6 +95,7 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
   const { updateOrden } = useCostura()
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
   const [detallesLoading, setDetallesLoading] = useState(true)
   const [detallesError, setDetallesError] = useState<string | null>(null)
@@ -197,6 +200,27 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
         description:
           result.error || "No se pudo marcar la costura como terminada.",
       })
+    }
+  }
+
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      coseta_costura: null,
+      cosproceso_maquilado: null,
+      cosfecha_recepcion_maquilador: null,
+      cosnovedad_de_costura: null,
+      coscantidad_costurada: null,
+      cosmotivo_demora_recibido_cs: null,
+      coscomentario_costura: null,
+      cosmotivo_demora_terminado_cs: null,
+      coscomentario_entrega_cs: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Costura de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
     }
   }
 
@@ -437,6 +461,17 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar
           </Button>
+          {isCosturaFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReversarModal(true)}
+              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reversar entrega
+            </Button>
+          )}
         </div>
       </div>
 
@@ -887,6 +922,13 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Costura"
       />
     </div>
   )

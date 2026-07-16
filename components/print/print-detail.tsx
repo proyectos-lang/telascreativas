@@ -8,6 +8,7 @@ import { usePrint } from "@/lib/print-context"
 import { PrintReceiveModal } from "./print-receive-modal"
 import { PrintFinishModal } from "./print-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,7 @@ import {
   Scissors,
   Sparkles,
   Eye,
+  RotateCcw,
 } from "lucide-react"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -87,6 +89,7 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
   const { updateOrden } = usePrint()
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
   const [detallesLoading, setDetallesLoading] = useState(true)
   const [detallesError, setDetallesError] = useState<string | null>(null)
@@ -162,6 +165,29 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
         description:
           result.error || "No se pudo marcar la impresion como entregada.",
       })
+    }
+  }
+
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      ientrega_impresion: null,
+      icodigo_patron: null,
+      iimpresora: null,
+      iperfil_de_impresion: null,
+      inombre_del_soporte_impresoras: null,
+      ipapel: null,
+      icantidad_de_la_orden: null,
+      iinches: null,
+      iyardas_impresion: null,
+      imotivo_demora_terminado_i: null,
+      icomentario_entrega_i: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Impresión de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
     }
   }
 
@@ -284,6 +310,17 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar
           </Button>
+          {isPrintFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReversarModal(true)}
+              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reversar entrega
+            </Button>
+          )}
         </div>
       </div>
 
@@ -624,6 +661,13 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Impresión"
       />
     </div>
   )

@@ -10,6 +10,7 @@ import { SublimationReceiveModal } from "./sublimation-receive-modal"
 import { SublimationFinishModal } from "./sublimation-finish-modal"
 import { SublimationPartialDeliveryModal } from "./sublimation-partial-delivery-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +59,7 @@ import {
   TrendingUp,
   UserCircle,
   Zap,
+  RotateCcw,
 } from "lucide-react"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -127,6 +129,7 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
     usuarioActual?.nombre || usuarioActual?.email || "Desconocido"
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [showPartialModal, setShowPartialModal] = useState(false)
   // Confirmación + flag de envío para "Registrar Entrega Total". Es una
   // acción crítica (cierra todas las cantidades pendientes) por eso usa
@@ -388,6 +391,31 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
         description:
           result.error || "No se pudo marcar la sublimacion como terminada.",
       })
+    }
+  }
+
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      seta_sublimacion: null,
+      stiempo_sublimacion: null,
+      stemperatura: null,
+      svelocidad: null,
+      scantidad_sublimada: null,
+      serrores: null,
+      saprobacion_cliente_si_no: null,
+      smotivo_demora_terminado_s: null,
+      scomentario_entrega_s: null,
+      s_firma_recibe_costura: null,
+      s_estado_entrega: null,
+      s_pcs_entregados_acumulado: null,
+      s_fecha_entrega_parcial: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Sublimación de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
     }
   }
 
@@ -697,6 +725,17 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
             )}
             Terminar
           </Button>
+          {isSublimationFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReversarModal(true)}
+              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reversar entrega
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1127,6 +1166,13 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
         entregasParciales={entregasParciales}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Sublimación"
       />
 
       {/* Confirmación de Entrega Total */}

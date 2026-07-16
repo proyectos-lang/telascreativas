@@ -9,6 +9,7 @@ import { ReceiveModal } from "./receive-modal"
 import { ChangesModal } from "./changes-modal"
 import { FinishModal } from "./finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -41,6 +42,7 @@ import {
   Lock,
   Package,
   UserCircle,
+  RotateCcw,
 } from "lucide-react"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -88,6 +90,7 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showChangesModal, setShowChangesModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
   const [detallesLoading, setDetallesLoading] = useState(true)
   const [detallesError, setDetallesError] = useState<string | null>(null)
@@ -181,6 +184,21 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
     }
   }
 
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      dentrega_diseno: null,
+      dmotivo_demora_terminado_d: null,
+      dnota_terminado_d: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Diseño de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
+    }
+  }
+
   // Calculate design state
   const getDesignStateBadge = () => {
     if (orden.dentrega_diseno) {
@@ -271,6 +289,17 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar
           </Button>
+          {isFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReversarModal(true)}
+              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reversar entrega
+            </Button>
+          )}
         </div>
       </div>
 
@@ -502,6 +531,13 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Diseño"
       />
     </div>
   )

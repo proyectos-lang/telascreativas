@@ -42,9 +42,11 @@ import {
   Image as ImageIcon,
   Scissors,
   Sparkles,
+  RotateCcw,
 } from "lucide-react"
 import { EntregasDeliverModal } from "./entregas-deliver-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -77,6 +79,7 @@ function isPdfUrl(url: string): boolean {
 export function EntregasDetail({ orden, onBack }: EntregasDetailProps) {
   const { updateOrden } = useEntregas()
   const [showDeliverModal, setShowDeliverModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [showSignatureLightbox, setShowSignatureLightbox] = useState(false)
 
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
@@ -153,6 +156,23 @@ export function EntregasDetail({ orden, onBack }: EntregasDetailProps) {
       minute: "2-digit",
       timeZone: "UTC",
     })
+  }
+
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      entregado_cliente_si_no: false,
+      fecha_entrega_cliente: null,
+      comentario_entrega_cliente: null,
+      firma_url: null,
+      guia_envio_url: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega al cliente de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
+    }
   }
 
   const handleDeliver = async (data: Partial<Orden>) => {
@@ -266,6 +286,17 @@ export function EntregasDetail({ orden, onBack }: EntregasDetailProps) {
           >
             <Truck className="mr-1 size-3.5" />
             Registrar Entrega a Cliente
+          </Button>
+        )}
+        {isDelivered && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowReversarModal(true)}
+            className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+          >
+            <RotateCcw className="mr-1 size-3.5" />
+            Reversar entrega
           </Button>
         )}
       </div>
@@ -627,6 +658,13 @@ export function EntregasDetail({ orden, onBack }: EntregasDetailProps) {
         open={showDeliverModal}
         onClose={() => setShowDeliverModal(false)}
         onDeliver={handleDeliver}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Entregas"
       />
 
       {/* Lightbox para firma ampliada */}

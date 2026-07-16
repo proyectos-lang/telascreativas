@@ -23,11 +23,13 @@ import {
   Inbox,
   Lock,
   Scissors,
+  RotateCcw,
 } from "lucide-react"
 import { EmpaqueReceiveModal } from "./empaque-receive-modal"
 import { EmpaqueFinishModal } from "./empaque-finish-modal"
 import { EmpaqueProductsTable } from "./empaque-products-table"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 
@@ -48,6 +50,7 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
   const { updateOrden } = useEmpaque()
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
 
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
   const [detallesLoading, setDetallesLoading] = useState(true)
@@ -182,6 +185,22 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
     }
   }
 
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      efecha_de_empaque: null,
+      emotivo_demora_terminado_e: null,
+      ecomentario_entrega_e: null,
+      e_firma_recibe_vendedora: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Empaque de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
+    }
+  }
+
   // Dynamic labels
   const recibirLabel = hasPacker
     ? "Ya recibido"
@@ -275,6 +294,17 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
             </>
           )}
         </Button>
+        {isPacked && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowReversarModal(true)}
+            className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+          >
+            <RotateCcw className="mr-1 size-3.5" />
+            Reversar entrega
+          </Button>
+        )}
       </div>
 
       {/* Alerts */}
@@ -507,6 +537,13 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Empaque"
       />
     </div>
   )

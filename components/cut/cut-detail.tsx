@@ -8,6 +8,7 @@ import { useCut } from "@/lib/cut-context"
 import { CutReceiveModal } from "./cut-receive-modal"
 import { CutFinishModal } from "./cut-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ import {
   Tag,
   Lock,
   Palette,
+  RotateCcw,
 } from "lucide-react"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -84,6 +86,7 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
   const { updateOrden } = useCut()
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showReversarModal, setShowReversarModal] = useState(false)
   const [detalles, setDetalles] = useState<DetalleOrden[]>([])
   const [detallesLoading, setDetallesLoading] = useState(true)
   const [detallesError, setDetallesError] = useState<string | null>(null)
@@ -159,6 +162,26 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
         description:
           result.error || "No se pudo marcar el corte como terminado.",
       })
+    }
+  }
+
+  const handleReversar = async () => {
+    const result = await updateOrden(orden.pedido, {
+      cfecha_de_corte: null,
+      csemana_de_corte: null,
+      ctiempo_en_corte: null,
+      cpiezas_cortadas: null,
+      cpiezas_malas_o_errores: null,
+      cyardas: null,
+      cmotivo_demora_terminado_c: null,
+      ccomentario_corte: null,
+    } as unknown as Partial<Orden>)
+    if (result.success) {
+      toast.success("Entrega reversada", {
+        description: `La entrega de Corte de ${orden.pedido} fue reversada.`,
+      })
+    } else {
+      toast.error("Error al reversar", { description: result.error })
     }
   }
 
@@ -300,6 +323,17 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar
           </Button>
+          {isCutFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReversarModal(true)}
+              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-sm"
+            >
+              <RotateCcw className="mr-1 size-3.5" />
+              Reversar entrega
+            </Button>
+          )}
         </div>
       </div>
 
@@ -539,6 +573,13 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+      />
+
+      <ReversarEntregaModal
+        open={showReversarModal}
+        onClose={() => setShowReversarModal(false)}
+        onConfirm={handleReversar}
+        modulo="Corte"
       />
     </div>
   )
