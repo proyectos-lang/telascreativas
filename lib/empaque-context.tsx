@@ -9,6 +9,7 @@ import {
 } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -38,10 +39,9 @@ export function EmpaqueProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const { data, error: supabaseError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      const { data, error: supabaseError } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("cabecera").select("*").range(from, to)
+      )
 
 
 

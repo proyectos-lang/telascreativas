@@ -9,6 +9,7 @@ import {
 } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -45,10 +46,9 @@ export function EntregasProvider({ children }: { children: ReactNode }) {
       // PERO las ordenes YARDAJE sin costura (costura_si_no = false) NO pasan
       // por Costura ni Empaque: van directo de Sublimacion a Entregas. Por eso
       // se traen todas las ordenes y se filtra del lado del cliente.
-      const { data, error: supabaseError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      const { data, error: supabaseError } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("cabecera").select("*").range(from, to)
+      )
 
       console.log("[v0] Entregas - Datos de Supabase:", data)
       console.log("[v0] Entregas - Error de Supabase:", supabaseError)

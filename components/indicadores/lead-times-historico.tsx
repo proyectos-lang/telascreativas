@@ -41,6 +41,7 @@ import {
 import { ChevronDown, ChevronUp, Clock, RotateCcw, TrendingUp, X } from "lucide-react"
 import { KpiCard } from "./kpi-card"
 import { supabase, PALETA, fmtDias, fmtDec, type LtHistoricoRow } from "./shared"
+import { fetchAll } from "@/lib/fetch-all"
 
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -89,23 +90,23 @@ export function LeadTimesHistorico() {
   const [tablaSort, setTablaSort] = useState<SortState | null>(null)
 
   useEffect(() => {
-    setIsLoading(true)
-    supabase
-      .schema("telas")
-      .from("vista_lead_times_historico")
-      .select("*")
-      .then(({ data, error }) => {
-        if (!error && data) {
-          const rows = data as LtHistoricoRow[]
-          setAllRows(rows)
-          const anos = [...new Set(rows.map(r => r.ano).filter(Boolean))].sort((a, b) => a - b)
-          if (anos.length > 0) {
-            setAnoDesde(Math.max(CURRENT_YEAR - 1, anos[0]))
-            setAnoHasta(anos[anos.length - 1])
-          }
+    const load = async () => {
+      setIsLoading(true)
+      const { data, error } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("vista_lead_times_historico").select("*").range(from, to)
+      )
+      if (!error && data) {
+        const rows = data as LtHistoricoRow[]
+        setAllRows(rows)
+        const anos = [...new Set(rows.map(r => r.ano).filter(Boolean))].sort((a, b) => a - b)
+        if (anos.length > 0) {
+          setAnoDesde(Math.max(CURRENT_YEAR - 1, anos[0]))
+          setAnoHasta(anos[anos.length - 1])
         }
-        setIsLoading(false)
-      })
+      }
+      setIsLoading(false)
+    }
+    load()
   }, [])
 
   const uniqueAnos = useMemo(() => {

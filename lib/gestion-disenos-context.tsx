@@ -18,6 +18,7 @@ import type {
   EstadoTurno,
 } from "@/lib/gestion-disenos-types"
 import { useAuth } from "@/lib/auth-context"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -84,11 +85,14 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error: dbError } = await supabase
-        .schema("telas")
-        .from("gestion_disenos")
-        .select("*, propuestas:gestion_disenos_propuestas(*)")
-        .order("fecha_creacion", { ascending: false })
+      const { data, error: dbError } = await fetchAll((from, to) =>
+        supabase
+          .schema("telas")
+          .from("gestion_disenos")
+          .select("*, propuestas:gestion_disenos_propuestas(*)")
+          .order("fecha_creacion", { ascending: false })
+          .range(from, to)
+      )
 
       if (dbError) {
         setError(dbError.message)

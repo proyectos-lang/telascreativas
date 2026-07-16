@@ -9,6 +9,7 @@ import {
 } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -40,10 +41,9 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     try {
       // No filtramos solo_corte_costura en el query: cualquier orden
       // aprobada debe ser visible en Impresion.
-      const { data, error: supabaseError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      const { data, error: supabaseError } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("cabecera").select("*").range(from, to)
+      )
 
       if (supabaseError) {
         setError(supabaseError.message)

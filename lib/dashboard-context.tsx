@@ -14,6 +14,7 @@ import type {
   StatusArea,
   NivelRiesgo,
 } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -133,10 +134,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const { data, error: qError } = await supabase
-        .schema("telas")
-        .from("vista_control_produccion")
-        .select("*")
+      const { data, error: qError } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("vista_control_produccion").select("*").range(from, to)
+      )
 
       console.log("[v0] Dashboard - rows:", data?.length, "error:", qError)
 
