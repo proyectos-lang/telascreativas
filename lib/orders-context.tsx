@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "./types"
+import { fetchAll } from "@/lib/fetch-all"
 
 // Inicializacion explicita del cliente Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -34,10 +35,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const { data, error: supabaseError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      const { data, error: supabaseError } = await fetchAll((from, to) =>
+        supabase.schema("telas").from("cabecera").select("*").range(from, to)
+      )
 
       if (supabaseError) {
         setError(supabaseError.message)
