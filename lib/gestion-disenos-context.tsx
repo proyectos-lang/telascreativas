@@ -71,6 +71,34 @@ interface GDContextType {
 
 const GDContext = createContext<GDContextType | undefined>(undefined)
 
+function showBrowserNotification(
+  numero: string,
+  cliente: string,
+  estado: string,
+  turno: string
+) {
+  if (typeof window === "undefined" || !("Notification" in window)) return
+  if (Notification.permission !== "granted") return
+
+  const title = `Diseño ${numero} — ${cliente}`
+  const options = {
+    body: `${estado} · ${turno}`,
+    icon: "/icon.svg",
+    badge: "/icon-light-32x32.png",
+    tag: `gd-${numero}`,
+    renotify: true,
+    data: { url: "/" },
+  } as NotificationOptions
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification(title, options))
+      .catch(() => new Notification(title, options))
+  } else {
+    new Notification(title, options)
+  }
+}
+
 export function GestionDisenosProvider({ children }: { children: ReactNode }) {
   const [solicitudes, setSolicitudes] = useState<GestionDiseno[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -154,6 +182,12 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
                 timestamp: Date.now(),
               },
             ])
+            showBrowserNotification(
+              updated.numero,
+              updated.cliente,
+              updated.estado,
+              updated.estado_turno
+            )
           }
         }
       )

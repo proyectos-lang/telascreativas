@@ -22,6 +22,7 @@ import { GDAdminCatalogo } from "./gd-admin-catalogo"
 import { GDSchematicForm } from "./gd-schematic-form"
 import { GDDashboard } from "./gd-dashboard"
 import { GDNotificationBanner } from "./gd-notification-banner"
+import { GDPushPermission } from "./gd-push-permission"
 
 type RoleView = "admin" | "ventas" | "diseno"
 
@@ -288,6 +289,7 @@ export function GDContent() {
   if (visibleTabs.length > 1) {
     return (
       <div className="flex flex-col h-full">
+        <GDPushPermission />
         {viewSwitcher}
         <Tabs defaultValue="solicitudes" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="shrink-0">
@@ -382,6 +384,7 @@ export function GDContent() {
 
   return (
     <div className="flex flex-col h-full">
+      <GDPushPermission />
       {viewSwitcher}
       <div className="flex-1 overflow-auto">
         <GDTable
