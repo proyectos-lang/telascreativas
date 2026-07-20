@@ -59,7 +59,11 @@ type Modal =
   | null
 
 export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
-  const { updateSolicitud } = useGD()
+  const { updateSolicitud, solicitudes } = useGD()
+  const sourceDesign = gestion.diseno_base_gd_id
+    ? solicitudes.find((s) => s.id === gestion.diseno_base_gd_id) ?? null
+    : null
+
   const [modal, setModal] = useState<Modal>(null)
   const [selectedProp, setSelectedProp] = useState<GestionDisenoProposal | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -264,6 +268,30 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Esquemático
           </h3>
+          {gestion.tipo_diseno === "Existente" && sourceDesign && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs">
+              <span className="shrink-0 font-medium text-indigo-700">Basado en:</span>
+              <span className="font-mono font-semibold text-indigo-900">{sourceDesign.numero}</span>
+              <span className="truncate text-indigo-600">— {sourceDesign.cliente}</span>
+              <div className="ml-auto flex shrink-0 gap-1">
+                {sourceDesign.color_fondo && (
+                  <div className="size-4 rounded-full border border-slate-200" style={{ backgroundColor: sourceDesign.color_fondo }} />
+                )}
+                {sourceDesign.color_secundario && (
+                  <div className="size-4 rounded-full border border-slate-200" style={{ backgroundColor: sourceDesign.color_secundario }} />
+                )}
+              </div>
+            </div>
+          )}
+          {gestion.tipo_diseno === "Existente" && gestion.cambios_solicitados && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-xs font-semibold text-amber-900">Cambios solicitados</p>
+                <p className="mt-0.5 text-sm text-amber-800">{gestion.cambios_solicitados}</p>
+              </div>
+            </div>
+          )}
           <GDSchematicForm
             initialData={isEditing ? editData : gestion}
             gestId={gestion.id}

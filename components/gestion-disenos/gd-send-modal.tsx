@@ -48,10 +48,11 @@ export function GDSendModal({ gestion, open, onClose }: GDSendModalProps) {
 
   const missingFields: string[] = []
   if (!gestion.tipo_diseno) missingFields.push("Tipo de diseño")
-  if (gestion.tipo_diseno !== "Editable" && !gestion.tematica) missingFields.push("Temática")
+  if (gestion.tipo_diseno !== "Editable" && gestion.tipo_diseno !== "Existente" && !gestion.tematica) missingFields.push("Temática")
   if (!gestion.tipos_prenda?.length) missingFields.push("Tipo de prenda")
-  if (gestion.tipo_diseno !== "Editable" && !gestion.color_fondo) missingFields.push("Color de fondo")
-  if (gestion.tipo_diseno !== "Editable" && !gestion.color_secundario) missingFields.push("Color secundario")
+  if (gestion.tipo_diseno !== "Editable" && gestion.tipo_diseno !== "Existente" && !gestion.color_fondo) missingFields.push("Color de fondo")
+  if (gestion.tipo_diseno !== "Editable" && gestion.tipo_diseno !== "Existente" && !gestion.color_secundario) missingFields.push("Color secundario")
+  if (gestion.tipo_diseno === "Existente" && !gestion.cambios_solicitados?.trim()) missingFields.push("Cambios solicitados")
 
   const canSend = missingFields.length === 0
 

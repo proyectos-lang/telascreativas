@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, X, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, X, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,6 +35,8 @@ interface GDSchematicFormProps {
   gestId?: number
   onChange: (data: FormData) => void
   disabled?: boolean
+  onRequestSourcePicker?: () => void
+  sourceDesignLabel?: string | null
 }
 
 function SectionHeader({
@@ -63,6 +65,8 @@ export function GDSchematicForm({
   gestId,
   onChange,
   disabled,
+  onRequestSourcePicker,
+  sourceDesignLabel,
 }: GDSchematicFormProps) {
   const [data, setData] = useState<FormData>(initialData)
   const [openSections, setOpenSections] = useState({
@@ -99,7 +103,7 @@ export function GDSchematicForm({
           Tipo de Diseño <span className="text-red-500">*</span>
         </Label>
         <div className="flex gap-2">
-          {(["Nuevo", "Recreacion", "Editable"] as TipoDiseno[]).map((t) => (
+          {(["Nuevo", "Recreacion", "Editable", "Existente"] as TipoDiseno[]).map((t) => (
             <button
               key={t}
               type="button"
@@ -117,6 +121,52 @@ export function GDSchematicForm({
           ))}
         </div>
       </div>
+
+      {/* Picker de diseño fuente (solo cuando tipo = Existente y hay callback disponible) */}
+      {data.tipo_diseno === "Existente" && onRequestSourcePicker && (
+        <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+          <p className="flex-1 text-xs text-indigo-800">
+            {sourceDesignLabel ? (
+              <>
+                Fuente:{" "}
+                <span className="font-mono font-semibold">{sourceDesignLabel}</span>
+              </>
+            ) : (
+              <span className="font-medium text-amber-800">
+                Selecciona el diseño fuente para pre-llenar el formulario
+              </span>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={onRequestSourcePicker}
+            className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+          >
+            {sourceDesignLabel ? "Cambiar" : "Seleccionar..."}
+          </button>
+        </div>
+      )}
+
+      {/* Cambios solicitados (campo clave cuando tipo = Existente) */}
+      {data.tipo_diseno === "Existente" && (
+        <div className="space-y-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
+          <Label className="flex items-center gap-1 text-sm font-semibold text-amber-900">
+            <AlertTriangle className="size-3.5" />
+            Cambios solicitados <span className="text-red-500">*</span>
+          </Label>
+          <Textarea
+            placeholder="Describe qué debe modificarse respecto al diseño anterior..."
+            value={data.cambios_solicitados || ""}
+            onChange={(e) => update({ cambios_solicitados: e.target.value })}
+            rows={3}
+            disabled={disabled}
+            className="border-amber-200 bg-white"
+          />
+          <p className="text-xs text-amber-700">
+            Indica claramente qué elementos cambian del diseño original.
+          </p>
+        </div>
+      )}
 
       {/* Temática (Nuevo / Recreacion) */}
       {data.tipo_diseno && data.tipo_diseno !== "Editable" && (

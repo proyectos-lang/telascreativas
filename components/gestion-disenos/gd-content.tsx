@@ -23,6 +23,48 @@ import { GDSchematicForm } from "./gd-schematic-form"
 import { GDDashboard } from "./gd-dashboard"
 import { GDNotificationBanner } from "./gd-notification-banner"
 import { GDPushPermission } from "./gd-push-permission"
+import { GDSourcePicker } from "./gd-source-picker"
+
+function extractSchematicFromSource(source: GestionDiseno): Partial<GestionDiseno> {
+  return {
+    tipo_diseno: "Existente",
+    tematica: source.tematica,
+    tipos_prenda: source.tipos_prenda,
+    tipo_manga: source.tipo_manga,
+    color_fondo: source.color_fondo,
+    color_secundario: source.color_secundario,
+    simbolos_seleccionados: source.simbolos_seleccionados,
+    lleva_logos: source.lleva_logos,
+    cantidad_logos: source.cantidad_logos,
+    posiciones_logos_prenda1: source.posiciones_logos_prenda1,
+    posiciones_logos_prenda2: source.posiciones_logos_prenda2,
+    lleva_patrocinadores: source.lleva_patrocinadores,
+    cantidad_patrocinadores: source.cantidad_patrocinadores,
+    diseno_base: source.diseno_base,
+    imagenes_simbolos: source.imagenes_simbolos,
+    accesorios: source.accesorios,
+    tipografia: source.tipografia,
+    otros_detalles: source.otros_detalles,
+    segunda_prenda_activa: source.segunda_prenda_activa,
+    segunda_prenda_relacion: source.segunda_prenda_relacion,
+    segunda_tipo_prenda: source.segunda_tipo_prenda,
+    segunda_color_fondo: source.segunda_color_fondo,
+    segunda_color_secundario: source.segunda_color_secundario,
+    segunda_simbolos: source.segunda_simbolos,
+    segunda_diseno_base: source.segunda_diseno_base,
+    segunda_imagenes_simbolos: source.segunda_imagenes_simbolos,
+    segunda_posiciones_logos: source.segunda_posiciones_logos,
+    segunda_otros_detalles: source.segunda_otros_detalles,
+    segunda_bolsas: source.segunda_bolsas,
+    urls_prototipo_prenda: source.urls_prototipo_prenda,
+    urls_prototipo_segunda: source.urls_prototipo_segunda,
+    urls_diseno_base: source.urls_diseno_base,
+    urls_imagenes_simbolos: source.urls_imagenes_simbolos,
+    urls_recreacion: source.urls_recreacion,
+    diseno_base_gd_id: source.id,
+    cambios_solicitados: null,
+  }
+}
 
 type RoleView = "admin" | "ventas" | "diseno"
 
@@ -55,6 +97,10 @@ export function GDContent() {
   const [newCliente, setNewCliente] = useState("")
   const [newFormData, setNewFormData] = useState<Partial<GestionDiseno>>({})
   const [saving, setSaving] = useState(false)
+  const [sourceDesign, setSourceDesign] = useState<GestionDiseno | null>(null)
+  const [formKey, setFormKey] = useState(0)
+  const [initialFormData, setInitialFormData] = useState<Partial<GestionDiseno>>({})
+  const [showSourcePicker, setShowSourcePicker] = useState(false)
 
   const effectiveVentas = roleView === "ventas"
   const effectiveDiseno = roleView === "diseno"
@@ -102,6 +148,29 @@ export function GDContent() {
     }
   }
 
+  const handleNewFormChange = (data: Partial<GestionDiseno>) => {
+    setNewFormData(data)
+    if (data.tipo_diseno !== "Existente" && sourceDesign) setSourceDesign(null)
+  }
+
+  const handleSourceSelect = (design: GestionDiseno) => {
+    const schematic = extractSchematicFromSource(design)
+    setSourceDesign(design)
+    setInitialFormData(schematic)
+    setNewFormData(schematic)
+    setNewCliente(design.cliente)
+    setFormKey((k) => k + 1)
+    setShowSourcePicker(false)
+  }
+
+  const resetNewForm = () => {
+    setNewModalOpen(false)
+    setNewCliente("")
+    setNewFormData({})
+    setSourceDesign(null)
+    setInitialFormData({})
+  }
+
   const handleCreate = async () => {
     if (!newCliente.trim()) {
       toast.error("El nombre del cliente es obligatorio")
@@ -134,9 +203,7 @@ export function GDContent() {
       const res = await createSolicitud(payload)
       if (res.success) {
         toast.success("Solicitud creada como Borrador")
-        setNewModalOpen(false)
-        setNewCliente("")
-        setNewFormData({})
+        resetNewForm()
       } else {
         toast.error("Error al crear solicitud", { description: res.error })
       }
@@ -186,11 +253,7 @@ export function GDContent() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setNewModalOpen(false)
-              setNewCliente("")
-              setNewFormData({})
-            }}
+            onClick={resetNewForm}
           >
             <ArrowLeft className="size-4 mr-1" />
             Volver
@@ -217,18 +280,20 @@ export function GDContent() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Esquemático (puedes completarlo después)
             </p>
-            <GDSchematicForm onChange={setNewFormData} />
+            <GDSchematicForm
+              key={formKey}
+              initialData={initialFormData}
+              onChange={handleNewFormChange}
+              onRequestSourcePicker={() => setShowSourcePicker(true)}
+              sourceDesignLabel={sourceDesign?.numero ?? null}
+            />
           </div>
         </div>
 
         <div className="shrink-0 border-t border-slate-100 pt-3 flex justify-end gap-2">
           <Button
             variant="outline"
-            onClick={() => {
-              setNewModalOpen(false)
-              setNewCliente("")
-              setNewFormData({})
-            }}
+            onClick={resetNewForm}
             disabled={saving}
           >
             Cancelar
@@ -241,6 +306,14 @@ export function GDContent() {
             {saving ? "Creando..." : "Crear solicitud"}
           </Button>
         </div>
+
+        <GDSourcePicker
+          open={showSourcePicker}
+          onClose={() => setShowSourcePicker(false)}
+          clienteNombre={newCliente}
+          solicitudes={solicitudes}
+          onSelect={handleSourceSelect}
+        />
       </div>
     )
   }

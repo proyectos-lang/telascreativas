@@ -12,7 +12,7 @@ export type EstadoGD =
 
 export type EstadoTurno = "En Ventas" | "En Diseño" | "En Cliente" | "Finalizado"
 
-export type TipoDiseno = "Nuevo" | "Recreacion" | "Editable"
+export type TipoDiseno = "Nuevo" | "Recreacion" | "Editable" | "Existente"
 
 export type SegundaPrendaRelacion = "Relacionado" | "Diferente"
 
@@ -132,6 +132,8 @@ export interface GestionDiseno {
   urls_diseno_base: string[] | null
   urls_imagenes_simbolos: string[] | null
   urls_recreacion: string[] | null
+  diseno_base_gd_id: number | null
+  cambios_solicitados: string | null
   estado: EstadoGD
   estado_turno: EstadoTurno
   disenador: string | null
