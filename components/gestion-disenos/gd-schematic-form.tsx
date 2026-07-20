@@ -376,6 +376,7 @@ export function GDSchematicForm({
                     onChange={(pos) => update({ posiciones_logos_prenda1: pos })}
                     cantidadLogos={cantLogos}
                     disabled={disabled}
+                    pathPrefix={`${prefix}_logos1`}
                   />
                 </div>
               )}
@@ -479,6 +480,7 @@ export function GDSchematicForm({
                         onChange={(pos) => update({ posiciones_logos_prenda2: pos })}
                         cantidadLogos={cantLogos}
                         disabled={disabled}
+                        pathPrefix={`${prefix}_logos2`}
                       />
                     </div>
                   )}

@@ -1,7 +1,11 @@
 "use client"
 
 import { useRef, useState, useCallback } from "react"
+import { Upload, Loader2, X } from "lucide-react"
+import { toast } from "sonner"
 import { GDGarmentDiagram } from "./gd-garment-diagram"
+import { GDImageLightbox } from "./gd-image-lightbox"
+import { useGD } from "@/lib/gestion-disenos-context"
 import type { LogoPosition } from "@/lib/gestion-disenos-types"
 import { cn } from "@/lib/utils"
 
@@ -11,10 +15,12 @@ interface GDLogoPlacementProps {
   onChange: (positions: LogoPosition[]) => void
   cantidadLogos: number
   disabled?: boolean
+  pathPrefix?: string
 }
 
 const LOGO_COLORS = ["bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500"]
 const LOGO_COLORS_BORDER = ["border-red-600", "border-blue-600", "border-green-600", "border-yellow-600"]
+const LOGO_HEX_BORDER = ["#dc2626", "#2563eb", "#16a34a", "#ca8a04"]
 
 const BASE_SIZE = 28
 
@@ -24,10 +30,15 @@ export function GDLogoPlacement({
   onChange,
   cantidadLogos,
   disabled,
+  pathPrefix,
 }: GDLogoPlacementProps) {
+  const { uploadFile } = useGD()
   const [vista, setVista] = useState<"frontal" | "trasera">("frontal")
   const containerRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<number | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState<number | null>(null)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
 
   const logosForVista = value.filter((p) => p.vista === vista)
   const allLogos = Array.from({ length: cantidadLogos }, (_, i) => i + 1)
@@ -66,6 +77,7 @@ export function GDLogoPlacement({
         vista,
         label: existing?.label,
         size: existing?.size ?? 1,
+        imageUrl: existing?.imageUrl,
       }
       const filtered = value.filter((p) => !(p.logo === logoNum && p.vista === vista))
       onChange([...filtered, newPos])
@@ -103,6 +115,38 @@ export function GDLogoPlacement({
       onChange(updated)
     },
     [value, onChange, vista]
+  )
+
+  const updateLogoImage = useCallback(
+    (logoNum: number, imageUrl: string | undefined) => {
+      const updated = value.map((p) =>
+        p.logo === logoNum && p.vista === vista ? { ...p, imageUrl } : p
+      )
+      onChange(updated)
+    },
+    [value, onChange, vista]
+  )
+
+  const handleLogoImageFile = useCallback(
+    async (logoNum: number, file: File) => {
+      if (!pathPrefix) return
+      setUploadingLogo(logoNum)
+      try {
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+        const path = `${pathPrefix}_logo${logoNum}_${Date.now()}_${safe}`
+        const res = await uploadFile(file, path)
+        if (res.success && res.url) {
+          updateLogoImage(logoNum, res.url)
+        } else {
+          toast.error(`Error al subir imagen del logo ${logoNum}`, { description: res.error })
+        }
+      } finally {
+        setUploadingLogo(null)
+        const ref = fileInputRefs.current[logoNum]
+        if (ref) ref.value = ""
+      }
+    },
+    [pathPrefix, uploadFile, updateLogoImage]
   )
 
   return (
@@ -156,7 +200,7 @@ export function GDLogoPlacement({
             </div>
           )}
 
-          {/* Placed logos: label + size */}
+          {/* Placed logos: image upload + size + label */}
           {logosForVista.length > 0 && (
             <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
@@ -164,6 +208,7 @@ export function GDLogoPlacement({
               </p>
               {logosForVista.map((pos) => {
                 const currentSize = pos.size ?? 1
+                const isUploading = uploadingLogo === pos.logo
                 return (
                   <div
                     key={pos.logo}
@@ -194,6 +239,65 @@ export function GDLogoPlacement({
                         </button>
                       )}
                     </div>
+
+                    {/* Image upload / thumbnail */}
+                    {pos.imageUrl ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setLightboxSrc(pos.imageUrl!)}
+                          className="relative h-10 w-10 overflow-hidden rounded border border-slate-200 bg-slate-50 hover:opacity-80 transition-opacity"
+                          title="Ver imagen del logo"
+                        >
+                          <img
+                            src={pos.imageUrl}
+                            alt={`Logo ${pos.logo}`}
+                            className="h-full w-full object-contain"
+                          />
+                        </button>
+                        {!disabled && (
+                          <button
+                            type="button"
+                            onClick={() => updateLogoImage(pos.logo, undefined)}
+                            title="Quitar imagen"
+                            className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      !disabled && pathPrefix && (
+                        <div>
+                          <button
+                            type="button"
+                            disabled={isUploading}
+                            onClick={() => fileInputRefs.current[pos.logo]?.click()}
+                            className={cn(
+                              "flex h-8 w-full items-center justify-center gap-1.5 rounded border border-dashed border-slate-300 text-[11px] text-slate-500 transition-colors hover:border-indigo-400 hover:text-indigo-600",
+                              isUploading && "cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            {isUploading ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Upload className="size-3" />
+                            )}
+                            {isUploading ? "Subiendo..." : "Imagen del logo"}
+                          </button>
+                          <input
+                            ref={(el) => { fileInputRefs.current[pos.logo] = el }}
+                            type="file"
+                            accept=".png,.jpg,.jpeg,.webp,.ai,.pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) handleLogoImageFile(pos.logo, file)
+                            }}
+                          />
+                        </div>
+                      )
+                    )}
 
                     {/* Size controls */}
                     <div className="flex items-center gap-1">
@@ -278,16 +382,30 @@ export function GDLogoPlacement({
                 }}
                 className="cursor-grab active:cursor-grabbing"
               >
-                <div
-                  className={cn(
-                    "flex h-full w-full items-center justify-center rounded-full border-2 font-bold text-white shadow-md select-none",
-                    LOGO_COLORS[(pos.logo - 1) % 4],
-                    LOGO_COLORS_BORDER[(pos.logo - 1) % 4]
-                  )}
-                  style={{ fontSize: fs }}
-                >
-                  {pos.logo}
-                </div>
+                {pos.imageUrl ? (
+                  <div
+                    className="h-full w-full overflow-hidden rounded-full border-2 shadow-md"
+                    style={{ borderColor: LOGO_HEX_BORDER[(pos.logo - 1) % 4] }}
+                  >
+                    <img
+                      src={pos.imageUrl}
+                      alt={`Logo ${pos.logo}`}
+                      className="h-full w-full object-cover select-none"
+                      draggable={false}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={cn(
+                      "flex h-full w-full items-center justify-center rounded-full border-2 font-bold text-white shadow-md select-none",
+                      LOGO_COLORS[(pos.logo - 1) % 4],
+                      LOGO_COLORS_BORDER[(pos.logo - 1) % 4]
+                    )}
+                    style={{ fontSize: fs }}
+                  >
+                    {pos.logo}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -297,6 +415,10 @@ export function GDLogoPlacement({
           </p>
         </div>
       </div>
+
+      {lightboxSrc && (
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   )
 }

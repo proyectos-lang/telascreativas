@@ -30,6 +30,7 @@ export interface LogoPosition {
   vista: "frontal" | "trasera"
   label?: string
   size?: number  // scale multiplier 0.5–3.0, default 1.0
+  imageUrl?: string
 }
 
 export interface CatalogoPrenda {
