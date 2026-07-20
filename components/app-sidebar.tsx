@@ -33,6 +33,7 @@ import {
   Brush,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
+import { useGD } from "@/lib/gestion-disenos-context"
 
 export type ActiveView =
   | "dashboard"
@@ -213,6 +214,12 @@ function AuthSidebarFooter() {
 
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const { usuarioActual } = useAuth()
+  const { solicitudes } = useGD()
+
+  // Solicitudes activas (ni Finalizado ni Rechazado) — alimentan el badge.
+  const gdBadgeCount = solicitudes.filter(
+    (s) => s.estado_turno !== "Finalizado" && s.estado !== "Rechazado"
+  ).length
 
   // Solo mostrar los items de menu que el usuario tiene permiso para ver.
   const allowedItems = menuItems.filter((item) =>
@@ -258,7 +265,12 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
                     className="text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-white/15 data-[active=true]:text-white"
                   >
                     <item.icon className={`size-4 ${item.iconColor}`} />
-                    <span>{item.title}</span>
+                    <span className="flex-1">{item.title}</span>
+                    {item.key === "gestion-disenos" && gdBadgeCount > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold leading-none text-white">
+                        {gdBadgeCount > 99 ? "99+" : gdBadgeCount}
+                      </span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
