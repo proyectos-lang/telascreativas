@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Loader2, AlertCircle, ArrowLeft, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,7 +80,7 @@ const ROLE_LABELS: Record<RoleView, string> = {
 }
 
 export function GDContent() {
-  const { solicitudes, isLoading, error, createSolicitud } = useGD()
+  const { solicitudes, isLoading, error, createSolicitud, uploadFile } = useGD()
   const { usuarioActual } = useAuth()
 
   const esVentas = !!usuarioActual?.gd_ventas
@@ -97,6 +97,8 @@ export function GDContent() {
   const [newCliente, setNewCliente] = useState("")
   const [newFormData, setNewFormData] = useState<Partial<GestionDiseno>>({})
   const [saving, setSaving] = useState(false)
+  const [uploadingBase, setUploadingBase] = useState(false)
+  const baseFileInputRef = useRef<HTMLInputElement>(null)
   const [sourceDesign, setSourceDesign] = useState<GestionDiseno | null>(null)
   const [formKey, setFormKey] = useState(0)
   const [initialFormData, setInitialFormData] = useState<Partial<GestionDiseno>>({})
@@ -161,6 +163,32 @@ export function GDContent() {
     setNewCliente(design.cliente)
     setFormKey((k) => k + 1)
     setShowSourcePicker(false)
+  }
+
+  const handleManualBaseFile = async (file: File) => {
+    setUploadingBase(true)
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+      const path = `new_manual_${Date.now()}_${safe}`
+      const res = await uploadFile(file, path)
+      if (!res.success || !res.url) {
+        toast.error("Error al subir el archivo", { description: res.error })
+        return
+      }
+      const newData: Partial<GestionDiseno> = {
+        ...newFormData,
+        tipo_diseno: "Existente",
+        urls_diseno_base: [res.url],
+        diseno_base_gd_id: null,
+      }
+      setSourceDesign(null)
+      setInitialFormData(newData)
+      setNewFormData(newData)
+      setFormKey((k) => k + 1)
+      toast.success("Archivo subido como base del diseño")
+    } finally {
+      setUploadingBase(false)
+    }
   }
 
   const resetNewForm = () => {
@@ -286,6 +314,8 @@ export function GDContent() {
               onChange={handleNewFormChange}
               onRequestSourcePicker={() => setShowSourcePicker(true)}
               sourceDesignLabel={sourceDesign?.numero ?? null}
+              onRequestManualUpload={() => baseFileInputRef.current?.click()}
+              uploadingBase={uploadingBase}
             />
           </div>
         </div>
@@ -307,6 +337,17 @@ export function GDContent() {
           </Button>
         </div>
 
+        <input
+          ref={baseFileInputRef}
+          type="file"
+          accept="image/*,.pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handleManualBaseFile(file)
+            e.target.value = ""
+          }}
+        />
         <GDSourcePicker
           open={showSourcePicker}
           onClose={() => setShowSourcePicker(false)}

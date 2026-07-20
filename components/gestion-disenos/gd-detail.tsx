@@ -268,6 +268,25 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Esquemático
           </h3>
+          {gestion.tipo_diseno === "Existente" && !sourceDesign && !!gestion.urls_diseno_base?.length && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs">
+              <span className="shrink-0 font-medium text-violet-700">Diseño base:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {gestion.urls_diseno_base.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-violet-700 underline underline-offset-2 hover:text-violet-900"
+                  >
+                    Archivo {gestion.urls_diseno_base!.length > 1 ? i + 1 : "subido"}
+                  </a>
+                ))}
+              </div>
+              <span className="ml-auto shrink-0 text-violet-400">subido manualmente</span>
+            </div>
+          )}
           {gestion.tipo_diseno === "Existente" && sourceDesign && (
             <div className="mb-3 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs">
               <span className="shrink-0 font-medium text-indigo-700">Basado en:</span>
