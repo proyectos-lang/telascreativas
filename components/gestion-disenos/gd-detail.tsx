@@ -17,9 +17,12 @@ import {
   AlertTriangle,
   UserCog,
   Expand,
+  Package,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { GestionDiseno, GestionDisenoProposal } from "@/lib/gestion-disenos-types"
@@ -163,6 +166,12 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
               >
                 {gestion.estado_turno}
               </Badge>
+              {gestion.pedido_vinculado && (
+                <div className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-mono font-semibold text-slate-700">
+                  <Package className="size-3 text-slate-500" />
+                  {gestion.pedido_vinculado}
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
               {gestion.vendedora}
@@ -170,6 +179,29 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
               {" · "}
               {format(new Date(gestion.fecha_creacion), "dd MMM yyyy", { locale: es })}
             </p>
+            {/* Edición de pedido vinculado (solo ventas/admin en modo edición) */}
+            {isEditing && (esVentas || esAdmin) && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <Label className="text-xs text-slate-500 shrink-0">Pedido:</Label>
+                <Input
+                  value={editData.pedido_vinculado?.replace(/^0+/, "") ?? ""}
+                  onChange={(e) =>
+                    setEditData((d) => ({
+                      ...d,
+                      pedido_vinculado: e.target.value.replace(/\D/g, "")
+                        ? e.target.value.replace(/\D/g, "").padStart(8, "0")
+                        : null,
+                    }))
+                  }
+                  placeholder="Sin pedido"
+                  className="h-7 max-w-[140px] font-mono text-xs"
+                  maxLength={8}
+                />
+                {editData.pedido_vinculado && (
+                  <span className="text-xs font-mono text-slate-400">{editData.pedido_vinculado}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

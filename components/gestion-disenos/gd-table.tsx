@@ -124,7 +124,14 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                   className="cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-3 py-2.5">
-                    <span className="font-mono font-semibold text-indigo-700">{s.numero}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-mono font-semibold text-indigo-700">{s.numero}</span>
+                      {s.pedido_vinculado && (
+                        <span className="font-mono text-[10px] text-slate-400">
+                          Ped. {s.pedido_vinculado}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5">
                     <p className="font-medium text-slate-800 truncate max-w-32">{s.cliente}</p>

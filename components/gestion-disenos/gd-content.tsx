@@ -1,18 +1,13 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Loader2, AlertCircle, ArrowLeft, Lock } from "lucide-react"
+import { Loader2, AlertCircle, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { useAuth } from "@/lib/auth-context"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
@@ -68,11 +63,6 @@ function extractSchematicFromSource(source: GestionDiseno): Partial<GestionDisen
 
 type RoleView = "admin" | "ventas" | "diseno"
 
-const ROLE_PASSWORDS: Record<"ventas" | "diseno", string> = {
-  ventas: "Vendedora123",
-  diseno: "Disenador123",
-}
-
 const ROLE_LABELS: Record<RoleView, string> = {
   admin: "Admin",
   ventas: "Vendedora",
@@ -87,10 +77,13 @@ export function GDContent() {
   const esDiseno = !!usuarioActual?.gd_diseno
   const esAdmin = !!usuarioActual?.gd_admin
 
-  const [roleView, setRoleView] = useState<RoleView>("admin")
-  const [passwordModalFor, setPasswordModalFor] = useState<"ventas" | "diseno" | null>(null)
-  const [passwordInput, setPasswordInput] = useState("")
-  const [passwordError, setPasswordError] = useState("")
+  // Auto-detect role from user flags — no password required
+  const [roleView, setRoleView] = useState<RoleView>(() => {
+    if (esAdmin) return "admin"
+    if (esDiseno) return "diseno"
+    if (esVentas) return "ventas"
+    return "admin"
+  })
 
   const [selected, setSelected] = useState<GestionDiseno | null>(null)
   const [newModalOpen, setNewModalOpen] = useState(false)
@@ -103,6 +96,8 @@ export function GDContent() {
   const [formKey, setFormKey] = useState(0)
   const [initialFormData, setInitialFormData] = useState<Partial<GestionDiseno>>({})
   const [showSourcePicker, setShowSourcePicker] = useState(false)
+  const [tienePedido, setTienePedido] = useState(false)
+  const [numeroPedidoInput, setNumeroPedidoInput] = useState("")
 
   const effectiveVentas = roleView === "ventas"
   const effectiveDiseno = roleView === "diseno"
@@ -114,8 +109,12 @@ export function GDContent() {
       ? { esVentas: true, esDiseno: false, esAdmin: false }
       : { esVentas: false, esDiseno: true, esAdmin: false }
 
-  // All views see all solicitudes — the difference is in available action buttons (usuarioRol)
-  const solicitudesFiltradas = solicitudes
+  // Filter by effective role: vendedoras see only their own, designers only their assigned
+  const solicitudesFiltradas = effectiveAdmin
+    ? solicitudes
+    : effectiveVentas
+    ? solicitudes.filter((s) => s.vendedora === usuarioActual?.nombre)
+    : solicitudes.filter((s) => s.disenador === usuarioActual?.nombre)
 
   const selectedLive = selected
     ? solicitudes.find((s) => s.id === selected.id) ?? selected
@@ -129,25 +128,6 @@ export function GDContent() {
   const switchView = (view: RoleView) => {
     setRoleView(view)
     setSelected(null)
-  }
-
-  const openPasswordModal = (role: "ventas" | "diseno") => {
-    if (roleView === role) return
-    setPasswordModalFor(role)
-    setPasswordInput("")
-    setPasswordError("")
-  }
-
-  const handlePasswordSubmit = () => {
-    if (!passwordModalFor) return
-    if (passwordInput === ROLE_PASSWORDS[passwordModalFor]) {
-      switchView(passwordModalFor)
-      setPasswordModalFor(null)
-      setPasswordInput("")
-      setPasswordError("")
-    } else {
-      setPasswordError("Contraseña incorrecta")
-    }
   }
 
   const handleNewFormChange = (data: Partial<GestionDiseno>) => {
@@ -197,6 +177,8 @@ export function GDContent() {
     setNewFormData({})
     setSourceDesign(null)
     setInitialFormData({})
+    setTienePedido(false)
+    setNumeroPedidoInput("")
   }
 
   const handleCreate = async () => {
@@ -221,7 +203,10 @@ export function GDContent() {
         imagen_aprobada_url: null,
         comentario_aprobacion: null,
         fecha_aprobacion: null,
-        pedido_vinculado: null,
+        pedido_vinculado:
+          tienePedido && numeroPedidoInput.trim()
+            ? numeroPedidoInput.trim().padStart(8, "0")
+            : null,
         segunda_prenda_activa: newFormData.segunda_prenda_activa ?? false,
         lleva_logos: newFormData.lleva_logos ?? false,
         lleva_patrocinadores: newFormData.lleva_patrocinadores ?? false,
@@ -278,11 +263,7 @@ export function GDContent() {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mb-4 shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetNewForm}
-          >
+          <Button variant="ghost" size="sm" onClick={resetNewForm}>
             <ArrowLeft className="size-4 mr-1" />
             Volver
           </Button>
@@ -292,6 +273,7 @@ export function GDContent() {
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          {/* Cliente */}
           <div className="space-y-1.5">
             <Label className="text-sm font-semibold">
               Cliente <span className="text-red-500">*</span>
@@ -304,6 +286,45 @@ export function GDContent() {
             />
           </div>
 
+          {/* Pedido vinculado */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="tiene-pedido"
+                checked={tienePedido}
+                onCheckedChange={(v) => {
+                  setTienePedido(!!v)
+                  if (!v) setNumeroPedidoInput("")
+                }}
+              />
+              <Label htmlFor="tiene-pedido" className="text-sm cursor-pointer">
+                ¿Tiene pedido asociado?
+              </Label>
+            </div>
+            {tienePedido && (
+              <div className="space-y-1.5 pl-6">
+                <Label className="text-sm font-medium">
+                  Número de pedido <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={numeroPedidoInput}
+                    onChange={(e) => setNumeroPedidoInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Ej: 1458"
+                    className="max-w-[160px] font-mono"
+                    maxLength={8}
+                  />
+                  {numeroPedidoInput && (
+                    <span className="text-xs font-mono text-slate-500">
+                      → {numeroPedidoInput.padStart(8, "0")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Esquemático */}
           <div className="border-t border-slate-100 pt-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Esquemático (puedes completarlo después)
@@ -321,16 +342,12 @@ export function GDContent() {
         </div>
 
         <div className="shrink-0 border-t border-slate-100 pt-3 flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={resetNewForm}
-            disabled={saving}
-          >
+          <Button variant="outline" onClick={resetNewForm} disabled={saving}>
             Cancelar
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={saving || !newCliente.trim()}
+            disabled={saving || !newCliente.trim() || (tienePedido && !numeroPedidoInput.trim())}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             {saving ? "Creando..." : "Crear solicitud"}
@@ -359,20 +376,15 @@ export function GDContent() {
     )
   }
 
-  // View switcher bar
-  const viewSwitcher = (
+  // View switcher — only visible for admins; they can toggle freely
+  const viewSwitcher = esAdmin ? (
     <div className="flex items-center gap-1 mb-3 p-1 bg-slate-50 rounded-lg border border-slate-200 w-fit shrink-0 text-xs">
-      <span className="flex items-center gap-1 px-2 text-slate-400 font-medium">
-        <Lock className="size-3" />
-        Vista:
-      </span>
+      <span className="px-2 text-slate-400 font-medium">Vista:</span>
       {(["admin", "ventas", "diseno"] as RoleView[]).map((v) => (
         <button
           key={v}
           type="button"
-          onClick={() =>
-            v === "admin" ? switchView("admin") : openPasswordModal(v as "ventas" | "diseno")
-          }
+          onClick={() => switchView(v)}
           className={`rounded px-2.5 py-1 font-medium transition-colors ${
             roleView === v
               ? "bg-indigo-600 text-white shadow-sm"
@@ -383,7 +395,7 @@ export function GDContent() {
         </button>
       ))}
     </div>
-  )
+  ) : null
 
   const canCreate = effectiveAdmin
     ? esVentas || esAdmin
@@ -433,65 +445,6 @@ export function GDContent() {
         </Tabs>
 
         <GDNotificationBanner onSelectSolicitud={handleSelectFromNotification} />
-
-        {/* Password modal */}
-        <Dialog
-          open={!!passwordModalFor}
-          onOpenChange={(open) => {
-            if (!open) {
-              setPasswordModalFor(null)
-              setPasswordInput("")
-              setPasswordError("")
-            }
-          }}
-        >
-          <DialogContent className="max-w-xs">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Lock className="size-4 text-indigo-600" />
-                Vista {passwordModalFor ? ROLE_LABELS[passwordModalFor] : ""}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <p className="text-sm text-slate-500">Ingresa la contraseña para acceder a esta vista.</p>
-              <Input
-                type="password"
-                placeholder="Contraseña..."
-                value={passwordInput}
-                onChange={(e) => {
-                  setPasswordInput(e.target.value)
-                  setPasswordError("")
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handlePasswordSubmit()}
-                autoFocus
-              />
-              {passwordError && (
-                <p className="text-xs text-red-600">{passwordError}</p>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPasswordModalFor(null)
-                    setPasswordInput("")
-                    setPasswordError("")
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handlePasswordSubmit}
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                  disabled={!passwordInput}
-                >
-                  Entrar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     )
   }
@@ -510,65 +463,6 @@ export function GDContent() {
       </div>
 
       <GDNotificationBanner onSelectSolicitud={handleSelectFromNotification} />
-
-      {/* Password modal */}
-      <Dialog
-        open={!!passwordModalFor}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPasswordModalFor(null)
-            setPasswordInput("")
-            setPasswordError("")
-          }
-        }}
-      >
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="size-4 text-indigo-600" />
-              Vista {passwordModalFor ? ROLE_LABELS[passwordModalFor] : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500">Ingresa la contraseña para acceder a esta vista.</p>
-            <Input
-              type="password"
-              placeholder="Contraseña..."
-              value={passwordInput}
-              onChange={(e) => {
-                setPasswordInput(e.target.value)
-                setPasswordError("")
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handlePasswordSubmit()}
-              autoFocus
-            />
-            {passwordError && (
-              <p className="text-xs text-red-600">{passwordError}</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setPasswordModalFor(null)
-                  setPasswordInput("")
-                  setPasswordError("")
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handlePasswordSubmit}
-                className="bg-indigo-600 hover:bg-indigo-700"
-                disabled={!passwordInput}
-              >
-                Entrar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

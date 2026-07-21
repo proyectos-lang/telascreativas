@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, Expand, XCircle, Loader2, User } from "lucide-react"
+import { CheckCircle, Expand, XCircle, Loader2 } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDImageLightbox } from "./gd-image-lightbox"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
@@ -42,9 +42,8 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
   const [loading, setLoading] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
-  const [disenadores, setDisenadores] = useState<Disenador[]>([])
+  const [autoDisenador, setAutoDisenador] = useState<Disenador | null>(null)
   const [loadingDis, setLoadingDis] = useState(false)
-  const [selectedDis, setSelectedDis] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -66,9 +65,8 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
       }
       const lista: Disenador[] = nombres
         .map((n) => ({ nombre: n, activos: carga.get(n) ?? 0 }))
-        .sort((a, b) => a.activos - b.activos)
-      setDisenadores(lista)
-      if (lista.length > 0) setSelectedDis(lista[0].nombre)
+        .sort((a, b) => a.activos - b.activos || a.nombre.localeCompare(b.nombre, "es"))
+      setAutoDisenador(lista[0] ?? null)
       setLoadingDis(false)
     })
   }, [open])
@@ -78,8 +76,8 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
       toast.error("Indica el motivo del rechazo")
       return
     }
-    if (decision === "aceptar" && !selectedDis) {
-      toast.error("Selecciona un diseñador")
+    if (decision === "aceptar" && !autoDisenador) {
+      toast.error("No hay diseñadores disponibles en el catálogo")
       return
     }
     setLoading(true)
@@ -89,7 +87,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           ? {
               estado: "En Progreso",
               estado_turno: "En Diseño",
-              disenador: selectedDis,
+              disenador: autoDisenador!.nombre,
               fecha_asignacion: new Date().toISOString(),
             }
           : {
@@ -103,7 +101,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
         toast.success(decision === "aceptar" ? "Esquemático aceptado" : "Esquemático devuelto a Ventas", {
           description:
             decision === "aceptar"
-              ? `Asignado a ${selectedDis}. El diseño está En Progreso.`
+              ? `Asignado a ${autoDisenador!.nombre}. El diseño está En Progreso.`
               : "Se notificó a Ventas con los comentarios de corrección.",
         })
         onClose()
@@ -201,29 +199,21 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
 
           {decision === "aceptar" && (
             <div className="space-y-1.5">
-              <Label className="text-sm flex items-center gap-1">
-                <User className="size-3.5" />
-                Asignar diseñador <span className="text-red-500">*</span>
-              </Label>
               {loadingDis ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
                   <Loader2 className="size-4 animate-spin" />
-                  Cargando diseñadores...
+                  Calculando asignación...
                 </div>
-              ) : disenadores.length === 0 ? (
-                <p className="text-sm text-slate-400">No hay diseñadores disponibles.</p>
+              ) : autoDisenador ? (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5">
+                  <p className="text-xs font-medium text-indigo-600">Se asignará automáticamente a:</p>
+                  <p className="mt-0.5 font-semibold text-indigo-900">{autoDisenador.nombre}</p>
+                  <p className="text-xs text-slate-500">
+                    {autoDisenador.activos} diseño{autoDisenador.activos !== 1 ? "s" : ""} activo{autoDisenador.activos !== 1 ? "s" : ""} — menor carga de trabajo
+                  </p>
+                </div>
               ) : (
-                <select
-                  value={selectedDis}
-                  onChange={(e) => setSelectedDis(e.target.value)}
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {disenadores.map((d, i) => (
-                    <option key={d.nombre} value={d.nombre}>
-                      {d.nombre} ({d.activos} activos){i === 0 ? " — Recomendado" : ""}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-xs text-red-500">No hay diseñadores disponibles en el catálogo.</p>
               )}
             </div>
           )}
@@ -252,7 +242,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
             disabled={
               !decision ||
               loading ||
-              (decision === "aceptar" && (!selectedDis || loadingDis)) ||
+              (decision === "aceptar" && (!autoDisenador || loadingDis)) ||
               (decision === "rechazar" && !motivo.trim())
             }
             className={
