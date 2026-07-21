@@ -43,7 +43,8 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
       s.numero.toLowerCase().includes(q) ||
       s.cliente.toLowerCase().includes(q) ||
       s.vendedora.toLowerCase().includes(q) ||
-      (s.disenador?.toLowerCase().includes(q) ?? false)
+      (s.disenador?.toLowerCase().includes(q) ?? false) ||
+      (s.pedido_vinculado?.includes(q) ?? false)
 
     const matchEstado = estadoFilter === "Todos" || s.estado === estadoFilter
     const matchTurno = turnoFilter === "Todos" || s.estado_turno === turnoFilter
@@ -124,11 +125,11 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                   className="cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-1">
                       <span className="font-mono font-semibold text-indigo-700">{s.numero}</span>
                       {s.pedido_vinculado && (
-                        <span className="font-mono text-[10px] text-slate-400">
-                          Ped. {s.pedido_vinculado}
+                        <span className="inline-flex w-fit items-center rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-800">
+                          {s.pedido_vinculado}
                         </span>
                       )}
                     </div>

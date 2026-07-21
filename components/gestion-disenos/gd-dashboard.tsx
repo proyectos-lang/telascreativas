@@ -123,8 +123,15 @@ export function GDDashboard({ solicitudes, onSelect }: GDDashboardProps) {
                     isAlert && "bg-red-50 hover:bg-red-100"
                   )}
                 >
-                  <td className="px-3 py-2.5 font-mono text-xs font-bold text-indigo-700">
-                    {s.numero}
+                  <td className="px-3 py-2.5">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-mono text-xs font-bold text-indigo-700">{s.numero}</span>
+                      {s.pedido_vinculado && (
+                        <span className="inline-flex w-fit items-center rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-800">
+                          {s.pedido_vinculado}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 font-medium text-slate-700">{s.cliente}</td>
                   <td className="px-3 py-2.5">
