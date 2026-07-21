@@ -28,15 +28,26 @@ interface GDFileUploaderProps {
   disabled?: boolean
 }
 
-function fileIcon(url: string) {
-  const lower = url.toLowerCase()
-  if (lower.endsWith(".pdf")) return <FileText className="size-4 text-red-500" />
-  if (lower.endsWith(".ai")) return <FileText className="size-4 text-orange-500" />
-  return <ImageIcon className="size-4 text-blue-500" />
+function getExt(url: string) {
+  return (url.split("?")[0].split(".").pop() ?? "").toLowerCase()
 }
 
 function isImage(url: string) {
-  return /\.(png|jpg|jpeg|webp)$/i.test(url)
+  return ["png", "jpg", "jpeg", "webp"].includes(getExt(url))
+}
+
+function fileIcon(url: string) {
+  const ext = getExt(url)
+  if (ext === "pdf") return <FileText className="size-4 text-red-500" />
+  if (ext === "ai") return <FileText className="size-4 text-orange-500" />
+  return <ImageIcon className="size-4 text-blue-500" />
+}
+
+function displayName(url: string) {
+  const filename = url.split("?")[0].split("/").pop() ?? ""
+  // Strip upload prefix pattern: anything_13digits_originalname
+  const match = filename.match(/^.+_\d{13}_(.+)$/)
+  return match ? match[1] : filename
 }
 
 export function GDFileUploader({
@@ -121,12 +132,19 @@ export function GDFileUploader({
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-1">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={displayName(url)}
+                onClick={(e) => e.stopPropagation()}
+                className="flex flex-col items-center gap-1 hover:opacity-70"
+              >
                 {fileIcon(url)}
                 <span className="max-w-[56px] truncate text-[9px] text-slate-500">
-                  {url.split("/").pop()}
+                  {displayName(url)}
                 </span>
-              </div>
+              </a>
             )}
             {!disabled && (
               <button
