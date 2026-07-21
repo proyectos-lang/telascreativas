@@ -101,19 +101,20 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
           <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
             <tr>
               <th className="px-3 py-2.5 text-left font-medium">N°</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden sm:table-cell">Pedido</th>
               <th className="px-3 py-2.5 text-left font-medium">Cliente</th>
-              <th className="px-3 py-2.5 text-left font-medium">Tipo</th>
-              <th className="px-3 py-2.5 text-left font-medium hidden sm:table-cell">Vendedora</th>
-              <th className="px-3 py-2.5 text-left font-medium hidden md:table-cell">Diseñador</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden md:table-cell">Tipo</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden lg:table-cell">Vendedora</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden lg:table-cell">Diseñador</th>
               <th className="px-3 py-2.5 text-left font-medium">Estado</th>
-              <th className="px-3 py-2.5 text-left font-medium">Turno</th>
-              <th className="px-3 py-2.5 text-left font-medium hidden lg:table-cell">Fecha</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden sm:table-cell">Turno</th>
+              <th className="px-3 py-2.5 text-left font-medium hidden xl:table-cell">Fecha</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
                   No se encontraron solicitudes
                 </td>
               </tr>
@@ -125,14 +126,16 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                   className="cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-mono font-semibold text-indigo-700">{s.numero}</span>
-                      {s.pedido_vinculado && (
-                        <span className="inline-flex w-fit items-center rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-800">
-                          {s.pedido_vinculado}
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-mono font-semibold text-indigo-700">{s.numero}</span>
+                  </td>
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
+                    {s.pedido_vinculado ? (
+                      <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-800">
+                        {s.pedido_vinculado}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     <p className="font-medium text-slate-800 truncate max-w-32">{s.cliente}</p>
@@ -142,17 +145,17 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2.5 hidden md:table-cell">
                     {s.tipo_diseno ? (
                       <span className="text-xs font-medium text-slate-600">{s.tipo_diseno}</span>
                     ) : (
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 hidden sm:table-cell text-slate-600 text-xs">
+                  <td className="px-3 py-2.5 hidden lg:table-cell text-slate-600 text-xs">
                     {s.vendedora}
                   </td>
-                  <td className="px-3 py-2.5 hidden md:table-cell text-slate-600 text-xs">
+                  <td className="px-3 py-2.5 hidden lg:table-cell text-slate-600 text-xs">
                     {s.disenador ?? <span className="text-slate-300">Sin asignar</span>}
                   </td>
                   <td className="px-3 py-2.5">
@@ -165,7 +168,7 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                       {s.estado}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
                     <span
                       className={cn(
                         "inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap",
@@ -187,7 +190,7 @@ export function GDTable({ solicitudes, onSelect, onNew, canCreate }: GDTableProp
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 hidden lg:table-cell text-xs text-slate-400">
+                  <td className="px-3 py-2.5 hidden xl:table-cell text-xs text-slate-400">
                     {format(new Date(s.fecha_creacion), "dd MMM yy", { locale: es })}
                   </td>
                 </tr>
