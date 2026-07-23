@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useCallback } from "react"
-import { Upload, Loader2, X } from "lucide-react"
+import { Upload, Loader2, X, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { GDGarmentDiagram } from "./gd-garment-diagram"
 import { GDImageLightbox } from "./gd-image-lightbox"
@@ -16,6 +16,11 @@ interface GDLogoPlacementProps {
   cantidadLogos: number
   disabled?: boolean
   pathPrefix?: string
+}
+
+function isImageUrl(url: string) {
+  const ext = (url.split("?")[0].split(".").pop() ?? "").toLowerCase()
+  return ["png", "jpg", "jpeg", "webp"].includes(ext)
 }
 
 const LOGO_COLORS = ["bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500"]
@@ -243,18 +248,30 @@ export function GDLogoPlacement({
                     {/* Image upload / thumbnail */}
                     {pos.imageUrl ? (
                       <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setLightboxSrc(pos.imageUrl!)}
-                          className="relative h-10 w-10 overflow-hidden rounded border border-slate-200 bg-slate-50 hover:opacity-80 transition-opacity"
-                          title="Ver imagen del logo"
-                        >
-                          <img
-                            src={pos.imageUrl}
-                            alt={`Logo ${pos.logo}`}
-                            className="h-full w-full object-contain"
-                          />
-                        </button>
+                        {isImageUrl(pos.imageUrl) ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxSrc(pos.imageUrl!)}
+                            className="relative h-10 w-10 overflow-hidden rounded border border-slate-200 bg-slate-50 hover:opacity-80 transition-opacity"
+                            title="Ver imagen del logo"
+                          >
+                            <img
+                              src={pos.imageUrl}
+                              alt={`Logo ${pos.logo}`}
+                              className="h-full w-full object-contain"
+                            />
+                          </button>
+                        ) : (
+                          <a
+                            href={pos.imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir archivo del logo"
+                            className="flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          >
+                            <FileText className="size-4 text-red-500" />
+                          </a>
+                        )}
                         {!disabled && (
                           <button
                             type="button"
@@ -382,7 +399,7 @@ export function GDLogoPlacement({
                 }}
                 className="cursor-grab active:cursor-grabbing"
               >
-                {pos.imageUrl ? (
+                {pos.imageUrl && isImageUrl(pos.imageUrl) ? (
                   <div
                     className="h-full w-full overflow-hidden rounded-full border-2 shadow-md"
                     style={{ borderColor: LOGO_HEX_BORDER[(pos.logo - 1) % 4] }}

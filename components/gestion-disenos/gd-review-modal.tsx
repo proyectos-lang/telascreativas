@@ -14,10 +14,15 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { CheckCircle, Expand, XCircle, Loader2 } from "lucide-react"
+import { CheckCircle, Expand, XCircle, Loader2, FileText } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDImageLightbox } from "./gd-image-lightbox"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
+
+function isImageUrl(url: string) {
+  const ext = (url.split("?")[0].split(".").pop() ?? "").toLowerCase()
+  return ["png", "jpg", "jpeg", "webp"].includes(ext)
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,7 +134,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
     { label: "Imágenes de logos", urls: logoUrls.length ? logoUrls : undefined },
   ].filter((g) => g.urls && g.urls.length > 0)
 
-  const allImages = imageGroups.flatMap((g) => g.urls as string[])
+  const allFiles = imageGroups.flatMap((g) => g.urls as string[])
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -146,28 +151,44 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           {imageGroups.length > 0 && (
             <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Imágenes del esquemático ({allImages.length})
+                Imágenes del esquemático ({allFiles.length})
               </p>
               {imageGroups.map((group) => (
                 <div key={group.label}>
                   <p className="mb-1.5 text-[11px] font-medium text-slate-500">{group.label}</p>
                   <div className="flex flex-wrap gap-2">
-                    {(group.urls as string[]).map((url, i) => (
-                      <div
-                        key={i}
-                        className="group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white"
-                        onClick={() => setLightboxSrc(url)}
-                      >
-                        <img
-                          src={url}
-                          alt={`${group.label} ${i + 1}`}
-                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        />
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
-                          <Expand className="size-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                    {(group.urls as string[]).map((url, i) =>
+                      isImageUrl(url) ? (
+                        <div
+                          key={i}
+                          className="group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white"
+                          onClick={() => setLightboxSrc(url)}
+                        >
+                          <img
+                            src={url}
+                            alt={`${group.label} ${i + 1}`}
+                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                          />
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
+                            <Expand className="size-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ) : (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors"
+                          title={url.split("/").pop()?.split("?")[0]}
+                        >
+                          <FileText className="size-5 text-red-500" />
+                          <span className="max-w-[68px] truncate text-[9px] text-slate-400">
+                            {(url.split("?")[0].split(".").pop() ?? "").toUpperCase()}
+                          </span>
+                        </a>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
