@@ -48,6 +48,9 @@ interface GDContextType {
     id: number,
     updates: Partial<GestionDiseno>
   ) => Promise<{ success: boolean; error?: string }>
+  deleteSolicitud: (
+    id: number
+  ) => Promise<{ success: boolean; error?: string }>
   addProposal: (
     gestId: number,
     data: Partial<GestionDisenoProposal>
@@ -258,6 +261,25 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
     [fetchSolicitudes]
   )
 
+  const deleteSolicitud = useCallback(
+    async (id: number) => {
+      try {
+        const { error: dbError } = await supabase
+          .schema("telas")
+          .from("gestion_disenos")
+          .delete()
+          .eq("id", id)
+
+        if (dbError) return { success: false, error: dbError.message }
+        await fetchSolicitudes()
+        return { success: true }
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : "Error al eliminar" }
+      }
+    },
+    [fetchSolicitudes]
+  )
+
   const addProposal = useCallback(
     async (gestId: number, data: Partial<GestionDisenoProposal>) => {
       try {
@@ -351,6 +373,7 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
         refreshSolicitudes: fetchSolicitudes,
         createSolicitud,
         updateSolicitud,
+        deleteSolicitud,
         addProposal,
         updateProposal,
         generateClientToken,

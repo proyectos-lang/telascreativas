@@ -18,6 +18,7 @@ import {
   UserCog,
   Expand,
   Package,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +44,16 @@ import { GDImageLightbox } from "./gd-image-lightbox"
 import { GDWatermarkImage } from "./gd-watermark-image"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface GDDetailProps {
   gestion: GestionDiseno
@@ -62,7 +73,7 @@ type Modal =
   | null
 
 export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
-  const { updateSolicitud, solicitudes } = useGD()
+  const { updateSolicitud, deleteSolicitud, solicitudes } = useGD()
   const sourceDesign = gestion.diseno_base_gd_id
     ? solicitudes.find((s) => s.id === gestion.diseno_base_gd_id) ?? null
     : null
@@ -72,6 +83,7 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<GestionDiseno>>(gestion)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const propuestas = gestion.propuestas ?? []
   const activeProp = selectedProp ?? propuestas[propuestas.length - 1] ?? null
@@ -80,6 +92,16 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   const archivosFinalUrls = propuestas.flatMap((p) => p.archivos_finales_urls ?? []).filter(Boolean)
 
   const { esVentas, esDiseno, esAdmin } = usuarioRol
+
+  const handleDelete = async () => {
+    const res = await deleteSolicitud(gestion.id)
+    if (res.success) {
+      toast.success(`Solicitud ${gestion.numero} eliminada`)
+      onBack()
+    } else {
+      toast.error("Error al eliminar", { description: res.error })
+    }
+  }
 
   const handleSaveEdit = async () => {
     // Excluir propuestas: viene del join y no es columna real en gestion_disenos.
@@ -288,6 +310,17 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
             >
               <UserCog className="size-3.5" />
               Reasignar diseñador
+            </Button>
+          )}
+          {esAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="gap-1.5 h-8 border-red-300 text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="size-3.5" />
+              Eliminar
             </Button>
           )}
         </div>
@@ -542,6 +575,26 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
       {lightboxSrc && (
         <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
       )}
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar solicitud {gestion.numero}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminarán también todas las propuestas asociadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

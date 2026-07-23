@@ -9,9 +9,10 @@ interface GDImageLightboxProps {
   src: string
   open: boolean
   onClose: () => void
+  watermark?: boolean
 }
 
-export function GDImageLightbox({ src, open, onClose }: GDImageLightboxProps) {
+export function GDImageLightbox({ src, open, onClose, watermark = true }: GDImageLightboxProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[90vw] max-h-[90vh] w-auto h-auto p-2 overflow-auto bg-black/90 border-none">
@@ -23,12 +24,20 @@ export function GDImageLightbox({ src, open, onClose }: GDImageLightboxProps) {
         >
           <X className="size-4" />
         </Button>
-        <GDWatermarkImage
-          src={src}
-          alt="Vista ampliada"
-          className="rounded-md"
-          fullSize
-        />
+        {watermark ? (
+          <GDWatermarkImage
+            src={src}
+            alt="Vista ampliada"
+            className="rounded-md"
+            fullSize
+          />
+        ) : (
+          <img
+            src={src}
+            alt="Vista ampliada"
+            className="rounded-md max-h-[85vh] max-w-full object-contain"
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

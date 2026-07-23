@@ -113,12 +113,20 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
     }
   }
 
+  const logoUrls: string[] = [
+    ...(gestion.posiciones_logos_prenda1 ?? []),
+    ...(gestion.posiciones_logos_prenda2 ?? []),
+  ]
+    .map((p) => p.imageUrl)
+    .filter((u): u is string => !!u)
+
   const imageGroups = [
     { label: "Prototipo de prenda", urls: gestion.urls_prototipo_prenda },
     { label: "Prototipo segunda", urls: gestion.urls_prototipo_segunda },
     { label: "Diseño base", urls: gestion.urls_diseno_base },
     { label: "Imágenes / símbolos", urls: gestion.urls_imagenes_simbolos },
     { label: "Referencia a recrear", urls: gestion.urls_recreacion },
+    { label: "Imágenes de logos", urls: logoUrls.length ? logoUrls : undefined },
   ].filter((g) => g.urls && g.urls.length > 0)
 
   const allImages = imageGroups.flatMap((g) => g.urls as string[])
@@ -257,7 +265,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
       </DialogContent>
 
       {lightboxSrc && (
-        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} watermark={false} />
       )}
     </Dialog>
   )

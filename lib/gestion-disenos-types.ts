@@ -103,7 +103,7 @@ export interface GestionDiseno {
   tipos_prenda: string[] | null
   segunda_prenda_activa: boolean
   segunda_prenda_relacion: SegundaPrendaRelacion | null
-  tipo_manga: "Corta" | "Larga" | null
+  tipo_manga: "Corta" | "Larga" | "Sin mangas" | null
   color_fondo: string | null
   color_secundario: string | null
   simbolos_seleccionados: number[] | null

@@ -190,7 +190,7 @@ export function GDFileUploader({
       />
 
       {lightboxSrc && (
-        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} />
+        <GDImageLightbox src={lightboxSrc} open onClose={() => setLightboxSrc(null)} watermark={false} />
       )}
     </div>
   )

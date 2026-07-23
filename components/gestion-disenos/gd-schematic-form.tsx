@@ -279,7 +279,7 @@ export function GDSchematicForm({
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Tipo de Manga</Label>
                 <div className="flex gap-2">
-                  {(["Corta", "Larga"] as const).map((m) => (
+                  {(["Corta", "Larga", "Sin mangas"] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
