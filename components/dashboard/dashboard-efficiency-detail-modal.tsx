@@ -396,7 +396,7 @@ export function DashboardEfficiencyDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 max-w-none w-screen h-[100dvh] rounded-none border-0 overflow-hidden flex flex-col gap-4 sm:gap-4">
+      <DialogContent className="inset-0 left-0 top-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none sm:max-w-none rounded-none border-0 overflow-hidden flex flex-col gap-4">
         <DialogHeader>
           <DialogTitle>Eficiencia de {areaLabel} — auditoría de tiempos</DialogTitle>
           <DialogDescription>
