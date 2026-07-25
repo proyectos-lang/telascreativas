@@ -20,6 +20,7 @@ import {
   CartesianGrid,
   LabelList,
   Legend,
+  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts"
@@ -37,6 +38,10 @@ import { DashboardEfficiencyDetailModal } from "./dashboard-efficiency-detail-mo
 
 const TEAL = "#14b8a6"
 const AMBER = "#f59e0b"
+const ROSE = "#ef4444"
+
+// Meta: días objetivo que cada área debería tardar en procesar un pedido.
+const META_DIAS = 3
 
 type Universo = "enProceso" | "general"
 
@@ -101,7 +106,7 @@ export function DashboardEfficiencyChart() {
               </TooltipProvider>
             </div>
             <CardDescription className="text-xs">
-              Días que cada área tarda en procesar un pedido · vigentes vs total
+              Días que cada área tarda en procesar un pedido · vigentes vs total · meta &lt;{META_DIAS}d
             </CardDescription>
           </div>
         </div>
@@ -147,6 +152,19 @@ export function DashboardEfficiencyChart() {
                   axisLine={false}
                   tick={{ fontSize: 11, fill: "#334155", fontWeight: 500 }}
                   width={90}
+                />
+                <ReferenceLine
+                  x={META_DIAS}
+                  stroke={ROSE}
+                  strokeDasharray="4 4"
+                  ifOverflow="extendDomain"
+                  label={{
+                    value: `Meta ${META_DIAS}d`,
+                    position: "top",
+                    fill: ROSE,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
                 />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
