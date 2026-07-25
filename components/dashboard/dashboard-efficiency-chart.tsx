@@ -24,14 +24,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { useDashboard } from "@/lib/dashboard-context"
-import { Info, Timer } from "lucide-react"
+import { useState } from "react"
+import { useDashboard, type AreaAverage, type AreaKey } from "@/lib/dashboard-context"
+import { Info, Timer, MousePointerClick } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { DashboardEfficiencyDetailModal } from "./dashboard-efficiency-detail-modal"
 
 // JS colors per guidelines
 const TEAL = "#14b8a6"
@@ -52,6 +54,12 @@ export function DashboardEfficiencyChart() {
   const { avgDaysByAreaAll, rows, isLoading } = useDashboard()
 
   const totalIncluded = rows.length
+
+  const [selectedArea, setSelectedArea] = useState<{
+    key: Exclude<AreaKey, "empaque">
+    label: string
+    avg: number
+  } | null>(null)
 
   return (
     <Card className="h-full bg-white/80 backdrop-blur shadow-sm">
@@ -136,7 +144,21 @@ export function DashboardEfficiencyChart() {
                   }}
                 />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar dataKey="dias" radius={[0, 6, 6, 0]}>
+                <Bar
+                  dataKey="dias"
+                  radius={[0, 6, 6, 0]}
+                  cursor="pointer"
+                  onClick={(d: { payload?: AreaAverage }) => {
+                    const p = d?.payload
+                    if (p && p.key !== "empaque") {
+                      setSelectedArea({
+                        key: p.key as Exclude<AreaKey, "empaque">,
+                        label: p.area,
+                        avg: p.dias,
+                      })
+                    }
+                  }}
+                >
                   {avgDaysByAreaAll.map((row, index) => (
                     <Cell
                       key={`cell-${index}`}
@@ -161,21 +183,40 @@ export function DashboardEfficiencyChart() {
               </BarChart>
             </ChartContainer>
 
+            {/* Hint: clic para auditar */}
+            <div className="mt-3 flex items-center gap-1.5 rounded-md bg-teal-50 px-3 py-2">
+              <MousePointerClick className="size-3.5 text-teal-500 shrink-0" />
+              <p className="text-[11px] text-teal-700 leading-snug">
+                Haz clic en una barra para auditar orden por orden los días que la componen.
+              </p>
+            </div>
+
             {/* Pie de gráfico: universo de pedidos incluidos */}
-            <div className="mt-3 flex items-center gap-1.5 rounded-md bg-slate-50 px-3 py-2">
+            <div className="mt-2 flex items-center gap-1.5 rounded-md bg-slate-50 px-3 py-2">
               <Info className="size-3 text-slate-400 shrink-0" />
               <p className="text-[11px] text-slate-500 leading-snug">
                 Basado en{" "}
                 <span className="font-semibold text-slate-700">
-                  {totalIncluded} pedido{totalIncluded !== 1 ? "s" : ""} activo{totalIncluded !== 1 ? "s" : ""}
+                  {totalIncluded} pedido{totalIncluded !== 1 ? "s" : ""}
                 </span>
                 {" "}
-                <span className="text-slate-400">(no entregados)</span>
+                <span className="text-slate-400">(activos y entregados)</span>
               </p>
             </div>
           </>
         )}
       </CardContent>
+
+      {selectedArea && (
+        <DashboardEfficiencyDetailModal
+          areaKey={selectedArea.key}
+          areaLabel={selectedArea.label}
+          avg={selectedArea.avg}
+          rows={rows}
+          open
+          onClose={() => setSelectedArea(null)}
+        />
+      )}
     </Card>
   )
 }
