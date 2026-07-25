@@ -57,8 +57,11 @@ type AreaKey = typeof AREAS[number]["key"]
 type SortCol = AreaKey | "fecha_de_ingreso"
 type SortState = { col: SortCol; dir: "asc" | "desc" }
 
+// Promedio incluyendo los trabajos del mismo día (0 d) como desempeño real.
+// Excluye null (etapa no terminada) y negativos. Mismo criterio que el
+// dashboard de Eficiencia y la vista unificada, para que los números coincidan.
 function avgPositive(vals: (number | null | undefined)[]): number | null {
-  const pos = vals.filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && v > 0)
+  const pos = vals.filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && v >= 0)
   if (pos.length === 0) return null
   return pos.reduce((a, b) => a + b, 0) / pos.length
 }

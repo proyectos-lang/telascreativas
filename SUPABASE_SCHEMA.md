@@ -452,6 +452,26 @@ Dashboard de coordinación de producción.
 
 ---
 
+### `vista_lead_times_unificado`
+Fuente única por-orden para la Eficiencia de Tiempos del dashboard (dos cálculos:
+En Proceso vs General) y la tabla de "Detalle de Pedidos" de Indicadores.
+Una fila por pedido. DDL en `scripts/vista_lead_times_unificado.sql`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| pedido, cliente, vendedora, ciudad, estilo_de_la_prenda | text | |
+| pcs | numeric | |
+| es_urgente, entregado_cliente_si_no | boolean | |
+| estado_aprobado_rechazado, s_estado_entrega | text | |
+| fecha_de_ingreso, fecha_de_entrega, fecha_entrega_cliente | date | |
+| dfecha_de_ingreso_diseno … coseta_costura, efecha_de_empaque | date | Recepción/fin por área |
+| dias_en_diseno / corte / impresion / sublimacion / costura | integer | fin − recepción (calendario); NULL si no terminó |
+| lead_time_global | integer | fecha_entrega_cliente − fecha_de_ingreso |
+| en_proceso | boolean | `Aprobado AND efecha_de_empaque IS NULL` (vigentes) |
+| cerrado | boolean | `efecha_de_empaque IS NOT NULL` |
+
+---
+
 ## Flujos de producción
 
 ```

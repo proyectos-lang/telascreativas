@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   AlertCircle,
   ChevronDown,
+  Table2,
   X,
 } from "lucide-react"
 import {
@@ -46,6 +47,7 @@ import { TabDiseno } from "./tab-diseno"
 import { TabAdherencia } from "./tab-adherencia"
 import { TabLeadTimes } from "./tab-lead-times"
 import { TabReprocesos } from "./tab-reprocesos"
+import { TabDetallePedidos } from "./tab-detalle-pedidos"
 
 const CURRENT_YEAR = new Date().getFullYear()
 const DEFAULT_YEAR = 2026
@@ -55,7 +57,7 @@ const YEAR_OPTIONS = Array.from(
 
 const SEMANAS = Array.from({ length: 53 }, (_, i) => i + 1)
 
-type TabKey = "diseno" | "adherencia" | "leadtimes" | "reprocesos"
+type TabKey = "diseno" | "adherencia" | "leadtimes" | "reprocesos" | "detalle"
 
 export function IndicadoresContent() {
   const [filtro, setFiltro] = useState<IndicadoresFiltro>({
@@ -416,15 +418,18 @@ export function IndicadoresContent() {
         </div>
 
         <div className="flex flex-1 items-end justify-end">
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={isLoading || !hasAnyData}
-            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-          >
-            <FileSpreadsheet className="size-4" />
-            Exportar a Excel
-          </Button>
+          {/* La pestaña "Detalle de Pedidos" trae su propio filtro y exportación. */}
+          {tab !== "detalle" && (
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={isLoading || !hasAnyData}
+              className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <FileSpreadsheet className="size-4" />
+              Exportar a Excel
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -454,6 +459,10 @@ export function IndicadoresContent() {
             <ShieldAlert className="size-4" />
             Reprocesos
           </TabsTrigger>
+          <TabsTrigger value="detalle" className="gap-2">
+            <Table2 className="size-4" />
+            Detalle de Pedidos
+          </TabsTrigger>
         </TabsList>
 
         {isLoading ? (
@@ -471,6 +480,9 @@ export function IndicadoresContent() {
             </TabsContent>
             <TabsContent value="reprocesos" className="mt-4">
               <TabReprocesos rows={reprocesos} />
+            </TabsContent>
+            <TabsContent value="detalle" className="mt-4">
+              <TabDetallePedidos />
             </TabsContent>
           </>
         )}

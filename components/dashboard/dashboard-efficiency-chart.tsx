@@ -18,14 +18,14 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   LabelList,
-  ReferenceLine,
+  Legend,
   XAxis,
   YAxis,
 } from "recharts"
 import { useState } from "react"
-import { useDashboard, type AreaAverage, type AreaKey } from "@/lib/dashboard-context"
+import { useDashboard, type AreaEfficiency } from "@/lib/dashboard-context"
+import type { AreaLT } from "@/lib/lead-time-unificado"
 import { Info, Timer, MousePointerClick } from "lucide-react"
 import {
   Tooltip,
@@ -35,31 +35,37 @@ import {
 } from "@/components/ui/tooltip"
 import { DashboardEfficiencyDetailModal } from "./dashboard-efficiency-detail-modal"
 
-// JS colors per guidelines
 const TEAL = "#14b8a6"
-const ROSE = "#ef4444"
 const AMBER = "#f59e0b"
 
+type Universo = "enProceso" | "general"
+
 const chartConfig = {
-  dias: {
-    label: "Dias promedio",
-    color: TEAL,
-  },
+  enProceso: { label: "En proceso (vigentes)", color: AMBER },
+  general: { label: "General (con cerrados)", color: TEAL },
 } satisfies ChartConfig
 
-const SLOW_THRESHOLD = 3
-const WARN_THRESHOLD = 2
-
 export function DashboardEfficiencyChart() {
-  const { avgDaysByAreaAll, rows, isLoading } = useDashboard()
+  const { efficiencyByArea, leadRows, isLoading } = useDashboard()
 
-  const totalIncluded = rows.length
-
-  const [selectedArea, setSelectedArea] = useState<{
-    key: Exclude<AreaKey, "empaque">
+  const [selected, setSelected] = useState<{
+    key: AreaLT
     label: string
+    universo: Universo
     avg: number
   } | null>(null)
+
+  const totalGeneral = leadRows.length
+  const totalEnProceso = leadRows.filter((r) => r.en_proceso === true).length
+
+  const openAudit = (row: AreaEfficiency, universo: Universo) => {
+    setSelected({
+      key: row.key,
+      label: row.area,
+      universo,
+      avg: universo === "enProceso" ? row.enProceso : row.general,
+    })
+  }
 
   return (
     <Card className="h-full bg-white/80 backdrop-blur shadow-sm">
@@ -76,45 +82,57 @@ export function DashboardEfficiencyChart() {
                   <TooltipTrigger asChild>
                     <Info className="size-3.5 text-slate-400 cursor-help shrink-0" />
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-64 text-xs leading-relaxed">
-                    <p className="font-semibold mb-1">¿Qué mide este gráfico?</p>
+                  <TooltipContent side="right" className="max-w-72 text-xs leading-relaxed">
+                    <p className="font-semibold mb-1">Dos cálculos por área</p>
                     <p>
-                      Muestra cuántos días calendario tardó cada departamento en
-                      procesar su parte de un pedido — desde que lo recibió hasta
-                      que lo terminó.
+                      <strong>En proceso</strong>: solo los pedidos vigentes en
+                      planta (aprobados y aún no empacados).
                     </p>
                     <p className="mt-1.5">
-                      El promedio se calcula sobre <strong>todos los pedidos del sistema</strong>:
-                      activos en planta y ya entregados al cliente, para reflejar
-                      el rendimiento histórico real del área.
+                      <strong>General</strong>: todos los pedidos, incluidos los
+                      ya cerrados — refleja el desempeño real del área.
+                    </p>
+                    <p className="mt-1.5">
+                      Días calendario desde que el área recibe hasta que termina
+                      su parte (incluye trabajos del mismo día).
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             <CardDescription className="text-xs">
-              Días que cada área tarda en procesar un pedido · meta &lt;{SLOW_THRESHOLD} d
+              Días que cada área tarda en procesar un pedido · vigentes vs total
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="h-[280px] w-full" />
+          <Skeleton className="h-[300px] w-full" />
+        ) : leadRows.length === 0 ? (
+          <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <Info className="size-5 text-slate-300" />
+            <p>
+              No hay datos de la vista unificada.
+              <br />
+              Ejecuta{" "}
+              <code className="rounded bg-slate-100 px-1 text-[11px]">
+                scripts/vista_lead_times_unificado.sql
+              </code>{" "}
+              en Supabase.
+            </p>
+          </div>
         ) : (
           <>
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <BarChart
                 accessibilityLayer
-                data={avgDaysByAreaAll}
+                data={efficiencyByArea}
                 layout="vertical"
                 margin={{ top: 8, right: 44, left: 8, bottom: 0 }}
+                barGap={2}
               >
-                <CartesianGrid
-                  horizontal={false}
-                  strokeDasharray="3 3"
-                  stroke="#e2e8f0"
-                />
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis
                   type="number"
                   tickLine={false}
@@ -130,54 +148,44 @@ export function DashboardEfficiencyChart() {
                   tick={{ fontSize: 11, fill: "#334155", fontWeight: 500 }}
                   width={90}
                 />
-                <ReferenceLine
-                  x={SLOW_THRESHOLD}
-                  stroke={ROSE}
-                  strokeDasharray="4 4"
-                  ifOverflow="extendDomain"
-                  label={{
-                    value: "Meta",
-                    position: "top",
-                    fill: ROSE,
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}
-                />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
-                  dataKey="dias"
-                  radius={[0, 6, 6, 0]}
+                  dataKey="enProceso"
+                  name="En proceso (vigentes)"
+                  fill={AMBER}
+                  radius={[0, 4, 4, 0]}
                   cursor="pointer"
-                  onClick={(d: { payload?: AreaAverage }) => {
-                    const p = d?.payload
-                    if (p && p.key !== "empaque") {
-                      setSelectedArea({
-                        key: p.key as Exclude<AreaKey, "empaque">,
-                        label: p.area,
-                        avg: p.dias,
-                      })
-                    }
-                  }}
+                  onClick={(d: { payload?: AreaEfficiency }) =>
+                    d?.payload && openAudit(d.payload, "enProceso")
+                  }
                 >
-                  {avgDaysByAreaAll.map((row, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={
-                        row.dias > SLOW_THRESHOLD
-                          ? ROSE
-                          : row.dias > WARN_THRESHOLD
-                            ? AMBER
-                            : TEAL
-                      }
-                    />
-                  ))}
                   <LabelList
-                    dataKey="dias"
+                    dataKey="enProceso"
                     position="right"
-                    fontSize={11}
+                    fontSize={10}
                     fontWeight={700}
-                    fill="#334155"
-                    formatter={(value: number) => `${value} d`}
+                    fill="#b45309"
+                    formatter={(v: number) => `${v} d`}
+                  />
+                </Bar>
+                <Bar
+                  dataKey="general"
+                  name="General (con cerrados)"
+                  fill={TEAL}
+                  radius={[0, 4, 4, 0]}
+                  cursor="pointer"
+                  onClick={(d: { payload?: AreaEfficiency }) =>
+                    d?.payload && openAudit(d.payload, "general")
+                  }
+                >
+                  <LabelList
+                    dataKey="general"
+                    position="right"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="#0f766e"
+                    formatter={(v: number) => `${v} d`}
                   />
                 </Bar>
               </BarChart>
@@ -187,34 +195,31 @@ export function DashboardEfficiencyChart() {
             <div className="mt-3 flex items-center gap-1.5 rounded-md bg-teal-50 px-3 py-2">
               <MousePointerClick className="size-3.5 text-teal-500 shrink-0" />
               <p className="text-[11px] text-teal-700 leading-snug">
-                Haz clic en una barra para auditar orden por orden los días que la componen.
+                Haz clic en cualquier barra para auditar orden por orden los días que la componen.
               </p>
             </div>
 
-            {/* Pie de gráfico: universo de pedidos incluidos */}
+            {/* Pie: universos */}
             <div className="mt-2 flex items-center gap-1.5 rounded-md bg-slate-50 px-3 py-2">
               <Info className="size-3 text-slate-400 shrink-0" />
               <p className="text-[11px] text-slate-500 leading-snug">
-                Basado en{" "}
-                <span className="font-semibold text-slate-700">
-                  {totalIncluded} pedido{totalIncluded !== 1 ? "s" : ""}
-                </span>
-                {" "}
-                <span className="text-slate-400">(activos y entregados)</span>
+                <span className="font-semibold text-amber-700">{totalEnProceso}</span> pedidos en proceso ·{" "}
+                <span className="font-semibold text-teal-700">{totalGeneral}</span> pedidos en total (con cerrados)
               </p>
             </div>
           </>
         )}
       </CardContent>
 
-      {selectedArea && (
+      {selected && (
         <DashboardEfficiencyDetailModal
-          areaKey={selectedArea.key}
-          areaLabel={selectedArea.label}
-          avg={selectedArea.avg}
-          rows={rows}
+          areaKey={selected.key}
+          areaLabel={selected.label}
+          universo={selected.universo}
+          avg={selected.avg}
+          rows={leadRows}
           open
-          onClose={() => setSelectedArea(null)}
+          onClose={() => setSelected(null)}
         />
       )}
     </Card>

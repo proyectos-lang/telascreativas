@@ -15,10 +15,27 @@ import type {
   NivelRiesgo,
 } from "@/lib/types"
 import { fetchAll } from "@/lib/fetch-all"
+import {
+  AREAS_LT,
+  AREA_LABEL_LT,
+  promedioDias,
+  type AreaLT,
+  type LeadTimeUnificadoRow,
+} from "@/lib/lead-time-unificado"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+export interface AreaEfficiency {
+  area: string
+  key: AreaLT
+  // Dos cálculos: vigentes (en planta) y total (con cerrados).
+  enProceso: number
+  general: number
+  nEnProceso: number
+  nGeneral: number
+}
 
 interface DashboardContextType {
   rows: VistaControlProduccion[]
@@ -26,6 +43,9 @@ interface DashboardContextType {
   error: string | null
   refresh: () => Promise<void>
   lastUpdated: Date | null
+  // Fuente única por-orden para la Eficiencia de Tiempos (vista unificada).
+  leadRows: LeadTimeUnificadoRow[]
+  efficiencyByArea: AreaEfficiency[]
   // Derived metrics
   totalPcs: number
   totalOrders: number
@@ -125,6 +145,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [rows, setRows] = useState<VistaControlProduccion[]>([])
+  const [leadRows, setLeadRows] = useState<LeadTimeUnificadoRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -134,18 +155,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const { data, error: qError } = await fetchAll((from, to) =>
-        supabase.schema("telas").from("vista_control_produccion").select("*").range(from, to)
-      )
+      const [ctrl, lead] = await Promise.all([
+        fetchAll((from, to) =>
+          supabase.schema("telas").from("vista_control_produccion").select("*").range(from, to)
+        ),
+        fetchAll((from, to) =>
+          supabase.schema("telas").from("vista_lead_times_unificado").select("*").range(from, to)
+        ),
+      ])
 
-      console.log("[v0] Dashboard - rows:", data?.length, "error:", qError)
+      console.log("[v0] Dashboard - rows:", ctrl.data?.length, "lead:", lead.data?.length, "error:", ctrl.error || lead.error)
 
-      if (qError) {
-        setError(qError.message)
+      if (ctrl.error) {
+        setError(ctrl.error.message)
         setRows([])
       } else {
-        setRows((data || []) as VistaControlProduccion[])
+        setRows((ctrl.data || []) as VistaControlProduccion[])
         setLastUpdated(new Date())
+      }
+
+      if (lead.error) {
+        // No romper el dashboard si la vista aún no existe; solo la Eficiencia
+        // quedará vacía hasta ejecutar scripts/vista_lead_times_unificado.sql.
+        setLeadRows([])
+      } else {
+        setLeadRows((lead.data || []) as LeadTimeUnificadoRow[])
       }
     } catch (err) {
       console.log("[v0] Dashboard - unexpected error:", err)
@@ -295,6 +329,25 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     })
   }, [rows])
 
+  // Eficiencia de Tiempos: dos cálculos por área desde la vista unificada.
+  //  - enProceso: solo pedidos vigentes (aprobados y aún no empacados)
+  //  - general: TODOS los pedidos (incluye cerrados) = desempeño real
+  const efficiencyByArea = useMemo<AreaEfficiency[]>(() => {
+    const enProcesoRows = leadRows.filter((r) => r.en_proceso === true)
+    return AREAS_LT.map((key) => {
+      const enP = promedioDias(enProcesoRows, key)
+      const gen = promedioDias(leadRows, key)
+      return {
+        area: AREA_LABEL_LT[key],
+        key,
+        enProceso: enP.avg,
+        general: gen.avg,
+        nEnProceso: enP.n,
+        nGeneral: gen.n,
+      }
+    })
+  }, [leadRows])
+
   // Counts por nivel de riesgo (para distribucion y health score).
   // Calculados sobre activeRows: una orden ya Completada no debe sumar
   // como "A Tiempo" ni como alerta de Vencido / Riesgo Medio.
@@ -361,6 +414,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         error,
         refresh: fetchRows,
         lastUpdated,
+        leadRows,
+        efficiencyByArea,
         totalPcs,
         totalOrders,
         criticalAlerts,
