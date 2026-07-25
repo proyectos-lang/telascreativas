@@ -276,6 +276,13 @@ export function DashboardEfficiencyDetailModal({
   }, [])
 
   const diasOf = (r: VistaControlProduccion): number => Number(r[fields.dias])
+  // La etapa esta terminada cuando dias_en_<area> es un numero (0 o mas).
+  // Es null cuando aun no termina; OJO: Number(null) === 0, por eso hay que
+  // chequear el valor crudo antes de convertir.
+  const hasDias = (r: VistaControlProduccion): boolean => {
+    const v = r[fields.dias]
+    return v !== null && v !== undefined && Number.isFinite(Number(v))
+  }
   const recepOf = (r: VistaControlProduccion): string | null =>
     recepByPedido?.get(r.pedido)?.[fields.recepCol] ?? null
   const finOf = (r: VistaControlProduccion): string | null =>
@@ -299,11 +306,7 @@ export function DashboardEfficiencyDetailModal({
   // Conjunto contribuyente: exactamente las filas que alimentan el promedio
   // (mismo criterio que avgDaysByAreaAll en dashboard-context).
   const contrib = useMemo(
-    () =>
-      rows.filter((r) => {
-        const v = diasOf(r)
-        return Number.isFinite(v) && v > 0
-      }),
+    () => rows.filter(hasDias),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, areaKey]
   )
@@ -587,8 +590,8 @@ export function DashboardEfficiencyDetailModal({
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Se excluyen {excluidas} orden{excluidas !== 1 ? "es" : ""} sin días
-              registrados en esta etapa (aún no la terminan).
+              Incluye los trabajos del mismo día (0 d). Se excluyen {excluidas}{" "}
+              orden{excluidas !== 1 ? "es" : ""} que aún no terminan esta etapa.
             </p>
           </div>
 

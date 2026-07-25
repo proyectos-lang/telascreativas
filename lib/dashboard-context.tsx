@@ -254,7 +254,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const values: number[] = []
       activeRows.forEach((r) => {
         const v = daysFor(r, key)
-        if (typeof v === "number" && !Number.isNaN(v) && v > 0) values.push(v)
+        // Incluye los trabajos del mismo dia (0 dias): la vista deja dias_en_*
+        // en null cuando el area aun no termino, y en un numero (0 o mas)
+        // cuando ya termino. Contar el 0 refleja el desempeno real.
+        if (typeof v === "number" && !Number.isNaN(v) && v >= 0) values.push(v)
       })
       const avg =
         values.length > 0
@@ -281,7 +284,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const values: number[] = []
       rows.forEach((r) => {
         const v = daysFor(r, key)
-        if (typeof v === "number" && !Number.isNaN(v) && v > 0) values.push(v)
+        // Incluye 0 dias (mismo dia). Ver nota en avgDaysByArea.
+        if (typeof v === "number" && !Number.isNaN(v) && v >= 0) values.push(v)
       })
       const avg =
         values.length > 0
