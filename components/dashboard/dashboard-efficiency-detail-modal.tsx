@@ -46,58 +46,66 @@ const PAGE_SIZE = 25
 
 type EfficiencyAreaKey = Exclude<AreaKey, "empaque">
 
-// Campos por area: la columna de dias/fin/status vive en la vista; la columna
-// de recepcion (inicio) vive en la tabla base telas.ordenes.
+// Campos por area: la columna de dias y de estado viven en la vista; las
+// fechas de recepcion (inicio) y fin del proceso viven en la tabla base
+// telas.cabecera. Traer AMBAS fechas de la misma fuente garantiza que
+// "Recibido vs Terminado" corresponda al mismo par que produce los dias.
 const AREA_FIELDS: Record<
   EfficiencyAreaKey,
   {
     dias: keyof VistaControlProduccion
-    fin: keyof VistaControlProduccion
     status: keyof VistaControlProduccion
     recepCol: string
+    finCol: string
   }
 > = {
   diseno: {
     dias: "dias_en_diseno",
-    fin: "fecha_fin_diseno",
     status: "status_diseno",
     recepCol: "dfecha_de_ingreso_diseno",
+    finCol: "dentrega_diseno",
   },
   corte: {
     dias: "dias_en_corte",
-    fin: "fecha_fin_corte",
     status: "status_corte",
     recepCol: "cfecha_de_recepcion",
+    finCol: "cfecha_de_corte",
   },
   impresion: {
     dias: "dias_en_impresion",
-    fin: "fecha_fin_impresion",
     status: "status_impresion",
     recepCol: "ifecha_de_ingreso_imp",
+    finCol: "ientrega_impresion",
   },
   sublimacion: {
     dias: "dias_en_sublimacion",
-    fin: "fecha_fin_sublimacion",
     status: "status_sublimacion",
     recepCol: "sfecha_de_ingreso_sub",
+    finCol: "seta_sublimacion",
   },
   costura: {
     dias: "dias_en_costura",
-    fin: "fecha_fin_costura",
     status: "status_costura",
     recepCol: "cosfecha_conteo",
+    finCol: "coseta_costura",
   },
 }
 
-const RECEP_COLS = [
+// Todas las columnas de fecha (recepcion + fin) que se leen de telas.cabecera.
+const CABECERA_COLS = [
   "dfecha_de_ingreso_diseno",
+  "dentrega_diseno",
   "cfecha_de_recepcion",
+  "cfecha_de_corte",
   "ifecha_de_ingreso_imp",
+  "ientrega_impresion",
   "sfecha_de_ingreso_sub",
+  "seta_sublimacion",
   "cosfecha_conteo",
+  "coseta_costura",
 ] as const
 
-// Cache a nivel modulo: se lee telas.ordenes una sola vez por sesion.
+// Cache a nivel modulo: se lee telas.cabecera una sola vez por sesion.
 let recepCachePromise: Promise<Map<string, Record<string, string | null>>> | null =
   null
 
@@ -110,8 +118,8 @@ async function loadRecepByPedido(): Promise<
       (from, to) =>
         supabase
           .schema("telas")
-          .from("ordenes")
-          .select(["pedido", ...RECEP_COLS].join(", "))
+          .from("cabecera")
+          .select(["pedido", ...CABECERA_COLS].join(", "))
           .range(from, to) as unknown as PromiseLike<{
           data: Record<string, string | null>[] | null
           error: { message: string } | null
@@ -270,6 +278,23 @@ export function DashboardEfficiencyDetailModal({
   const diasOf = (r: VistaControlProduccion): number => Number(r[fields.dias])
   const recepOf = (r: VistaControlProduccion): string | null =>
     recepByPedido?.get(r.pedido)?.[fields.recepCol] ?? null
+  const finOf = (r: VistaControlProduccion): string | null =>
+    recepByPedido?.get(r.pedido)?.[fields.finCol] ?? null
+
+  // Dias calculados a partir de las dos fechas de cabecera (para que el
+  // gerente confirme que "Terminado - Recibido" coincide con la columna Dias).
+  const diasCalcOf = (r: VistaControlProduccion): number | null => {
+    const ini = recepOf(r)
+    const fin = finOf(r)
+    if (!ini || !fin) return null
+    const a = new Date(ini)
+    const b = new Date(fin)
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null
+    const MS = 1000 * 60 * 60 * 24
+    const da = Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate())
+    const db = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate())
+    return Math.round((db - da) / MS)
+  }
 
   // Conjunto contribuyente: exactamente las filas que alimentan el promedio
   // (mismo criterio que avgDaysByAreaAll en dashboard-context).
@@ -331,7 +356,7 @@ export function DashboardEfficiencyDetailModal({
       r.cliente ?? "",
       Number(r.pcs) || 0,
       excelDate(recepOf(r)),
-      excelDate(r[fields.fin] as string | null),
+      excelDate(finOf(r)),
       diasOf(r),
       (r[fields.status] as string | null) ?? "",
       isClosed(r) ? "Cerrada" : "Abierta",
@@ -371,7 +396,7 @@ export function DashboardEfficiencyDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 max-w-none w-screen h-[100dvh] rounded-none border-0 overflow-hidden flex flex-col gap-4 sm:gap-4">
         <DialogHeader>
           <DialogTitle>Eficiencia de {areaLabel} — auditoría de tiempos</DialogTitle>
           <DialogDescription>
@@ -481,13 +506,40 @@ export function DashboardEfficiencyDetailModal({
                       {formatDate(recepOf(r))}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {formatDate(r[fields.fin] as string | null)}
+                      {formatDate(finOf(r))}
                     </TableCell>
                     <TableCell>
-                      <span className="font-bold tabular-nums text-foreground">
-                        {diasOf(r)}
-                      </span>
-                      <span className="ml-0.5 text-[10px] text-muted-foreground">d</span>
+                      {(() => {
+                        const dv = diasOf(r)
+                        const dc = diasCalcOf(r)
+                        const mismatch = dc !== null && dc !== dv
+                        return (
+                          <span
+                            className={
+                              mismatch
+                                ? "inline-flex items-center gap-1"
+                                : undefined
+                            }
+                            title={
+                              mismatch
+                                ? `La vista reporta ${dv} d, pero Terminado − Recibido = ${dc} d`
+                                : undefined
+                            }
+                          >
+                            <span className="font-bold tabular-nums text-foreground">
+                              {dv}
+                            </span>
+                            <span className="ml-0.5 text-[10px] text-muted-foreground">
+                              d
+                            </span>
+                            {mismatch && (
+                              <span className="text-[10px] font-medium text-amber-600">
+                                (≠ {dc})
+                              </span>
+                            )}
+                          </span>
+                        )
+                      })()}
                     </TableCell>
                     <TableCell>
                       {statusBadge(r[fields.status] as StatusArea | null)}
