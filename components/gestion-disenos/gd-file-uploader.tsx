@@ -17,7 +17,7 @@ const ALLOWED_TYPES = [
   "application/illustrator",
 ]
 const ALLOWED_EXTS = ".ai,.pdf,.png,.jpg,.jpeg,.webp"
-const MAX_BYTES = 25 * 1024 * 1024
+const MAX_BYTES = 50 * 1024 * 1024
 
 interface GDFileUploaderProps {
   label?: string
@@ -81,7 +81,7 @@ export function GDFileUploader({
     const tooBig = toUpload.filter((f) => f.size > MAX_BYTES)
     if (tooBig.length) {
       toast.error("Archivo demasiado grande", {
-        description: "Máximo 25 MB por archivo",
+        description: "Máximo 50 MB por archivo",
       })
       return
     }

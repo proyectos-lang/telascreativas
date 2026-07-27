@@ -25,6 +25,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const GD_BUCKET = "gd-archivos"
+const GD_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 export interface GDNotification {
   id: string
@@ -341,6 +342,12 @@ export function GestionDisenosProvider({ children }: { children: ReactNode }) {
 
   const uploadFile = useCallback(async (file: File, path: string) => {
     try {
+      // Límite central de tamaño (50 MB). Cubre también los uploads que suben
+      // File crudo sin pasar por GDFileUploader (logos, diseño base manual).
+      if (file.size > GD_MAX_UPLOAD_BYTES) {
+        return { success: false, error: "Archivo demasiado grande. Máximo 50 MB por archivo." }
+      }
+
       const { error: upErr } = await supabase.storage
         .from(GD_BUCKET)
         .upload(path, file, { contentType: file.type, upsert: true })

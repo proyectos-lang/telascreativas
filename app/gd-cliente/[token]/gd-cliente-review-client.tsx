@@ -114,11 +114,12 @@ export function GDClienteReviewClient({
 
       // 2. Advance gestion_disenos state automatically:
       //    Aprobada → Aprobado / En Diseño (diseñador entrega archivos finales)
-      //    Con Cambios → En Progreso / En Ventas (Ventas revisa el feedback antes de reenviar)
+      //    Con Cambios → En Progreso / En Diseño (va directo al diseñador asignado,
+      //      sin requerir aprobación de Ventas; el diseñador sube nueva propuesta).
       const gdUpdates =
         decision === "Aprobada"
           ? { estado: "Aprobado", estado_turno: "En Diseño" }
-          : { estado: "En Progreso", estado_turno: "En Ventas" }
+          : { estado: "En Progreso", estado_turno: "En Diseño" }
 
       const { error: gdError } = await supabase
         .schema("telas")
