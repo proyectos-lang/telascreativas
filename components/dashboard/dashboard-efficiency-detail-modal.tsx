@@ -20,11 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ChevronLeft, ChevronRight, Download, Search, ArrowDownUp } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Search, ArrowDownUp, Clock } from "lucide-react"
 import {
   DIAS_FIELD,
   FECHA_FIELDS,
   tieneDias,
+  enCurso,
   type AreaLT,
   type LeadTimeUnificadoRow,
 } from "@/lib/lead-time-unificado"
@@ -99,6 +100,7 @@ export function DashboardEfficiencyDetailModal({
   const diasField = DIAS_FIELD[areaKey]
 
   const diasOf = (r: LeadTimeUnificadoRow): number => Number(r[diasField])
+  const enCursoOf = (r: LeadTimeUnificadoRow): boolean => enCurso(r, areaKey)
   const recepOf = (r: LeadTimeUnificadoRow): string | null =>
     (r[fechas.recep] as string | null) ?? null
   const finOf = (r: LeadTimeUnificadoRow): string | null =>
@@ -119,6 +121,11 @@ export function DashboardEfficiencyDetailModal({
   const sumDias = useMemo(() => contrib.reduce((s, r) => s + diasOf(r), 0), [contrib, diasField])
   const promedio = contrib.length > 0 ? +(sumDias / contrib.length).toFixed(1) : 0
   const excluidas = universoRows.length - contrib.length
+  const enCursoCount = useMemo(() => contrib.filter(enCursoOf).length, [contrib, areaKey])
+
+  // Situación de la etapa para una fila (incluye "En curso" para las vigentes).
+  const situacionEtapa = (r: LeadTimeUnificadoRow): string =>
+    enCursoOf(r) ? "En curso" : estadoEtapa(recepOf(r), finOf(r))
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -154,9 +161,9 @@ export function DashboardEfficiencyDetailModal({
       r.cliente ?? "",
       Number(r.pcs) || 0,
       excelDate(recepOf(r)),
-      excelDate(finOf(r)),
+      enCursoOf(r) ? "En curso" : excelDate(finOf(r)),
       diasOf(r),
-      estadoEtapa(recepOf(r), finOf(r)),
+      situacionEtapa(r),
       r.cerrado ? "Cerrada" : "Abierta",
     ])
     data.push([])
@@ -260,6 +267,7 @@ export function DashboardEfficiencyDetailModal({
                 pageRows.map((r) => {
                   const recep = recepOf(r)
                   const fin = finOf(r)
+                  const encurso = enCursoOf(r)
                   return (
                     <TableRow key={r.pedido} className="text-xs">
                       <TableCell className="font-semibold text-foreground whitespace-nowrap">
@@ -283,13 +291,39 @@ export function DashboardEfficiencyDetailModal({
                         {formatDate(recep)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {formatDate(fin)}
+                        {encurso ? (
+                          <span className="inline-flex items-center gap-1 text-amber-600">
+                            <Clock className="size-3" />
+                            En curso
+                          </span>
+                        ) : (
+                          formatDate(fin)
+                        )}
                       </TableCell>
                       <TableCell>
-                        <span className="font-bold tabular-nums text-foreground">{diasOf(r)}</span>
-                        <span className="ml-0.5 text-[10px] text-muted-foreground">d</span>
+                        <span
+                          className={
+                            encurso
+                              ? "font-bold tabular-nums text-amber-600"
+                              : "font-bold tabular-nums text-foreground"
+                          }
+                        >
+                          {diasOf(r)}
+                        </span>
+                        <span className="ml-0.5 text-[10px] text-muted-foreground">
+                          {encurso ? "d (actual)" : "d"}
+                        </span>
                       </TableCell>
-                      <TableCell>{estadoBadge(estadoEtapa(recep, fin))}</TableCell>
+                      <TableCell>
+                        {encurso ? (
+                          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border border-amber-200">
+                            <Clock className="mr-1 size-3" />
+                            En proceso
+                          </Badge>
+                        ) : (
+                          estadoBadge(estadoEtapa(recep, fin))
+                        )}
+                      </TableCell>
                       <TableCell>
                         {r.cerrado ? (
                           <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-600">
@@ -323,8 +357,10 @@ export function DashboardEfficiencyDetailModal({
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Incluye los trabajos del mismo día (0 d). Se excluyen {excluidas}{" "}
-              orden{excluidas !== 1 ? "es" : ""} que aún no terminan esta etapa.
+              Incluye los trabajos del mismo día (0 d) y{" "}
+              <span className="font-medium text-amber-600">{enCursoCount} en curso</span>{" "}
+              (tiempo actual = hoy − recepción). Se excluyen {excluidas}{" "}
+              orden{excluidas !== 1 ? "es" : ""} que aún no entran a esta etapa.
             </p>
           </div>
 

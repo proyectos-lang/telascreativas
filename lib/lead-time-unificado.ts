@@ -49,6 +49,15 @@ export const FECHA_FIELDS: Record<
   costura: { recep: "cosfecha_conteo", fin: "coseta_costura" },
 }
 
+/** Flag "en curso" por área: la orden vigente sigue en el proceso (tiempo actual). */
+export const EN_CURSO_FIELD: Record<AreaLT, keyof LeadTimeUnificadoRow> = {
+  diseno: "diseno_en_curso",
+  corte: "corte_en_curso",
+  impresion: "impresion_en_curso",
+  sublimacion: "sublimacion_en_curso",
+  costura: "costura_en_curso",
+}
+
 export interface LeadTimeUnificadoRow {
   pedido: string
   cliente: string | null
@@ -81,6 +90,14 @@ export interface LeadTimeUnificadoRow {
   dias_en_impresion: number | null
   dias_en_sublimacion: number | null
   dias_en_costura: number | null
+
+  // Flags "en curso": el dias_en_<area> correspondiente es el tiempo ACTUAL
+  // (hoy − recepción) porque la etapa aún no termina en una orden vigente.
+  diseno_en_curso: boolean | null
+  corte_en_curso: boolean | null
+  impresion_en_curso: boolean | null
+  sublimacion_en_curso: boolean | null
+  costura_en_curso: boolean | null
 
   lead_time_global: number | null
 
@@ -119,4 +136,12 @@ export function promedioDias(
 /** Universo "en proceso" (vigente en planta): usa el flag de la vista. */
 export function esEnProceso(r: LeadTimeUnificadoRow): boolean {
   return r.en_proceso === true
+}
+
+/**
+ * ¿El día de esta área es un tiempo EN CURSO (actual, la etapa aún no termina)?
+ * Cuando es true, el dias_en_<area> representa hoy − recepción, no el tiempo final.
+ */
+export function enCurso(r: LeadTimeUnificadoRow, area: AreaLT): boolean {
+  return r[EN_CURSO_FIELD[area]] === true
 }

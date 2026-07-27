@@ -30,7 +30,12 @@ import {
 } from "lucide-react"
 import { supabase } from "./shared"
 import { fetchAll } from "@/lib/fetch-all"
-import type { LeadTimeUnificadoRow } from "@/lib/lead-time-unificado"
+import {
+  DIAS_FIELD,
+  enCurso,
+  type AreaLT,
+  type LeadTimeUnificadoRow,
+} from "@/lib/lead-time-unificado"
 
 const PAGE_SIZE = 50
 
@@ -56,6 +61,22 @@ function xDate(d?: string | null): string {
 
 function fDias(v: number | null | undefined): string {
   return v === null || v === undefined ? "-" : String(v)
+}
+
+/** Celda de días por área: en ámbar con "*" si es tiempo EN CURSO (actual). */
+function DiaCell({ r, area }: { r: LeadTimeUnificadoRow; area: AreaLT }) {
+  const v = r[DIAS_FIELD[area]] as number | null
+  if (v === null || v === undefined) return <span className="text-muted-foreground">-</span>
+  const running = enCurso(r, area)
+  return (
+    <span
+      className={running ? "text-amber-600 font-medium" : undefined}
+      title={running ? "En curso: tiempo actual (hoy − recepción)" : undefined}
+    >
+      {v}
+      {running ? "*" : ""}
+    </span>
+  )
 }
 
 const intFmt = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 })
@@ -272,11 +293,11 @@ export function TabDetallePedidos() {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">{fDate(r.fecha_de_ingreso)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fDias(r.dias_en_diseno)}</TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">{fDias(r.dias_en_corte)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fDias(r.dias_en_impresion)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fDias(r.dias_en_sublimacion)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fDias(r.dias_en_costura)}</TableCell>
+                        <TableCell className="text-right tabular-nums"><DiaCell r={r} area="diseno" /></TableCell>
+                        <TableCell className="text-right tabular-nums"><DiaCell r={r} area="corte" /></TableCell>
+                        <TableCell className="text-right tabular-nums"><DiaCell r={r} area="impresion" /></TableCell>
+                        <TableCell className="text-right tabular-nums"><DiaCell r={r} area="sublimacion" /></TableCell>
+                        <TableCell className="text-right tabular-nums"><DiaCell r={r} area="costura" /></TableCell>
                         <TableCell className="text-right tabular-nums font-medium">{fDias(r.lead_time_global)}</TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">{fDate(r.fecha_entrega_cliente)}</TableCell>
                       </TableRow>
@@ -295,6 +316,9 @@ export function TabDetallePedidos() {
                   {Math.min((current + 1) * PAGE_SIZE, filtered.length)}
                 </span>{" "}
                 de <span className="font-semibold text-foreground">{intFmt.format(filtered.length)}</span> pedidos
+                <span className="ml-2 text-amber-600">
+                  <span className="font-medium">*</span> tiempo en curso (hoy − recepción)
+                </span>
               </p>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" className="h-8 bg-white" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={current === 0}>

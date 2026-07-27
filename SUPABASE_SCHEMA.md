@@ -465,7 +465,8 @@ Una fila por pedido. DDL en `scripts/vista_lead_times_unificado.sql`.
 | estado_aprobado_rechazado, s_estado_entrega | text | |
 | fecha_de_ingreso, fecha_de_entrega, fecha_entrega_cliente | date | |
 | dfecha_de_ingreso_diseno … coseta_costura, efecha_de_empaque | date | Recepción/fin por área |
-| dias_en_diseno / corte / impresion / sublimacion / costura | integer | fin − recepción (calendario); NULL si no terminó |
+| dias_en_diseno / corte / impresion / sublimacion / costura | integer | fin − recepción; si la etapa NO terminó y la orden está vigente (en_proceso), CURRENT_DATE − recepción (tiempo en curso); NULL si no aplica |
+| diseno_en_curso / corte_en_curso / … / costura_en_curso | boolean | true si el `dias_en_<area>` es tiempo actual (etapa aún en curso en orden vigente) |
 | lead_time_global | integer | fecha_entrega_cliente − fecha_de_ingreso |
 | en_proceso | boolean | `Aprobado AND efecha_de_empaque IS NULL` (vigentes) |
 | cerrado | boolean | `efecha_de_empaque IS NOT NULL` |

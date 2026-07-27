@@ -99,7 +99,9 @@ export function DashboardEfficiencyChart() {
                     </p>
                     <p className="mt-1.5">
                       Días calendario desde que el área recibe hasta que termina
-                      su parte (incluye trabajos del mismo día).
+                      su parte (incluye trabajos del mismo día). Las órdenes
+                      vigentes que siguen en el proceso cuentan su tiempo actual
+                      (hoy − recepción).
                     </p>
                   </TooltipContent>
                 </Tooltip>
