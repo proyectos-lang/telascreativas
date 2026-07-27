@@ -89,8 +89,20 @@ select
     then (current_date - c.cosfecha_conteo)
   end as dias_en_costura,
 
+  -- Lead time global (venta → entrega al cliente)
+  case
+    when c.fecha_entrega_cliente is not null and c.fecha_de_ingreso is not null
+    then (c.fecha_entrega_cliente - c.fecha_de_ingreso)
+  end as lead_time_global,
+
+  -- Flags de universo
+  (c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as en_proceso,
+  (c.efecha_de_empaque is not null) as cerrado,
+
   -- Flags "en curso": la orden vigente ya entró al área pero aún no la terminó.
   -- Cuando es true, el dias_en_<area> de arriba es el tiempo ACTUAL, no el final.
+  -- NOTA: van AL FINAL a propósito. CREATE OR REPLACE VIEW solo permite añadir
+  -- columnas nuevas al final; insertarlas en medio da error 42P16.
   (c.dfecha_de_ingreso_diseno is not null and c.dentrega_diseno is null
      and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as diseno_en_curso,
   (c.cfecha_de_recepcion is not null and c.cfecha_de_corte is null
@@ -100,16 +112,6 @@ select
   (c.sfecha_de_ingreso_sub is not null and c.seta_sublimacion is null
      and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as sublimacion_en_curso,
   (c.cosfecha_conteo is not null and c.coseta_costura is null
-     and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as costura_en_curso,
-
-  -- Lead time global (venta → entrega al cliente)
-  case
-    when c.fecha_entrega_cliente is not null and c.fecha_de_ingreso is not null
-    then (c.fecha_entrega_cliente - c.fecha_de_ingreso)
-  end as lead_time_global,
-
-  -- Flags de universo
-  (c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as en_proceso,
-  (c.efecha_de_empaque is not null) as cerrado
+     and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as costura_en_curso
 
 from telas.cabecera c;
