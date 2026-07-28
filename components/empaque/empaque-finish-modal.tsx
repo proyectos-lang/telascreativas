@@ -159,8 +159,11 @@ export function EmpaqueFinishModal({
       return null
     }
 
+    // Nombre único (timestamp) para que cada firma sea un objeto NUEVO (INSERT).
+    // Con nombre fijo + upsert, re-firmar disparaba un UPDATE de storage.objects
+    // bloqueado por RLS ("new row violates row-level security policy").
     const safePedido = String(orden.pedido).replace(/[^a-zA-Z0-9_-]/g, "_")
-    const filename = `empaque_recibe_vendedora_${safePedido}.png`
+    const filename = `empaque_recibe_vendedora_${safePedido}_${Date.now()}.png`
 
     const { error: uploadError } = await supabase.storage
       .from(SIGNATURE_BUCKET)

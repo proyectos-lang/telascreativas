@@ -137,9 +137,11 @@ export function EntregasDeliverModal({
       return null
     }
 
-    // Sanitiza el numero de pedido por si contiene caracteres no validos para filename
+    // Sanitiza el numero de pedido por si contiene caracteres no validos para filename.
+    // Nombre único (timestamp) para que cada firma sea un objeto NUEVO (INSERT) y
+    // re-firmar no dispare un UPDATE de storage.objects bloqueado por RLS.
     const safePedido = String(orden.pedido).replace(/[^a-zA-Z0-9_-]/g, "_")
-    const filename = `pedido_${safePedido}.png`
+    const filename = `pedido_${safePedido}_${Date.now()}.png`
 
     const { error: uploadError } = await supabase.storage
       .from(SIGNATURE_BUCKET)

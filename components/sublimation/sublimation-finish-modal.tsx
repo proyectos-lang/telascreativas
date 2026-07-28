@@ -258,9 +258,12 @@ export function SublimationFinishModal({
 
   /**
    * Sube el Blob PNG de la firma al bucket `firmas-procesos` y devuelve
-   * la URL publica. Sigue el patron `sublimacion_recibe_costura_{pedido}.png`
-   * sobrescribiendo si ya existia (`upsert: true`) para que un re-firmado
-   * sustituya correctamente la evidencia previa.
+   * la URL publica. El nombre incluye un timestamp para que cada firma sea
+   * un objeto NUEVO (INSERT). Antes se usaba un nombre fijo por pedido con
+   * upsert:true, pero re-firmar hacia un UPDATE de storage.objects que RLS
+   * bloqueaba ("new row violates row-level security policy"). Con nombre
+   * único siempre es INSERT, que sí esta permitido. La URL final se guarda
+   * en cabecera, así que siempre apunta a la firma mas reciente.
    */
   const uploadSignature = async (blob: Blob): Promise<string | null> => {
     if (!supabase) {
@@ -272,7 +275,7 @@ export function SublimationFinishModal({
 
     // Sanitiza el numero de pedido por si contiene caracteres no validos
     const safePedido = String(orden.pedido).replace(/[^a-zA-Z0-9_-]/g, "_")
-    const filename = `sublimacion_recibe_costura_${safePedido}.png`
+    const filename = `sublimacion_recibe_costura_${safePedido}_${Date.now()}.png`
 
     const { error: uploadError } = await supabase.storage
       .from(SIGNATURE_BUCKET)
