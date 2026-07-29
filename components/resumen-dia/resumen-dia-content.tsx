@@ -67,11 +67,24 @@ const AREA_CONFIG: {
 ]
 
 function HeaderHero() {
-  const { dateFrom, dateTo, setDateFrom, setDateTo, isRange, totals, refresh, isLoading } =
-    useResumenDia()
+  const {
+    dateFrom,
+    dateTo,
+    setDateFrom,
+    setDateTo,
+    isRange,
+    totals,
+    refresh,
+    isLoading,
+    queriedFrom,
+    queriedTo,
+    dirty,
+  } = useResumenDia()
 
-  const fechaDesde = useMemo(() => formatDateLong(dateFrom, "Sin fecha"), [dateFrom])
-  const fechaHasta = useMemo(() => formatDateLong(dateTo, "Sin fecha"), [dateTo])
+  // El header refleja el rango YA consultado (no los inputs), para que
+  // coincida con los datos hasta que se pulse "Consultar".
+  const fechaDesde = useMemo(() => formatDateLong(queriedFrom, "Sin fecha"), [queriedFrom])
+  const fechaHasta = useMemo(() => formatDateLong(queriedTo, "Sin fecha"), [queriedTo])
 
   return (
     <Card className="border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-lg">
@@ -128,15 +141,24 @@ function HeaderHero() {
                 size="sm"
                 onClick={() => void refresh()}
                 disabled={isLoading}
-                className="h-9 gap-1.5 border border-white/15 bg-white/5 text-white hover:bg-white/15 hover:text-white"
-                title="Refrescar datos"
+                className={`h-9 gap-1.5 border text-white ${
+                  dirty && !isLoading
+                    ? "border-indigo-300/40 bg-indigo-500/40 hover:bg-indigo-500/60"
+                    : "border-white/15 bg-white/5 hover:bg-white/15 hover:text-white"
+                }`}
+                title="Consultar el rango de fechas seleccionado"
               >
                 <RefreshCw
                   className={`size-3.5 ${isLoading ? "animate-spin" : ""}`}
                 />
-                Actualizar
+                {isLoading ? "Consultando..." : "Consultar"}
               </Button>
             </div>
+            {dirty && !isLoading && (
+              <p className="text-[11px] text-indigo-200">
+                Cambiaste las fechas — pulsa <strong>Consultar</strong> para actualizar los datos.
+              </p>
+            )}
             <p className="text-xs text-white/60">
               {isRange ? (
                 <>
