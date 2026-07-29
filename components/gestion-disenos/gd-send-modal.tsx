@@ -52,7 +52,16 @@ export function GDSendModal({ gestion, open, onClose }: GDSendModalProps) {
   if (!gestion.tipos_prenda?.length) missingFields.push("Tipo de prenda")
   if (gestion.tipo_diseno !== "Editable" && gestion.tipo_diseno !== "Existente" && !gestion.color_fondo) missingFields.push("Color de fondo")
   if (gestion.tipo_diseno !== "Editable" && gestion.tipo_diseno !== "Existente" && !gestion.color_secundario) missingFields.push("Color secundario")
-  if (gestion.tipo_diseno === "Existente" && !gestion.cambios_solicitados?.trim()) missingFields.push("Cambios solicitados")
+  // Existente: primero debe responderse "¿lleva cambios?"; los "Cambios
+  // solicitados" solo son obligatorios cuando SÍ lleva cambios.
+  if (gestion.tipo_diseno === "Existente" && gestion.existente_lleva_cambios == null)
+    missingFields.push("¿El diseño lleva cambios? (Sí/No)")
+  if (
+    gestion.tipo_diseno === "Existente" &&
+    gestion.existente_lleva_cambios === true &&
+    !gestion.cambios_solicitados?.trim()
+  )
+    missingFields.push("Cambios solicitados")
 
   const canSend = missingFields.length === 0
 
