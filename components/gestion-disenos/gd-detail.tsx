@@ -19,6 +19,7 @@ import {
   Expand,
   Package,
   Trash2,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -472,7 +473,16 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
                         style={{ borderColor: url === mainImage ? "#6366f1" : "#e2e8f0" }}
                         onClick={() => setLightboxSrc(url)}
                       >
-                        <img src={url} alt={`imagen ${i + 1}`} className="h-full w-full object-cover" />
+                        {/^.*\.(png|jpg|jpeg|webp|gif)(\?|$)/i.test(url) ? (
+                          <img src={url} alt={`imagen ${i + 1}`} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 text-slate-400">
+                            <FileText className="size-4 text-red-500" />
+                            <span className="text-[8px] font-medium">
+                              {(url.split("?")[0].split(".").pop() ?? "").toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
                           <Expand className="size-3 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>

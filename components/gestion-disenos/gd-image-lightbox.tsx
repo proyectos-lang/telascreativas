@@ -12,7 +12,12 @@ interface GDImageLightboxProps {
   watermark?: boolean
 }
 
+function isPdfUrl(url: string) {
+  return (url.split("?")[0].split(".").pop() ?? "").toLowerCase() === "pdf"
+}
+
 export function GDImageLightbox({ src, open, onClose, watermark = true }: GDImageLightboxProps) {
+  const isPdf = isPdfUrl(src)
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[90vw] max-h-[90vh] w-auto h-auto p-2 overflow-auto bg-black/90 border-none">
@@ -24,7 +29,14 @@ export function GDImageLightbox({ src, open, onClose, watermark = true }: GDImag
         >
           <X className="size-4" />
         </Button>
-        {watermark ? (
+        {isPdf ? (
+          <iframe
+            src={src}
+            title="Vista ampliada"
+            className="rounded-md bg-white"
+            style={{ width: "88vw", height: "85vh" }}
+          />
+        ) : watermark ? (
           <GDWatermarkImage
             src={src}
             alt="Vista ampliada"
