@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { CheckCircle, Expand, XCircle, Loader2, FileText } from "lucide-react"
 import { useGD } from "@/lib/gestion-disenos-context"
 import { GDImageLightbox } from "./gd-image-lightbox"
+import { GDFileUploader } from "./gd-file-uploader"
 import type { GestionDiseno } from "@/lib/gestion-disenos-types"
 
 function isImageUrl(url: string) {
@@ -41,11 +42,17 @@ interface GDReviewModalProps {
 }
 
 export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
-  const { updateSolicitud } = useGD()
+  const { updateSolicitud, addProposal } = useGD()
   const [decision, setDecision] = useState<"aceptar" | "rechazar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const [loading, setLoading] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [archivosFinales, setArchivosFinales] = useState<string[]>([])
+
+  // Existente sin cambios: se acepta y se entregan los archivos finales,
+  // cerrando la orden directamente (no pasa por propuestas/cliente).
+  const esExistenteSinCambios =
+    gestion.tipo_diseno === "Existente" && gestion.existente_lleva_cambios === false
 
   const [autoDisenador, setAutoDisenador] = useState<Disenador | null>(null)
   const [loadingDis, setLoadingDis] = useState(false)
@@ -85,15 +92,52 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
       toast.error("No hay diseñadores disponibles en el catálogo")
       return
     }
+    if (decision === "aceptar" && esExistenteSinCambios && archivosFinales.length === 0) {
+      toast.error("Adjunta los archivos finales para cerrar la orden")
+      return
+    }
     setLoading(true)
     try {
+      const now = new Date().toISOString()
+
+      // Caso Existente sin cambios: aceptar → adjuntar archivos finales → Finalizado.
+      if (decision === "aceptar" && esExistenteSinCambios) {
+        const propRes = await addProposal(gestion.id, {
+          numero_propuesta: 1,
+          archivos_finales_urls: archivosFinales,
+          estado: "Aprobada",
+          fecha_subida: now,
+          fecha_archivos_finales: now,
+        })
+        if (!propRes.success) {
+          toast.error("Error al guardar archivos finales", { description: propRes.error })
+          return
+        }
+        const res = await updateSolicitud(gestion.id, {
+          estado: "Finalizado",
+          estado_turno: "Finalizado",
+          disenador: autoDisenador!.nombre,
+          fecha_asignacion: now,
+          total_propuestas: 1,
+        })
+        if (res.success) {
+          toast.success("Diseño existente aceptado y finalizado", {
+            description: "La orden se cerró con los archivos finales entregados.",
+          })
+          onClose()
+        } else {
+          toast.error("Error", { description: res.error })
+        }
+        return
+      }
+
       const updates: Partial<GestionDiseno> =
         decision === "aceptar"
           ? {
               estado: "En Progreso",
               estado_turno: "En Diseño",
               disenador: autoDisenador!.nombre,
-              fecha_asignacion: new Date().toISOString(),
+              fecha_asignacion: now,
             }
           : {
               estado: "Devuelto",
@@ -227,7 +271,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
           </div>
 
           {decision === "aceptar" && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {loadingDis ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
                   <Loader2 className="size-4 animate-spin" />
@@ -243,6 +287,24 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
                 </div>
               ) : (
                 <p className="text-xs text-red-500">No hay diseñadores disponibles en el catálogo.</p>
+              )}
+
+              {esExistenteSinCambios && (
+                <div className="space-y-1.5 rounded-lg border-2 border-emerald-300 bg-emerald-50 p-3">
+                  <Label className="text-sm font-semibold text-emerald-900">
+                    Archivos finales <span className="text-red-500">*</span>
+                  </Label>
+                  <p className="text-xs text-emerald-700">
+                    Como el diseño existente no lleva cambios, adjunta los archivos finales para
+                    cerrar la orden directamente.
+                  </p>
+                  <GDFileUploader
+                    value={archivosFinales}
+                    onChange={setArchivosFinales}
+                    pathPrefix={`gd_${gestion.id}_finales`}
+                    maxFiles={10}
+                  />
+                </div>
               )}
             </div>
           )}
@@ -272,6 +334,7 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
               !decision ||
               loading ||
               (decision === "aceptar" && (!autoDisenador || loadingDis)) ||
+              (decision === "aceptar" && esExistenteSinCambios && archivosFinales.length === 0) ||
               (decision === "rechazar" && !motivo.trim())
             }
             className={
@@ -280,7 +343,13 @@ export function GDReviewModal({ gestion, open, onClose }: GDReviewModalProps) {
                 : "bg-orange-600 hover:bg-orange-700"
             }
           >
-            {loading ? "Procesando..." : decision === "aceptar" ? "Aceptar y asignar" : "Devolver a Ventas"}
+            {loading
+              ? "Procesando..."
+              : decision === "aceptar"
+                ? esExistenteSinCambios
+                  ? "Aceptar y finalizar"
+                  : "Aceptar y asignar"
+                : "Devolver a Ventas"}
           </Button>
         </DialogFooter>
       </DialogContent>

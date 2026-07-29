@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { GDWatermarkImage } from "@/components/gestion-disenos/gd-watermark-image"
-import { CheckCircle, RefreshCw, AlertCircle } from "lucide-react"
+import { CheckCircle, RefreshCw, AlertCircle, ImagePlus, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import type { GestionDisenoProposal } from "@/lib/gestion-disenos-types"
@@ -36,6 +36,39 @@ export function GDClienteReviewClient({
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [imagenesCliente, setImagenesCliente] = useState<string[]>([])
+  const [uploadingImg, setUploadingImg] = useState(false)
+
+  // Sube imágenes que adjunta el cliente al bucket público gd-archivos.
+  // Nombre único (timestamp) → siempre INSERT (evita el error RLS de overwrite).
+  const handleClientFiles = async (files: FileList) => {
+    const toUpload = Array.from(files).slice(0, 5 - imagenesCliente.length)
+    if (toUpload.length === 0) return
+    setUploadingImg(true)
+    try {
+      const urls: string[] = []
+      for (const file of toUpload) {
+        if (file.size > 50 * 1024 * 1024) {
+          setSubmitError("Cada imagen debe pesar máximo 50 MB.")
+          continue
+        }
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+        const path = `cliente_${propuesta.gestion_id}_${propuesta.id}_${Date.now()}_${safe}`
+        const { error: upErr } = await supabase.storage
+          .from("gd-archivos")
+          .upload(path, file, { contentType: file.type, upsert: false })
+        if (upErr) {
+          setSubmitError("No se pudo subir la imagen. Intenta de nuevo.")
+          continue
+        }
+        const { data } = supabase.storage.from("gd-archivos").getPublicUrl(path)
+        if (data?.publicUrl) urls.push(data.publicUrl)
+      }
+      if (urls.length) setImagenesCliente((prev) => [...prev, ...urls])
+    } finally {
+      setUploadingImg(false)
+    }
+  }
 
   // Already processed by ventas (vendor responded directly)
   if (propuesta.respuesta_ventas) {
@@ -102,6 +135,7 @@ export function GDClienteReviewClient({
         .update({
           respuesta_cliente: decision,
           comentario_cliente: comentario.trim() || null,
+          imagenes_cliente_urls: imagenesCliente.length ? imagenesCliente : null,
           fecha_respuesta_cliente: now,
           estado: decision === "Aprobada" ? "Aprobada" : "Con Cambios",
         })
@@ -230,6 +264,58 @@ export function GDClienteReviewClient({
           rows={3}
         />
       </div>
+
+      {/* Adjuntar imágenes (solo al solicitar cambios) */}
+      {decision === "Con Cambios" && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">
+            Adjuntar imágenes <span className="text-slate-400">(opcional)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {imagenesCliente.map((url, i) => (
+              <div
+                key={i}
+                className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+              >
+                <img src={url} alt={`Adjunto ${i + 1}`} className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setImagenesCliente((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute right-0.5 top-0.5 rounded-full bg-red-500 p-0.5 text-white"
+                >
+                  <X className="size-2.5" />
+                </button>
+              </div>
+            ))}
+            {imagenesCliente.length < 5 && (
+              <label
+                className={`flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 transition-colors hover:border-amber-400 hover:text-amber-500 ${
+                  uploadingImg ? "pointer-events-none opacity-50" : ""
+                }`}
+              >
+                {uploadingImg ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <>
+                    <ImagePlus className="size-5" />
+                    <span className="text-[10px]">Subir</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && handleClientFiles(e.target.files)}
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">
+            Puedes adjuntar referencias (por ejemplo, un nuevo logo). Máx. 5 imágenes.
+          </p>
+        </div>
+      )}
 
       {submitError && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>

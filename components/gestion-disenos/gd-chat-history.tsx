@@ -17,6 +17,9 @@ interface ChatEntry {
   imagenUrl?: string | null
   imagenesUrls?: string[] | null
   propuestaNum?: number
+  // true = propuesta/diseño terminado (con marca de agua);
+  // false/undefined = referencia de Ventas/cliente (sin marca).
+  watermark?: boolean
 }
 
 function buildEntries(g: GestionDiseno): ChatEntry[] {
@@ -53,10 +56,12 @@ function buildEntries(g: GestionDiseno): ChatEntry[] {
         imagenUrl: imagenes ? null : p.imagen_mockup_url,
         imagenesUrls: imagenes,
         propuestaNum: p.numero_propuesta,
+        watermark: true, // propuesta del diseñador → con marca de agua
       })
     }
 
     if (p.respuesta_cliente && p.fecha_respuesta_cliente) {
+      const imgsCliente = p.imagenes_cliente_urls?.length ? p.imagenes_cliente_urls : null
       entries.push({
         id: `cliente-resp-${p.id}`,
         fecha: p.fecha_respuesta_cliente,
@@ -66,11 +71,17 @@ function buildEntries(g: GestionDiseno): ChatEntry[] {
           p.respuesta_cliente === "Aprobada"
             ? `✅ El cliente aprobó la propuesta ${p.numero_propuesta}.${p.comentario_cliente ? ` Comentario: ${p.comentario_cliente}` : ""}`
             : `🔄 El cliente solicitó cambios en la propuesta ${p.numero_propuesta}.${p.comentario_cliente ? ` Comentario: ${p.comentario_cliente}` : ""}`,
+        imagenesUrls: imgsCliente,
         propuestaNum: p.numero_propuesta,
+        watermark: false, // adjuntos del cliente = referencia, sin marca
       })
     }
 
     if (p.respuesta_ventas && p.fecha_respuesta_ventas) {
+      // Imagen de cambio + logos nuevos que sube Ventas (referencia, sin marca).
+      const imgsVentas = [p.imagen_cambio_url, ...(p.logos_nuevos_urls ?? [])].filter(
+        (u): u is string => !!u
+      )
       entries.push({
         id: `ventas-resp-${p.id}`,
         fecha: p.fecha_respuesta_ventas,
@@ -79,9 +90,10 @@ function buildEntries(g: GestionDiseno): ChatEntry[] {
         texto:
           p.respuesta_ventas === "Aprobada"
             ? `✅ Ventas aprobó la propuesta ${p.numero_propuesta}.${p.comentario_ventas ? ` ${p.comentario_ventas}` : ""}`
-            : `🔄 Ventas solicitó cambios.${p.comentario_ventas ? ` ${p.comentario_ventas}` : ""}`,
-        imagenUrl: p.imagen_cambio_url,
+            : `🔄 Ventas solicitó cambios.${p.comentario_ventas ? ` ${p.comentario_ventas}` : ""}${p.logos_nuevos_urls?.length ? ` (adjuntó ${p.logos_nuevos_urls.length} logo${p.logos_nuevos_urls.length > 1 ? "s" : ""} nuevo${p.logos_nuevos_urls.length > 1 ? "s" : ""})` : ""}`,
+        imagenesUrls: imgsVentas.length ? imgsVentas : null,
         propuestaNum: p.numero_propuesta,
+        watermark: false, // referencia de Ventas, sin marca
       })
     }
 
@@ -108,6 +120,7 @@ function buildEntries(g: GestionDiseno): ChatEntry[] {
           ? `✅ Diseño aprobado definitivamente por Ventas.${g.comentario_aprobacion ? ` ${g.comentario_aprobacion}` : ""}`
           : `❌ Diseño no aprobado.${g.comentario_aprobacion ? ` ${g.comentario_aprobacion}` : ""}`,
       imagenUrl: g.imagen_aprobada_url,
+      watermark: true, // imagen del diseño aprobado → con marca de agua
     })
   }
 
@@ -160,7 +173,7 @@ function ClickableImage({ url, onExpand }: { url: string; onExpand: (src: string
 
 export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
   const entries = buildEntries(gestion)
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; watermark: boolean } | null>(null)
 
   if (!entries.length) {
     return (
@@ -208,7 +221,11 @@ export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
                   <div className="flex flex-wrap gap-1.5 mt-0.5">
                     {e.imagenesUrls.map((url, i) =>
                       isImg(url) ? (
-                        <ClickableImage key={i} url={url} onExpand={setLightboxSrc} />
+                        <ClickableImage
+                          key={i}
+                          url={url}
+                          onExpand={(src) => setLightbox({ src, watermark: e.watermark ?? false })}
+                        />
                       ) : (
                         <a
                           key={i}
@@ -229,7 +246,10 @@ export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
                 {!e.imagenesUrls && e.imagenUrl && (
                   <div className="overflow-hidden rounded-lg border border-slate-200 mt-0.5">
                     {isImg(e.imagenUrl) ? (
-                      <ClickableImage url={e.imagenUrl} onExpand={setLightboxSrc} />
+                      <ClickableImage
+                        url={e.imagenUrl}
+                        onExpand={(src) => setLightbox({ src, watermark: e.watermark ?? false })}
+                      />
                     ) : (
                       <a
                         href={e.imagenUrl}
@@ -249,11 +269,12 @@ export function GDChatHistory({ gestion }: { gestion: GestionDiseno }) {
         })}
       </div>
 
-      {lightboxSrc && (
+      {lightbox && (
         <GDImageLightbox
-          src={lightboxSrc}
+          src={lightbox.src}
           open
-          onClose={() => setLightboxSrc(null)}
+          onClose={() => setLightbox(null)}
+          watermark={lightbox.watermark}
         />
       )}
     </>

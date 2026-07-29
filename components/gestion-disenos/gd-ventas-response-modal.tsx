@@ -37,6 +37,7 @@ export function GDVentasResponseModal({
   const [decision, setDecision] = useState<"Aprobada" | "Con Cambios" | null>(null)
   const [comentario, setComentario] = useState("")
   const [imagenCambio, setImagenCambio] = useState<string[]>([])
+  const [logosNuevos, setLogosNuevos] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
@@ -61,6 +62,7 @@ export function GDVentasResponseModal({
         respuesta_ventas: decision,
         comentario_ventas: comentario.trim() || null,
         imagen_cambio_url: imagenCambio[0] ?? null,
+        logos_nuevos_urls: logosNuevos.length ? logosNuevos : null,
         fecha_respuesta_ventas: now,
         estado: decision === "Aprobada" ? "Aprobada" : "Con Cambios",
         // If the client link was already active, also register as client response
@@ -252,6 +254,16 @@ export function GDVentasResponseModal({
               onChange={setImagenCambio}
               pathPrefix={`gd_${gestion.id}_cambio${propuesta.numero_propuesta}`}
               maxFiles={1}
+            />
+          )}
+
+          {decision === "Con Cambios" && (
+            <GDFileUploader
+              label="Nuevo(s) logo(s) solicitado(s) (opcional)"
+              value={logosNuevos}
+              onChange={setLogosNuevos}
+              pathPrefix={`gd_${gestion.id}_logonuevo${propuesta.numero_propuesta}`}
+              maxFiles={4}
             />
           )}
         </div>

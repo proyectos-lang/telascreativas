@@ -89,6 +89,10 @@ export interface GestionDisenoProposal {
   fecha_respuesta_ventas: string | null
   archivos_finales_urls: string[] | null
   fecha_archivos_finales: string | null
+  // Imágenes que el cliente adjunta con su comentario de revisión.
+  imagenes_cliente_urls: string[] | null
+  // Logo(s) nuevo(s) que Ventas sube cuando el cliente lo solicita.
+  logos_nuevos_urls: string[] | null
   created_at: string
 }
 
@@ -132,8 +136,15 @@ export interface GestionDiseno {
   urls_diseno_base: string[] | null
   urls_imagenes_simbolos: string[] | null
   urls_recreacion: string[] | null
+  urls_texturas: string[] | null
   diseno_base_gd_id: number | null
   cambios_solicitados: string | null
+  // Existente: ¿el diseño lleva cambios? Si es false → solo prenda + referencia.
+  existente_lleva_cambios: boolean | null
+  // Recreación: toggles para pedir solo la info necesaria (default false = oculto).
+  recreacion_colores: boolean | null
+  recreacion_imagenes: boolean | null
+  recreacion_texturas: boolean | null
   estado: EstadoGD
   estado_turno: EstadoTurno
   disenador: string | null

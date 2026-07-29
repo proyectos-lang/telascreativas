@@ -99,6 +99,19 @@ export function GDSchematicForm({
 
   const prefix = gestId ? `gd_${gestId}` : `gd_new_${Date.now()}`
 
+  // Existente: si NO lleva cambios, solo se pide tipo de prenda + imagen de referencia.
+  const esExistente = data.tipo_diseno === "Existente"
+  const existenteSinCambios = esExistente && data.existente_lleva_cambios === false
+  const mostrarExtras = !existenteSinCambios
+
+  // Recreación: cada sección se muestra solo si su toggle SÍ está activo.
+  const esRecreacion = data.tipo_diseno === "Recreacion"
+  const showColores =
+    data.tipo_diseno !== "Editable" && mostrarExtras && (!esRecreacion || data.recreacion_colores === true)
+  const showSimbolos =
+    data.tipo_diseno !== "Editable" && mostrarExtras && (!esRecreacion || data.recreacion_imagenes === true)
+  const showTexturas = esRecreacion && data.recreacion_texturas === true
+
   return (
     <div className="space-y-3">
       {/* Tipo de diseño */}
@@ -181,8 +194,38 @@ export function GDSchematicForm({
         </div>
       )}
 
-      {/* Cambios solicitados (campo clave cuando tipo = Existente) */}
-      {data.tipo_diseno === "Existente" && (
+      {/* Existente: ¿el diseño lleva cambios? */}
+      {esExistente && (
+        <div className="space-y-1.5 rounded-lg border-2 border-indigo-200 bg-indigo-50 p-3">
+          <Label className="text-sm font-semibold text-indigo-900">
+            ¿El diseño lleva cambios? <span className="text-red-500">*</span>
+          </Label>
+          <div className="flex gap-2">
+            {([["Sí", true], ["No", false]] as const).map(([lbl, val]) => (
+              <button
+                key={lbl}
+                type="button"
+                disabled={disabled}
+                onClick={() => update({ existente_lleva_cambios: val })}
+                className={cn(
+                  "flex-1 rounded-lg border-2 py-1.5 text-sm font-medium transition-all",
+                  data.existente_lleva_cambios === val
+                    ? "border-indigo-500 bg-white text-indigo-700"
+                    : "border-indigo-200 text-slate-600 hover:border-indigo-300"
+                )}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-indigo-700">
+            Si <strong>No</strong>, solo se pide el tipo de prenda y la imagen de referencia.
+          </p>
+        </div>
+      )}
+
+      {/* Cambios solicitados (solo cuando Existente lleva cambios) */}
+      {esExistente && data.existente_lleva_cambios === true && (
         <div className="space-y-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
           <Label className="flex items-center gap-1 text-sm font-semibold text-amber-900">
             <AlertTriangle className="size-3.5" />
@@ -202,8 +245,46 @@ export function GDSchematicForm({
         </div>
       )}
 
+      {/* Recreación: preguntas SÍ/NO para pedir solo lo necesario */}
+      {esRecreacion && (
+        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold text-slate-700">
+            ¿Qué información adicional necesitas para la recreación?
+          </p>
+          {(
+            [
+              ["¿Especificar colores?", "recreacion_colores"],
+              ["¿Especificar imágenes / símbolos?", "recreacion_imagenes"],
+              ["¿Especificar texturas?", "recreacion_texturas"],
+            ] as const
+          ).map(([lbl, field]) => (
+            <div key={field} className="flex items-center justify-between gap-2">
+              <span className="text-sm text-slate-600">{lbl}</span>
+              <div className="flex gap-1.5">
+                {([["Sí", true], ["No", false]] as const).map(([b, val]) => (
+                  <button
+                    key={b}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => update({ [field]: val })}
+                    className={cn(
+                      "rounded-md border px-3 py-1 text-xs font-medium transition-all",
+                      (data[field] ?? false) === val
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 text-slate-500 hover:border-slate-300"
+                    )}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Temática (Nuevo / Recreacion) */}
-      {data.tipo_diseno && data.tipo_diseno !== "Editable" && (
+      {data.tipo_diseno && data.tipo_diseno !== "Editable" && mostrarExtras && (
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">
             Temática <span className="text-red-500">*</span>
@@ -275,7 +356,7 @@ export function GDSchematicForm({
               </Select>
             )}
 
-            {data.tipo_diseno !== "Editable" && (
+            {data.tipo_diseno !== "Editable" && mostrarExtras && (
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Tipo de Manga</Label>
                 <div className="flex gap-2">
@@ -311,7 +392,7 @@ export function GDSchematicForm({
       </div>
 
       {/* Sección: Colores */}
-      {data.tipo_diseno !== "Editable" && (
+      {showColores && (
         <div className="space-y-2">
           <SectionHeader
             title="Colores"
@@ -355,11 +436,11 @@ export function GDSchematicForm({
         </div>
       )}
 
-      {/* Sección: Símbolos y texturas */}
-      {data.tipo_diseno !== "Editable" && (
+      {/* Sección: Imágenes / Símbolos */}
+      {showSimbolos && (
         <div className="space-y-2">
           <SectionHeader
-            title="Imágenes, Símbolos o Texturas"
+            title={esRecreacion ? "Imágenes / Símbolos" : "Imágenes, Símbolos o Texturas"}
             open={openSections.simbolos}
             onToggle={() => toggleSection("simbolos")}
           />
@@ -382,8 +463,22 @@ export function GDSchematicForm({
         </div>
       )}
 
-      {/* Recreacion: prototipo específico */}
-      {data.tipo_diseno === "Recreacion" && (
+      {/* Sección: Texturas (solo Recreación con toggle SÍ) */}
+      {showTexturas && (
+        <div className="space-y-2 px-1">
+          <Label className="text-sm font-medium">Texturas</Label>
+          <GDFileUploader
+            label="Imágenes de texturas"
+            value={data.urls_texturas || []}
+            onChange={(urls) => update({ urls_texturas: urls })}
+            pathPrefix={`${prefix}_texturas`}
+            disabled={disabled}
+          />
+        </div>
+      )}
+
+      {/* Recreacion: prototipo específico (imagen a recrear, siempre) */}
+      {esRecreacion && (
         <GDFileUploader
           label="Archivo / imagen a recrear"
           value={data.urls_recreacion || []}
@@ -394,7 +489,7 @@ export function GDSchematicForm({
       )}
 
       {/* Sección: Logos */}
-      {data.tipo_diseno !== "Editable" && (
+      {data.tipo_diseno !== "Editable" && mostrarExtras && (
         <div className="space-y-2">
           <SectionHeader
             title="Logos y Patrocinadores"
@@ -470,7 +565,7 @@ export function GDSchematicForm({
       )}
 
       {/* Segunda prenda */}
-      {data.tipo_diseno !== "Editable" && tiposPrend.length > 0 && (
+      {data.tipo_diseno !== "Editable" && mostrarExtras && tiposPrend.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Checkbox
@@ -584,6 +679,7 @@ export function GDSchematicForm({
       )}
 
       {/* Sección: Detalles finales */}
+      {mostrarExtras && (
       <div className="space-y-2">
         <SectionHeader
           title="Accesorios, Tipografía y Otros Detalles"
@@ -643,6 +739,7 @@ export function GDSchematicForm({
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

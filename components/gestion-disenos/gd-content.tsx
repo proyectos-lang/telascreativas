@@ -58,6 +58,7 @@ function extractSchematicFromSource(source: GestionDiseno): Partial<GestionDisen
     urls_recreacion: source.urls_recreacion,
     diseno_base_gd_id: source.id,
     cambios_solicitados: null,
+    existente_lleva_cambios: null, // forzar la elección "¿lleva cambios?"
   }
 }
 
