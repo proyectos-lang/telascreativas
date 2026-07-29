@@ -25,10 +25,30 @@ import {
 } from "react"
 import { createClient } from "@supabase/supabase-js"
 import type { Orden } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Todas las columnas de fecha que usa el resumen (recibidas/entregadas por
+// área). La consulta trae cualquier orden cuya fecha en ALGUNA de estas
+// columnas caiga en el rango; el bucket por área hace el filtro fino en JS.
+const RESUMEN_DATE_COLS = [
+  "fecha_de_ingreso",
+  "dfecha_de_ingreso_diseno",
+  "dentrega_diseno",
+  "cfecha_de_recepcion",
+  "cfecha_de_corte",
+  "ifecha_de_ingreso_imp",
+  "ientrega_impresion",
+  "sfecha_de_ingreso_sub",
+  "seta_sublimacion",
+  "cosfecha_conteo",
+  "coseta_costura",
+  "efecha_de_empaque",
+  "fecha_entrega_cliente",
+] as const
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -75,9 +95,16 @@ interface ResumenDiaContextType {
   setDateTo: (d: string) => void
   isLoading: boolean
   error: string | null
+  /** Ejecuta la consulta con las fechas seleccionadas (botón "Consultar"). */
   refresh: () => Promise<void>
+  /** Rango efectivamente consultado y mostrado (puede diferir de los inputs
+   *  hasta que se pulse "Consultar"). */
+  queriedFrom: string
+  queriedTo: string
+  /** true cuando los inputs difieren del rango ya consultado. */
+  dirty: boolean
   areas: Record<ResumenAreaKey, ResumenArea>
-  /** Indica si el rango seleccionado abarca mas de un dia. */
+  /** Indica si el rango consultado abarca mas de un dia. */
   isRange: boolean
   // Total agregado del rango (suma de ingreso a Ventas y entrega a Cliente).
   // Sirve como hero metric en el header.
@@ -106,6 +133,14 @@ function todayYMD(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0")
   const dd = String(d.getDate()).padStart(2, "0")
   return `${yyyy}-${mm}-${dd}`
+}
+
+/** Día siguiente a un YMD (para usar límite superior exclusivo `< nextDay`,
+ *  que incluye todo el día `until` tanto en columnas DATE como TIMESTAMP). */
+function nextDayYMD(ymd: string): string {
+  const d = new Date(ymd + "T00:00:00Z")
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 /**
@@ -170,25 +205,45 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
   const [ordenes, setOrdenes] = useState<Orden[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Rango efectivamente consultado (con el que se calculan los buckets).
+  const [queried, setQueried] = useState<{ from: string; until: string }>({
+    from: todayYMD(),
+    until: todayYMD(),
+  })
 
-  const fetchOrdenes = useCallback(async () => {
+  // Consulta filtrada por fechas EN EL SERVIDOR (OR sobre todas las columnas
+  // de fecha) y paginada con fetchAll para traer el 100% de las órdenes del
+  // rango sin toparse con el límite de 1000 filas de Supabase.
+  const fetchOrdenes = useCallback(async (fromArg: string, untilArg: string) => {
+    const from = fromArg <= untilArg ? fromArg : untilArg
+    const until = fromArg <= untilArg ? untilArg : fromArg
+    const untilExcl = nextDayYMD(until)
     setIsLoading(true)
     setError(null)
     try {
-      // Trae todas las ordenes; el filtrado por fecha se hace en JS porque
-      // necesitamos comparar contra ~8 columnas distintas y no vale la pena
-      // armar un OR gigante en Supabase para esto.
-      const { data, error: dbError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      const orExpr = RESUMEN_DATE_COLS.map(
+        (c) => `and(${c}.gte.${from},${c}.lt.${untilExcl})`
+      ).join(",")
+
+      const { data, error: dbError } = await fetchAll<Orden>((rangeFrom, rangeTo) =>
+        supabase
+          .schema("telas")
+          .from("cabecera")
+          .select("*")
+          .or(orExpr)
+          .range(rangeFrom, rangeTo) as unknown as PromiseLike<{
+          data: Orden[] | null
+          error: { message: string } | null
+        }>
+      )
 
       if (dbError) {
         console.log("[v0] ResumenDia - error supabase:", dbError)
         setError(dbError.message)
         setOrdenes([])
       } else {
-        setOrdenes((data as Orden[]) || [])
+        setOrdenes(data || [])
+        setQueried({ from, until })
       }
     } catch (err) {
       console.log("[v0] ResumenDia - unexpected error:", err)
@@ -199,9 +254,16 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Carga inicial (hoy). No se re-consulta al cambiar las fechas: el usuario
+  // pulsa "Consultar" para regenerar los datos del nuevo rango.
   useEffect(() => {
-    void fetchOrdenes()
+    void fetchOrdenes(todayYMD(), todayYMD())
   }, [fetchOrdenes])
+
+  const refresh = useCallback(
+    () => fetchOrdenes(dateFrom, dateTo),
+    [fetchOrdenes, dateFrom, dateTo]
+  )
 
   /**
    * Agregaciones por area. Memoizado en (ordenes, selectedDate) para que
@@ -218,10 +280,10 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
    *     (cuando Costura entrega es cuando Empaque "recibe" la orden)
    *   - Entregas      -> entregada: fecha_entrega_cliente
    */
-  // Si dateFrom > dateTo, invertimos para no requerir que el usuario
-  // ingrese las fechas en orden estricto.
-  const from = dateFrom <= dateTo ? dateFrom : dateTo
-  const until = dateFrom <= dateTo ? dateTo : dateFrom
+  // Los buckets se calculan contra el rango YA consultado (no contra los
+  // inputs), para que la vista sea consistente hasta que se pulse "Consultar".
+  const from = queried.from
+  const until = queried.until
 
   const areas = useMemo<Record<ResumenAreaKey, ResumenArea>>(() => {
     return {
@@ -297,6 +359,7 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
   }, [areas, ordenes, from, until])
 
   const isRange = from !== until
+  const dirty = dateFrom !== queried.from || dateTo !== queried.until
 
   const value = useMemo<ResumenDiaContextType>(
     () => ({
@@ -306,12 +369,15 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
       setDateTo,
       isLoading,
       error,
-      refresh: fetchOrdenes,
+      refresh,
+      queriedFrom: queried.from,
+      queriedTo: queried.until,
+      dirty,
       areas,
       isRange,
       totals,
     }),
-    [dateFrom, dateTo, isLoading, error, fetchOrdenes, areas, isRange, totals]
+    [dateFrom, dateTo, isLoading, error, refresh, queried.from, queried.until, dirty, areas, isRange, totals]
   )
 
   return (

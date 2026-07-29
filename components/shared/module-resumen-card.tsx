@@ -59,14 +59,27 @@ const AREA_CONFIG: Record<ResumenAreaKey, AreaConfig> = {
 // ---------------------------------------------------------------------------
 
 function ModuleResumenCardInner({ areaKey }: { areaKey: ResumenAreaKey }) {
-  const { dateFrom, dateTo, setDateFrom, setDateTo, isRange, isLoading, refresh, areas } =
-    useResumenDia()
+  const {
+    dateFrom,
+    dateTo,
+    setDateFrom,
+    setDateTo,
+    isRange,
+    isLoading,
+    refresh,
+    queriedFrom,
+    queriedTo,
+    dirty,
+    areas,
+  } = useResumenDia()
 
   const cfg = AREA_CONFIG[areaKey]
   const area = areas[areaKey]
 
-  const fechaDesde = useMemo(() => formatDateLong(dateFrom, "Sin fecha"), [dateFrom])
-  const fechaHasta = useMemo(() => formatDateLong(dateTo, "Sin fecha"), [dateTo])
+  // El header muestra el rango YA consultado (no los inputs) para que
+  // coincida con los datos mostrados hasta que se pulse "Consultar".
+  const fechaDesde = useMemo(() => formatDateLong(queriedFrom, "Sin fecha"), [queriedFrom])
+  const fechaHasta = useMemo(() => formatDateLong(queriedTo, "Sin fecha"), [queriedTo])
 
   return (
     <div className="space-y-4">
@@ -129,19 +142,26 @@ function ModuleResumenCardInner({ areaKey }: { areaKey: ResumenAreaKey }) {
             />
           </div>
           <Button
-            variant="outline"
             size="sm"
             onClick={() => void refresh()}
             disabled={isLoading}
-            className="h-8 gap-1.5"
-            title="Refrescar datos"
+            className={`h-8 gap-1.5 ${
+              dirty && !isLoading ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""
+            }`}
+            variant={dirty && !isLoading ? "default" : "outline"}
+            title="Consultar el rango de fechas seleccionado"
           >
             <RefreshCw
               className={`size-3.5 ${isLoading ? "animate-spin" : ""}`}
             />
-            Actualizar
+            {isLoading ? "Consultando..." : "Consultar"}
           </Button>
         </div>
+        {dirty && !isLoading && (
+          <p className="text-[11px] text-indigo-600">
+            Cambiaste las fechas — pulsa <strong>Consultar</strong> para actualizar los datos.
+          </p>
+        )}
       </div>
 
       {/* Tarjeta del area */}
