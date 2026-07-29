@@ -10,6 +10,7 @@ import {
 } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
+import { fetchAll } from "@/lib/fetch-all"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -90,10 +91,18 @@ export function TrazabilidadProvider({ children }: { children: ReactNode }) {
       //
       // porcentaje_avance and estado_produccion are computed client-side via
       // enrichOrden() as a safe fallback when the vista is not joined.
-      const { data, error: cabError } = await supabase
-        .schema("telas")
-        .from("cabecera")
-        .select("*")
+      // Paginado con fetchAll para traer TODOS los pedidos (Supabase corta en
+      // 1000 filas por consulta y cabecera ya supera ese número).
+      const { data, error: cabError } = await fetchAll<Orden>((from, to) =>
+        supabase
+          .schema("telas")
+          .from("cabecera")
+          .select("*")
+          .range(from, to) as unknown as PromiseLike<{
+          data: Orden[] | null
+          error: { message: string } | null
+        }>
+      )
 
       if (cabError) {
         setError(cabError.message)
