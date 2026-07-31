@@ -29,6 +29,9 @@ import { EmpaqueReceiveModal } from "./empaque-receive-modal"
 import { EmpaqueFinishModal } from "./empaque-finish-modal"
 import { EmpaqueProductsTable } from "./empaque-products-table"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
@@ -48,6 +51,8 @@ interface EmpaqueDetailProps {
 
 export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
   const { updateOrden } = useEmpaque()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [showReversarModal, setShowReversarModal] = useState(false)
@@ -262,6 +267,8 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
           pedido={orden.pedido}
           areaActual="Empaque"
         />
+        <ReposicionBadge info={repo} className="self-center" />
+        <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
         <Button
           size="sm"
           onClick={() => setShowReceiveModal(true)}
@@ -279,7 +286,12 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
         <Button
           size="sm"
           onClick={() => setShowFinishModal(true)}
-          disabled={!hasPacker || isPacked}
+          disabled={!hasPacker || isPacked || repo.pendiente}
+          title={
+            repo.pendiente
+              ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+              : undefined
+          }
           className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:bg-slate-400 disabled:text-white"
         >
           {isPacked ? (

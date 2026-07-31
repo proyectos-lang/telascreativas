@@ -9,6 +9,9 @@ import { ReceiveModal } from "./receive-modal"
 import { ChangesModal } from "./changes-modal"
 import { FinishModal } from "./finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -87,6 +90,8 @@ function InfoRow({
 
 export function DesignDetail({ orden, onBack }: DesignDetailProps) {
   const { updateOrden } = useDesign()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showChangesModal, setShowChangesModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
@@ -256,6 +261,8 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
 
         <div className="flex flex-wrap gap-2">
           <ReportarIncidenciaButton pedido={orden.pedido} areaActual="Diseno" />
+          <ReposicionBadge info={repo} className="self-center" />
+          <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}
@@ -283,8 +290,13 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
           <Button
             size="sm"
             onClick={() => setShowFinishModal(true)}
-            disabled={!isReceived || isFinished}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+            disabled={!isReceived || isFinished || repo.pendiente}
+            title={
+              repo.pendiente
+                ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+                : undefined
+            }
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:bg-slate-400 disabled:text-white"
           >
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar

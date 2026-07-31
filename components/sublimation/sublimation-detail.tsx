@@ -10,6 +10,9 @@ import { SublimationReceiveModal } from "./sublimation-receive-modal"
 import { SublimationFinishModal } from "./sublimation-finish-modal"
 import { SublimationPartialDeliveryModal } from "./sublimation-partial-delivery-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
@@ -122,6 +125,8 @@ export interface EntregaParcialRow {
 
 export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
   const { updateOrden, refreshOrdenes } = useSublimation()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   // Usuario activo para auditar la "Entrega Total" (mismo patrón que el
   // modal de entrega parcial). Cae a "Desconocido" si no hay sesión.
   const { usuarioActual } = useAuth()
@@ -627,6 +632,8 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
             pedido={orden.pedido}
             areaActual="Sublimacion"
           />
+          <ReposicionBadge info={repo} className="self-center" />
+          <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}
@@ -707,10 +714,13 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
             disabled={
               !isReceivedInSublimation ||
               isSublimationFinished ||
-              !canCloseOrder
+              !canCloseOrder ||
+              repo.pendiente
             }
             title={
-              !isReceivedInSublimation
+              repo.pendiente
+                ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+                : !isReceivedInSublimation
                 ? "Primero debes recibir la orden en Sublimacion"
                 : !canCloseOrder
                 ? `Faltan ${formatPcs(piezasFaltantes)} piezas por entregar para poder cerrar y firmar la orden`

@@ -205,6 +205,12 @@ export interface Orden {
   // Campos provistos por la vista telas.vista_seguimiento_comercial
   porcentaje_avance?: number
   estado_produccion?: string
+  // "Pendiente por Reposición": la orden no puede terminar su proceso actual
+  // porque espera una reposición del área `area_reposicion`. Marca manual;
+  // también se deriva de telas.incidencias (estado_reposicion='Pendiente').
+  pendiente_reposicion?: boolean
+  area_reposicion?: string
+  fecha_pendiente_reposicion?: string
 }
 
 export const PAPEL_OPTIONS = ["Qualitex", "Orange", "Jet X"] as const

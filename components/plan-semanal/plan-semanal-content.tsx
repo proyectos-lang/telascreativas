@@ -16,6 +16,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import * as XLSX from "xlsx"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
+
+const ESTATUS_REPO = "PEND. REPOSICIÓN"
 import {
   Accordion,
   AccordionContent,
@@ -180,6 +184,7 @@ const ESTATUS_OPCIONES = [
   "EMPAQUE",
   "ENTREGADO",
   "CORTE/SUBLIMACION",
+  ESTATUS_REPO,
 ] as const
 
 /** Clases de color de Badge por estatus (categorico, por area). */
@@ -208,6 +213,8 @@ function estatusBadgeClasses(estatus: string | null): string {
       return "bg-teal-100 text-teal-700 border-teal-300"
     case "ENTREGADO":
       return "bg-emerald-100 text-emerald-700 border-emerald-300"
+    case ESTATUS_REPO:
+      return "bg-rose-100 text-rose-700 border-rose-300"
     default:
       return "bg-slate-100 text-slate-600 border-slate-300"
   }
@@ -244,6 +251,7 @@ export function PlanSemanalContent() {
   const [rows, setRows] = useState<PlanRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { mapa: reposFull } = useReposicionesFull()
 
   // Fetch reactivo por anio + semana. El estatus se filtra en cliente.
   useEffect(() => {
@@ -295,12 +303,16 @@ export function PlanSemanalContent() {
         return false
       }
       // Seleccion vacia = todos los estatus.
-      if (seleccion.length > 0 && !seleccion.includes(current)) {
-        return false
+      if (seleccion.length > 0) {
+        const esRepo = reposicionDePedido(r.pedido, reposFull).pendiente
+        const pasa =
+          seleccion.includes(current) ||
+          (seleccion.includes(ESTATUS_REPO.toUpperCase()) && esRepo)
+        if (!pasa) return false
       }
       return true
     })
-  }, [rows, estatusSel, ocultarEntregados])
+  }, [rows, estatusSel, ocultarEntregados, reposFull])
 
   // Agrupacion por fecha_de_entrega ascendente.
   const groups = useMemo<DayGroup[]>(() => {
@@ -734,12 +746,18 @@ export function PlanSemanalContent() {
                             {r.maquina_costura ?? "-"}
                           </TableCell>
                           <TableCell className="px-2 py-1.5">
-                            <Badge
-                              variant="outline"
-                              className={`truncate text-[10px] ${estatusBadgeClasses(r.estatus_actual)}`}
-                            >
-                              {r.estatus_actual ?? "-"}
-                            </Badge>
+                            <div className="flex flex-col items-start gap-0.5">
+                              <Badge
+                                variant="outline"
+                                className={`truncate text-[10px] ${estatusBadgeClasses(r.estatus_actual)}`}
+                              >
+                                {r.estatus_actual ?? "-"}
+                              </Badge>
+                              <ReposicionBadge
+                                info={reposicionDePedido(r.pedido, reposFull)}
+                                compact
+                              />
+                            </div>
                           </TableCell>
                           <TableCell className="px-1 py-1.5 text-center">
                             <AreaDate value={r.fin_diseno} />

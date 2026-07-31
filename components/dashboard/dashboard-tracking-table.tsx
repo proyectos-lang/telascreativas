@@ -27,6 +27,8 @@ import {
   Search,
 } from "lucide-react"
 import { FlowStepper } from "./dashboard-flow-stepper"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
 import { useDashboard } from "@/lib/dashboard-context"
 import type { NivelRiesgo, VistaControlProduccion } from "@/lib/types"
 
@@ -81,6 +83,7 @@ function riskBadge(n?: NivelRiesgo | null) {
 
 export function DashboardTrackingTable() {
   const { rows, isLoading } = useDashboard()
+  const { mapa: reposFull } = useReposicionesFull()
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(0)
 
@@ -177,7 +180,7 @@ export function DashboardTrackingTable() {
                     pageRows.map((row) => (
                       <TableRow key={row.pedido} className="text-xs">
                         <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {row.pedido}
                             {row.es_urgente && (
                               <Badge
@@ -187,6 +190,10 @@ export function DashboardTrackingTable() {
                                 U
                               </Badge>
                             )}
+                            <ReposicionBadge
+                              info={reposicionDePedido(row.pedido, reposFull)}
+                              compact
+                            />
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[220px] truncate">

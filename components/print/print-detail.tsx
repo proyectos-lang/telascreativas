@@ -8,6 +8,9 @@ import { usePrint } from "@/lib/print-context"
 import { PrintReceiveModal } from "./print-receive-modal"
 import { PrintFinishModal } from "./print-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -87,6 +90,8 @@ function InfoRow({
 
 export function PrintDetail({ orden, onBack }: PrintDetailProps) {
   const { updateOrden } = usePrint()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [showReversarModal, setShowReversarModal] = useState(false)
@@ -285,6 +290,8 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
             pedido={orden.pedido}
             areaActual="Impresion"
           />
+          <ReposicionBadge info={repo} className="self-center" />
+          <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}
@@ -304,8 +311,13 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
           <Button
             size="sm"
             onClick={() => setShowFinishModal(true)}
-            disabled={!isReceivedInPrint || isPrintFinished}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+            disabled={!isReceivedInPrint || isPrintFinished || repo.pendiente}
+            title={
+              repo.pendiente
+                ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+                : undefined
+            }
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:bg-slate-400 disabled:text-white"
           >
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar

@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getDaysUntil } from "@/lib/date-utils"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
 import { AlertTriangle, ArrowRight, Ban, CheckCircle2, Clock } from "lucide-react"
 
 interface TrazabilidadListProps {
@@ -37,6 +39,7 @@ function formatDate(dateStr: string | undefined | null) {
  * escanear rapidamente muchos pedidos a la vez.
  */
 export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
+  const { mapa: reposFull } = useReposicionesFull()
   return (
     <div className="rounded-md border bg-white overflow-hidden">
       <div className="overflow-x-auto">
@@ -208,9 +211,15 @@ export function TrazabilidadList({ ordenes, onSelect }: TrazabilidadListProps) {
                         Entregado
                       </Badge>
                     ) : (
-                      <span className="text-xs text-foreground">
-                        {orden.estado_produccion || "En proceso"}
-                      </span>
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span className="text-xs text-foreground">
+                          {orden.estado_produccion || "En proceso"}
+                        </span>
+                        <ReposicionBadge
+                          info={reposicionDePedido(orden.pedido, reposFull)}
+                          compact
+                        />
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="text-right">

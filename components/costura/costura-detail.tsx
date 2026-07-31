@@ -8,6 +8,9 @@ import { useCostura } from "@/lib/costura-context"
 import { CosturaReceiveModal } from "./costura-receive-modal"
 import { CosturaFinishModal } from "./costura-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
@@ -93,6 +96,8 @@ function InfoRow({
 
 export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
   const { updateOrden } = useCostura()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [showReversarModal, setShowReversarModal] = useState(false)
@@ -412,6 +417,8 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
             pedido={orden.pedido}
             areaActual="Costura"
           />
+          <ReposicionBadge info={repo} className="self-center" />
+          <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           {/* Boton Recibir Parcial: solo visible cuando Sublimacion marco
               la entrega como Parcial y Costura aun no confirmo el recibo. */}
           {showBotonReciboParcial && (
@@ -455,8 +462,13 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
           <Button
             size="sm"
             onClick={() => setShowFinishModal(true)}
-            disabled={!isReceivedInCostura || isCosturaFinished}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+            disabled={!isReceivedInCostura || isCosturaFinished || repo.pendiente}
+            title={
+              repo.pendiente
+                ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+                : undefined
+            }
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:bg-slate-400 disabled:text-white"
           >
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar

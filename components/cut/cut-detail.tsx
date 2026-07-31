@@ -8,6 +8,9 @@ import { useCut } from "@/lib/cut-context"
 import { CutReceiveModal } from "./cut-receive-modal"
 import { CutFinishModal } from "./cut-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -84,6 +87,8 @@ function InfoRow({
 
 export function CutDetail({ orden, onBack }: CutDetailProps) {
   const { updateOrden } = useCut()
+  const { mapa: reposMapa } = useReposicionesPendientes()
+  const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [showReversarModal, setShowReversarModal] = useState(false)
@@ -295,11 +300,13 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
               </Badge>
             )}
             {getCutStateBadge()}
+            <ReposicionBadge info={repo} />
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <ReportarIncidenciaButton pedido={orden.pedido} areaActual="Corte" />
+          <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}
@@ -317,8 +324,13 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
           <Button
             size="sm"
             onClick={() => setShowFinishModal(true)}
-            disabled={!isReceivedInCut || isCutFinished}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+            disabled={!isReceivedInCut || isCutFinished || repo.pendiente}
+            title={
+              repo.pendiente
+                ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
+                : undefined
+            }
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:bg-slate-400 disabled:text-white"
           >
             <CheckCircle2 className="mr-1 size-3.5" />
             Terminar
