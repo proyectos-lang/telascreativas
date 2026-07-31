@@ -43,10 +43,14 @@ export function DesignTable({
   // Paginacion: 100 por pagina con scroll vertical
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
-  const pagedOrdenes = useMemo(
-    () => ordenes.slice(page * pageSize, (page + 1) * pageSize),
-    [ordenes, page, pageSize]
-  )
+  const pagedOrdenes = useMemo(() => {
+    // Clampa la página al rango válido: si un filtro reduce los resultados y
+    // la página actual quedó fuera de rango, mostramos la última válida en
+    // vez de una página vacía (bug "Mostrando 1 registro" sin fila visible).
+    const totalPages = Math.max(1, Math.ceil(ordenes.length / pageSize))
+    const safePage = Math.min(page, totalPages - 1)
+    return ordenes.slice(safePage * pageSize, (safePage + 1) * pageSize)
+  }, [ordenes, page, pageSize])
 
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return "-"

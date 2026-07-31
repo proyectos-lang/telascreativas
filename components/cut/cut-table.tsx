@@ -43,10 +43,11 @@ export function CutTable({
   // Paginacion: 100 por pagina con scroll vertical
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
-  const pagedOrdenes = useMemo(
-    () => ordenes.slice(page * pageSize, (page + 1) * pageSize),
-    [ordenes, page, pageSize]
-  )
+  const pagedOrdenes = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(ordenes.length / pageSize))
+    const safePage = Math.min(page, totalPages - 1)
+    return ordenes.slice(safePage * pageSize, (safePage + 1) * pageSize)
+  }, [ordenes, page, pageSize])
 
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return "-"

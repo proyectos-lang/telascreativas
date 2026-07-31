@@ -38,10 +38,11 @@ export function OrdersTable({
   // Paginacion: 100 ordenes por pagina, scroll vertical en el contenedor.
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
-  const pagedOrdenes = useMemo(
-    () => ordenes.slice(page * pageSize, (page + 1) * pageSize),
-    [ordenes, page, pageSize]
-  )
+  const pagedOrdenes = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(ordenes.length / pageSize))
+    const safePage = Math.min(page, totalPages - 1)
+    return ordenes.slice(safePage * pageSize, (safePage + 1) * pageSize)
+  }, [ordenes, page, pageSize])
 
   const handleToggleUrgency = async (
     e: React.MouseEvent,
