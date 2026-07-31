@@ -20,6 +20,7 @@ import {
   Package,
   Trash2,
   FileText,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -126,33 +127,70 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
     setModal("ventas-resp")
   }
 
+  // Guard de turno: ambos roles pueden VER la solicitud, pero solo pueden
+  // GESTIONARLA cuando está en su turno. "En Cliente" es lado Ventas (Ventas
+  // registra la respuesta del cliente).
+  const turnoVentas =
+    gestion.estado_turno === "En Ventas" || gestion.estado_turno === "En Cliente"
+  const turnoDiseno = gestion.estado_turno === "En Diseño"
+
   const canEdit =
     (esVentas || esAdmin) &&
+    turnoVentas &&
     (gestion.estado === "Borrador" || gestion.estado === "Rechazado" || gestion.estado === "Devuelto")
   const canSend = canEdit
-  const canReview = (esDiseno || esAdmin) && gestion.estado === "Pendiente Revision"
+  const canReview =
+    (esDiseno || esAdmin) && turnoDiseno && gestion.estado === "Pendiente Revision"
   const canReassign =
     (esDiseno || esAdmin) &&
+    turnoDiseno &&
     !!gestion.disenador &&
     !["Finalizado", "Rechazado", "Borrador", "Pendiente Revision"].includes(gestion.estado)
   const canUpload =
     (esDiseno || esAdmin) &&
+    turnoDiseno &&
     gestion.estado === "En Progreso" &&
     gestion.total_propuestas < 5
   const canVentasResp =
     (esVentas || esAdmin) &&
+    turnoVentas &&
     gestion.estado === "Esperando Retroalimentacion" &&
     activeProp !== null &&
     (activeProp.estado === "Pendiente" || activeProp.estado === "En Cliente")
   const canShare =
     (esVentas || esAdmin) &&
+    turnoVentas &&
     gestion.estado === "Esperando Retroalimentacion" &&
     activeProp !== null
-  const canApprove = (esVentas || esAdmin) && gestion.estado === "Pendiente Aprobacion"
-  const canFinalFiles = (esDiseno || esAdmin) && gestion.estado === "Aprobado"
+  const canApprove =
+    (esVentas || esAdmin) && turnoVentas && gestion.estado === "Pendiente Aprobacion"
+  const canFinalFiles =
+    (esDiseno || esAdmin) && turnoDiseno && gestion.estado === "Aprobado"
+
+  // Aviso cuando el usuario abre una solicitud que NO está en su turno.
+  // (En vista admin no se muestra: el admin ve las acciones del turno actual.)
+  const noEsSuTurno =
+    !esAdmin &&
+    gestion.estado_turno !== "Finalizado" &&
+    ((esVentas && !turnoVentas) || (esDiseno && !turnoDiseno))
 
   return (
     <div className="flex flex-col h-full gap-3">
+      {/* Aviso de turno: puede ver pero no gestionar */}
+      {noEsSuTurno && (
+        <div className="flex gap-2 items-start rounded-lg border border-slate-300 bg-slate-50 px-4 py-3">
+          <Lock className="text-slate-500 size-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-slate-700">
+              Esta solicitud está en turno de {gestion.estado_turno}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Puedes verla, pero podrás gestionarla cuando pase a tu área.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Devuelto banner */}
       {gestion.estado === "Devuelto" && gestion.motivo_rechazo_diseno && (esVentas || esAdmin) && (
         <div className="flex gap-2 items-start rounded-lg border border-orange-300 bg-orange-50 px-4 py-3">
