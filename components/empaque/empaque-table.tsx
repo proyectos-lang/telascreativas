@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react"
 import { Orden } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -39,6 +41,7 @@ export function EmpaqueTable({
   onSelectOrder,
   isLoading,
 }: EmpaqueTableProps) {
+  const { mapa: reposFull } = useReposicionesFull()
   // Paginacion: 100 por pagina con scroll vertical
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
@@ -279,7 +282,12 @@ export function EmpaqueTable({
                   ? getSkippedStageBadge()
                   : getPreviousStageBadge(orden.coseta_costura)}
               </TableCell>
-              <TableCell>{getEstadoEmpaqueBadge(orden)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {getEstadoEmpaqueBadge(orden)}
+                  <ReposicionBadge info={reposicionDePedido(orden.pedido, reposFull)} compact />
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <Button
                   variant="outline"

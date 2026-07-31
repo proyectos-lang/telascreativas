@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react"
 import { Orden } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -37,6 +39,7 @@ export function SublimationTable({
   onSelectOrder,
   isLoading,
 }: SublimationTableProps) {
+  const { mapa: reposFull } = useReposicionesFull()
   // Paginacion: 100 por pagina con scroll vertical
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
@@ -262,7 +265,12 @@ export function SublimationTable({
               <TableCell>{getEstadoDisenoBadge(orden)}</TableCell>
               <TableCell>{getEstadoCorteBadge(orden)}</TableCell>
               <TableCell>{getEstadoImpresionBadge(orden)}</TableCell>
-              <TableCell>{getEstadoSublimacionBadge(orden)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {getEstadoSublimacionBadge(orden)}
+                  <ReposicionBadge info={reposicionDePedido(orden.pedido, reposFull)} compact />
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <Button
                   variant="outline"

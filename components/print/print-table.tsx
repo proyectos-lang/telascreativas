@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react"
 import { Orden } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { ReposicionBadge } from "@/components/shared/reposicion-badge"
+import { useReposicionesFull, reposicionDePedido } from "@/lib/reposiciones-pendientes"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -37,6 +39,7 @@ export function PrintTable({
   onSelectOrder,
   isLoading,
 }: PrintTableProps) {
+  const { mapa: reposFull } = useReposicionesFull()
   // Paginacion: 100 por pagina con scroll vertical
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
@@ -218,7 +221,12 @@ export function PrintTable({
               </TableCell>
               <TableCell>{getEstadoDisenoBadge(orden)}</TableCell>
               <TableCell>{getEstadoCorteBadge(orden)}</TableCell>
-              <TableCell>{getEstadoImpresionBadge(orden)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {getEstadoImpresionBadge(orden)}
+                  <ReposicionBadge info={reposicionDePedido(orden.pedido, reposFull)} compact />
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <Button
                   variant="outline"
