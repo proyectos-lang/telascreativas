@@ -139,58 +139,37 @@ export function GDSchematicForm({
         </div>
       </div>
 
-      {/* Base del diseño existente — dos opciones: historial o archivo manual */}
-      {data.tipo_diseno === "Existente" && !disabled && (onRequestSourcePicker || onRequestManualUpload) && (
+      {/* Base del diseño existente — del historial y/o varios archivos manuales */}
+      {data.tipo_diseno === "Existente" && !disabled && (
         <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
           <p className="text-xs font-semibold text-indigo-900">Base del diseño existente</p>
 
-          {/* Estado actual */}
-          {sourceDesignLabel ? (
+          {sourceDesignLabel && (
             <div className="flex items-center gap-1.5 rounded bg-indigo-100 px-2 py-1 text-xs">
+              <FileCheck className="size-3 shrink-0 text-indigo-600" />
               <span className="text-indigo-500">Del historial:</span>
               <span className="font-mono font-semibold text-indigo-800">{sourceDesignLabel}</span>
             </div>
-          ) : data.urls_diseno_base?.length ? (
-            <div className="flex items-center gap-1.5 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs">
-              <FileCheck className="size-3 shrink-0 text-green-600" />
-              <span className="truncate text-green-700">
-                {decodeURIComponent(
-                  data.urls_diseno_base[0].split("/").pop()?.split("?")[0]?.replace(/^[^_]+_[^_]+_[^_]+_/, "") || "Archivo subido"
-                )}
-              </span>
-            </div>
-          ) : (
-            <p className="text-xs text-amber-700">
-              Selecciona un diseño del historial o sube un archivo como base
-            </p>
           )}
 
-          {/* Botones de acción */}
-          <div className="flex gap-1.5">
-            {onRequestSourcePicker && (
-              <button
-                type="button"
-                onClick={onRequestSourcePicker}
-                className="flex-1 rounded border border-indigo-300 bg-white px-2 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
-              >
-                {sourceDesignLabel ? "Cambiar historial" : "Del historial..."}
-              </button>
-            )}
-            {onRequestManualUpload && (
-              <button
-                type="button"
-                onClick={onRequestManualUpload}
-                disabled={uploadingBase}
-                className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-              >
-                {uploadingBase
-                  ? "Subiendo..."
-                  : data.urls_diseno_base?.length && !sourceDesignLabel
-                  ? "Cambiar archivo"
-                  : "Subir archivo..."}
-              </button>
-            )}
-          </div>
+          {onRequestSourcePicker && (
+            <button
+              type="button"
+              onClick={onRequestSourcePicker}
+              className="w-full rounded border border-indigo-300 bg-white px-2 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              {sourceDesignLabel ? "Cambiar diseño del historial" : "Elegir del historial..."}
+            </button>
+          )}
+
+          {/* Subida manual de VARIOS archivos base (imágenes / PDF / AI) */}
+          <GDFileUploader
+            label="Archivos base (puedes subir varios)"
+            value={data.urls_diseno_base || []}
+            onChange={(urls) => update({ urls_diseno_base: urls })}
+            pathPrefix={`${prefix}_base`}
+            disabled={disabled}
+          />
         </div>
       )}
 

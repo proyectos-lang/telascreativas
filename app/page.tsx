@@ -34,6 +34,8 @@ import { IndicadoresContent } from "@/components/indicadores/indicadores-content
 import { GDContent } from "@/components/gestion-disenos/gd-content"
 import { GestionDisenosProvider } from "@/lib/gestion-disenos-context"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
 import { ShieldOff } from "lucide-react"
 import {
   Breadcrumb,
@@ -175,16 +177,28 @@ function MainApp() {
                         <SidebarProvider>
           <AppSidebar activeView={activeView} onViewChange={setActiveView} />
           <SidebarInset className="content-cmyk-gradient">
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-black/5 px-4 bg-white/30 backdrop-blur-sm">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{viewTitles[activeView]}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-black/5 px-4 bg-white/30 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger className="-ml-1" />
+                <Separator orientation="vertical" className="mr-2 h-4" />
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{viewTitles[activeView]}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </div>
+              {/* Actualizar global: recarga la app para tomar el último despliegue */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                title="Recargar para aplicar la última versión de la aplicación"
+              >
+                <RefreshCw className="size-4 mr-2" />
+                Actualizar
+              </Button>
             </header>
             <main className="flex-1 p-4 md:p-6">{renderContent()}</main>
                         </SidebarInset>
