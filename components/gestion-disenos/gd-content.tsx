@@ -16,6 +16,7 @@ import { GDDetail } from "./gd-detail"
 import { GDAdminCatalogo } from "./gd-admin-catalogo"
 import { GDSchematicForm } from "./gd-schematic-form"
 import { GDDashboard } from "./gd-dashboard"
+import { GDCarpetasClientes } from "./gd-carpetas-clientes"
 import { GDNotificationBanner } from "./gd-notification-banner"
 import { GDPushPermission } from "./gd-push-permission"
 import { GDSourcePicker } from "./gd-source-picker"
@@ -408,6 +409,7 @@ export function GDContent() {
       label: effectiveDiseno ? "Diseños" : "Solicitudes",
       show: true,
     },
+    { id: "carpetas", label: "Carpetas Clientes", show: true },
     { id: "dashboard", label: "Control Gerencia", show: effectiveAdmin },
     { id: "catalogo", label: "Catálogos de Diseño", show: effectiveAdmin },
   ]
@@ -434,6 +436,10 @@ export function GDContent() {
               onNew={() => setNewModalOpen(true)}
               canCreate={canCreate}
             />
+          </TabsContent>
+
+          <TabsContent value="carpetas" className="flex-1 overflow-auto mt-3">
+            <GDCarpetasClientes solicitudes={solicitudes} />
           </TabsContent>
 
           <TabsContent value="dashboard" className="flex-1 overflow-auto mt-3">
