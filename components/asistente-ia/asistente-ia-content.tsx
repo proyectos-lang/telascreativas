@@ -37,10 +37,10 @@ interface Mensaje {
 }
 
 const SUGERENCIAS = [
+  "¿Qué procesos son los más eficientes y cuál es el cuello de botella?",
+  "Muéstrame la curva de tallaje según las órdenes que se manejan.",
+  "Curva de tallaje por tipo de tela y por producto.",
   "¿Qué pedidos están pendientes por reposición y de qué área?",
-  "Dame los pedidos en riesgo crítico o vencidos para esta semana.",
-  "Analiza la eficiencia por área con los lead times y dime dónde está el cuello de botella.",
-  "¿Cuántas piezas hay por empacar hoy y de qué clientes?",
 ]
 
 export function AsistenteIAContent() {

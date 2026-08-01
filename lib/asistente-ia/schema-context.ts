@@ -80,9 +80,19 @@ Empaque e* (efecha_de_empaque, ecantidad_empacada, enombre_de_quien_empaca, edia
 Regla: una etapa está "terminada" cuando su fecha de fin (p. ej. dentrega_diseno, cfecha_de_corte,
 ientrega_impresion, seta_sublimacion, coseta_costura, efecha_de_empaque) NO es NULL.
 
-### telas.detalleorden — líneas de producto por pedido
-id (numeric), id2 (uuid), pedido, numero_de_orden, pcs (text), nombre, tela, genero, estilo,
-talla, cliente, origen, comentarios, pcs_empacados (numeric).
+### telas.detalleorden — líneas de producto por pedido (BASE para tallaje / tela / producto)
+Columnas: id (numeric), id2 (uuid), pedido, numero_de_orden,
+pcs (TEXT — cantidad de piezas de esa línea; para sumar castea así:
+  nullif(regexp_replace(pcs, '[^0-9.]', '', 'g'), '')::numeric),
+nombre (producto), tela (tipo de tela), genero, estilo, talla (texto libre: S/M/L/XL, 8/10/12, etc.),
+cliente, origen, comentarios, pcs_empacados (numeric).
+Hay una fila por combinación producto/talla de un pedido. Es la FUENTE para:
+- Curvas de tallaje: SUM(pcs casteado) agrupado por talla.
+- Análisis por tipo de tela: agrupar por tela.
+- Análisis por producto: agrupar por nombre y/o estilo.
+Se une con la cabecera por pedido: telas.detalleorden.pedido = telas.cabecera.pedido
+(para filtrar por fechas o ver históricos usa telas.cabecera.fecha_de_ingreso / fecha_de_entrega,
+o date_trunc('month', c.fecha_de_ingreso) para agrupar por periodo).
 
 ### telas.incidencias — incidencias de calidad / reposiciones
 id (PK), pedido, area_reporta, area_genera, descripcion, genera_reposicion (bool),
