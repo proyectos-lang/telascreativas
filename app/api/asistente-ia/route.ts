@@ -33,6 +33,13 @@ Reglas estrictas:
 - No puedes consultar la tabla usuarios ni esquemas del sistema (están bloqueados).
 - Responde en español, claro y directo. Para análisis, primero da la conclusión (qué está pasando y qué recomiendas) y luego el detalle. Usa listas o tablas markdown cuando aporte claridad. No muestres el SQL en la respuesta a menos que te lo pidan (el sistema ya lo registra aparte).
 
+## Memoria y aprendizaje (mejora continua)
+Tienes una MEMORIA COMPARTIDA por todo el equipo que persiste entre todas las conversaciones. Úsala para volverte cada vez más útil:
+- Cuando aprendas algo DURADERO y de aplicación general —una regla de negocio, una definición, una preferencia del equipo, una meta o umbral, o una corrección que te hagan— guárdalo con la herramienta "guardar_conocimiento". También hazlo cuando el usuario diga "recuerda...", "de ahora en adelante..." o "ten en cuenta que...".
+- NO guardes resultados puntuales de una consulta, cifras que cambian a diario, ni cosas que solo aplican a una conversación. Sé conciso, en una o dos frases, y NO dupliques algo que ya esté en "Conocimiento acumulado".
+- Aplica SIEMPRE el "Conocimiento acumulado" que aparece al final de este prompt. Si el usuario corrige algo que contradice la memoria, prioriza su corrección y guárdala (la nueva reemplaza a la anterior en tu razonamiento).
+- Cuando guardes un aprendizaje, dilo brevemente al usuario ("Lo tendré en cuenta de ahora en adelante").
+
 ## Reportes y análisis que debes saber responder (enfoque del negocio)
 Estos son los usos principales que el equipo espera de ti. Aprende a resolverlos y ofrécelos proactivamente cuando encajen:
 
@@ -115,6 +122,26 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // 2a) Memoria compartida (conocimiento curado del equipo) para inyectar al prompt.
+  const { data: conocimiento } = await supabase
+    .schema("telas")
+    .from("ia_conocimiento")
+    .select("contenido, categoria")
+    .eq("activo", true)
+    .order("created_at", { ascending: true })
+    .limit(300)
+  const memoriaBlock =
+    conocimiento && conocimiento.length
+      ? "\n\n## Conocimiento acumulado (memoria compartida del equipo — aplícalo siempre, salvo corrección del usuario)\n" +
+        conocimiento
+          .map(
+            (k) =>
+              `- ${k.categoria ? `[${k.categoria}] ` : ""}${(k.contenido ?? "").trim()}`
+          )
+          .join("\n")
+      : ""
+  const sistema = SYSTEM_PROMPT + memoriaBlock
+
   // 2) Conversación: cargar historial o crear una nueva.
   let historial: { rol: string; contenido: string }[] = []
   if (conversacionId) {
@@ -177,6 +204,46 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  // 3b) Herramienta de memoria: guarda aprendizajes duraderos en la base compartida.
+  const aprendizajes: string[] = []
+  const guardarConocimiento = betaTool({
+    name: "guardar_conocimiento",
+    description:
+      "Guarda un aprendizaje DURADERO en la memoria compartida del equipo (regla de negocio, definición, preferencia, meta/umbral o corrección de aplicación general). NO guardes resultados puntuales de una consulta ni datos que cambian a diario. Sé conciso (1-2 frases) y no dupliques algo que ya esté en el Conocimiento acumulado.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nota: {
+          type: "string",
+          description: "El aprendizaje, conciso y de aplicación general.",
+        },
+        categoria: {
+          type: "string",
+          description:
+            "Categoría corta opcional (p. ej. tallaje, eficiencia, cliente, definicion, preferencia).",
+        },
+      },
+      required: ["nota"],
+      additionalProperties: false,
+    },
+    run: async ({ nota, categoria }) => {
+      const limpio = (nota ?? "").trim()
+      if (!limpio) return "Nota vacía, no se guardó."
+      const { error } = await supabase
+        .schema("telas")
+        .from("ia_conocimiento")
+        .insert({
+          contenido: limpio,
+          categoria: (categoria ?? "").trim() || null,
+          usuario_email: usuarioEmail,
+          activo: true,
+        })
+      if (error) return `No se pudo guardar: ${error.message}`
+      aprendizajes.push(limpio)
+      return "Aprendizaje guardado en la memoria compartida."
+    },
+  })
+
   const mensajesClaude: Anthropic.Beta.BetaMessageParam[] = [
     ...historial.slice(-MAX_HISTORIAL).map((m) => ({
       role: (m.rol === "assistant" ? "assistant" : "user") as "assistant" | "user",
@@ -195,9 +262,9 @@ export async function POST(req: NextRequest) {
       thinking: { type: "adaptive" },
       output_config: { effort: "medium" },
       system: [
-        { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        { type: "text", text: sistema, cache_control: { type: "ephemeral" } },
       ],
-      tools: [consultarDatos],
+      tools: [consultarDatos, guardarConocimiento],
       messages: mensajesClaude,
     })
     const finalMessage = await runner
@@ -229,5 +296,10 @@ export async function POST(req: NextRequest) {
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversacionId)
 
-  return NextResponse.json({ conversacionId, respuesta, consultas: consultasEjecutadas })
+  return NextResponse.json({
+    conversacionId,
+    respuesta,
+    consultas: consultasEjecutadas,
+    aprendizajes,
+  })
 }

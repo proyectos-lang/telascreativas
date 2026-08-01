@@ -12,6 +12,8 @@ import {
   Bot,
   MessageSquare,
   ChevronDown,
+  Brain,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
@@ -34,6 +36,13 @@ interface Mensaje {
   rol: "user" | "assistant"
   contenido: string
   consultas?: string[]
+  aprendizajes?: string[]
+}
+
+interface Conocimiento {
+  id: string
+  contenido: string
+  categoria: string | null
 }
 
 const SUGERENCIAS = [
@@ -52,8 +61,30 @@ export function AsistenteIAContent() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [conocimiento, setConocimiento] = useState<Conocimiento[]>([])
+  const [verConocimiento, setVerConocimiento] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const cargarConocimiento = useCallback(async () => {
+    const { data } = await supabase
+      .schema("telas")
+      .from("ia_conocimiento")
+      .select("id, contenido, categoria")
+      .eq("activo", true)
+      .order("created_at", { ascending: false })
+      .limit(300)
+    setConocimiento((data ?? []) as Conocimiento[])
+  }, [])
+
+  const borrarConocimiento = async (id: string) => {
+    await supabase
+      .schema("telas")
+      .from("ia_conocimiento")
+      .update({ activo: false })
+      .eq("id", id)
+    setConocimiento((prev) => prev.filter((k) => k.id !== id))
+  }
 
   const cargarConversaciones = useCallback(async () => {
     if (!email) return
@@ -69,7 +100,8 @@ export function AsistenteIAContent() {
 
   useEffect(() => {
     cargarConversaciones()
-  }, [cargarConversaciones])
+    cargarConocimiento()
+  }, [cargarConversaciones, cargarConocimiento])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
@@ -116,9 +148,15 @@ export function AsistenteIAContent() {
       setConversacionId(json.conversacionId)
       setMensajes((prev) => [
         ...prev,
-        { rol: "assistant", contenido: json.respuesta, consultas: json.consultas },
+        {
+          rol: "assistant",
+          contenido: json.respuesta,
+          consultas: json.consultas,
+          aprendizajes: json.aprendizajes,
+        },
       ])
       cargarConversaciones()
+      if (json.aprendizajes && json.aprendizajes.length) cargarConocimiento()
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error inesperado"
       toast.error("El asistente no pudo responder", { description: msg })
@@ -159,6 +197,56 @@ export function AsistenteIAContent() {
                 <span className="truncate">{c.titulo || "Conversación"}</span>
               </button>
             ))
+          )}
+        </div>
+
+        {/* Memoria compartida (conocimiento del asistente) */}
+        <div className="border-t border-slate-100">
+          <button
+            onClick={() => setVerConocimiento((v) => !v)}
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium text-slate-600 hover:bg-slate-50"
+            title="Lo que el asistente ha aprendido y aplica en todas las conversaciones"
+          >
+            <Brain className="size-4 text-icon-purple" />
+            <span className="flex-1">Memoria del asistente</span>
+            <span className="rounded-full bg-slate-100 px-1.5 text-[10px] text-slate-500">
+              {conocimiento.length}
+            </span>
+            <ChevronDown
+              className={cn("size-3.5 transition-transform", verConocimiento && "rotate-180")}
+            />
+          </button>
+          {verConocimiento && (
+            <div className="max-h-56 space-y-1 overflow-auto px-2 pb-2">
+              {conocimiento.length === 0 ? (
+                <p className="px-2 py-2 text-[11px] text-slate-400">
+                  Aún no ha aprendido nada. Enséñale reglas o dile “recuerda…”.
+                </p>
+              ) : (
+                conocimiento.map((k) => (
+                  <div
+                    key={k.id}
+                    className="group flex items-start gap-1.5 rounded-lg bg-slate-50 px-2 py-1.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {k.categoria && (
+                        <span className="mr-1 rounded bg-indigo-100 px-1 text-[9px] uppercase text-indigo-600">
+                          {k.categoria}
+                        </span>
+                      )}
+                      <span className="text-[11px] text-slate-600">{k.contenido}</span>
+                    </div>
+                    <button
+                      onClick={() => borrarConocimiento(k.id)}
+                      title="Olvidar este aprendizaje"
+                      className="shrink-0 text-slate-300 opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -323,6 +411,22 @@ function Burbuja({ mensaje }: { mensaje: Mensaje }) {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {mensaje.aprendizajes && mensaje.aprendizajes.length > 0 && (
+          <div className="flex items-start gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2 py-1.5 text-[11px] text-indigo-700">
+            <Brain className="mt-0.5 size-3 shrink-0" />
+            <div>
+              <span className="font-medium">
+                Aprendí {mensaje.aprendizajes.length} cosa
+                {mensaje.aprendizajes.length !== 1 ? "s" : ""} para futuras conversaciones:
+              </span>
+              <ul className="mt-0.5 list-disc pl-4">
+                {mensaje.aprendizajes.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>
