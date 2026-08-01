@@ -31,6 +31,7 @@ import {
   User,
   Layers,
   Brush,
+  Sparkles,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
@@ -55,6 +56,7 @@ export type ActiveView =
   | "produccion"
   | "clientes"
   | "inventario"
+  | "asistente-ia"
 
 interface AppSidebarProps {
   activeView: ActiveView
@@ -167,6 +169,12 @@ const menuItems: {
     key: "inventario",
     icon: Layers,
     iconColor: "text-icon-teal",
+  },
+  {
+    title: "Asistente IA",
+    key: "asistente-ia",
+    icon: Sparkles,
+    iconColor: "text-icon-purple",
   },
 ]
 

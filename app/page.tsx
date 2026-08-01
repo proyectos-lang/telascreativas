@@ -33,6 +33,7 @@ import { PlanSemanalContent } from "@/components/plan-semanal/plan-semanal-conte
 import { IndicadoresContent } from "@/components/indicadores/indicadores-content"
 import { GDContent } from "@/components/gestion-disenos/gd-content"
 import { GestionDisenosProvider } from "@/lib/gestion-disenos-context"
+import { AsistenteIAContent } from "@/components/asistente-ia/asistente-ia-content"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
@@ -64,6 +65,7 @@ const viewTitles: Record<ActiveView, string> = {
   clientes: "Clientes",
   inventario: "Inventario de Telas",
   "gestion-disenos": "Gestion de Disenos",
+  "asistente-ia": "Asistente IA",
 }
 
 /**
@@ -152,6 +154,8 @@ function MainApp() {
         return <IndicadoresContent />
       case "gestion-disenos":
         return <GDContent />
+      case "asistente-ia":
+        return <AsistenteIAContent />
       default:
         return (
           <div className="flex items-center justify-center py-20 text-muted-foreground">

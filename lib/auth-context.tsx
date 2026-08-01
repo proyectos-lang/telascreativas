@@ -48,6 +48,8 @@ export interface UsuarioActual {
   gd_ventas?: boolean | null
   gd_diseno?: boolean | null
   gd_admin?: boolean | null
+  // Acceso al módulo "Asistente IA" (agente de consulta/análisis, solo lectura).
+  asistente_ia?: boolean | null
   // Any other column the DB might add in the future
   [key: string]: unknown
 }
@@ -77,6 +79,8 @@ export const VIEW_PERMISSION_MAP: Record<string, keyof UsuarioActual> = {
   incidencias: "reporte_incidencias",
   // Dashboard de Indicadores: controlado por la columna `indicadores`.
   indicadores: "indicadores",
+  // Asistente IA: controlado por la columna `asistente_ia` en telas.usuarios.
+  "asistente-ia": "asistente_ia",
   // Gestión de Diseños: accesible si el usuario tiene cualquiera de los
   // tres sub-roles (gd_ventas, gd_diseno, gd_admin). Como el mapa solo
   // acepta un único campo keyof UsuarioActual, usamos canViewForUser para
