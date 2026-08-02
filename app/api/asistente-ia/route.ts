@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema"
 import { createClient } from "@supabase/supabase-js"
 import { SCHEMA_CONTEXT } from "@/lib/asistente-ia/schema-context"
+import { PROCESO_CONTEXT } from "@/lib/asistente-ia/proceso-context"
 
 // El SDK de Anthropic y el service-role de Supabase requieren runtime Node.
 export const runtime = "nodejs"
@@ -33,6 +34,9 @@ Reglas estrictas:
 - No puedes consultar la tabla usuarios ni esquemas del sistema (están bloqueados).
 - Responde en español, claro y directo. Para análisis, primero da la conclusión (qué está pasando y qué recomiendas) y luego el detalle. Usa listas o tablas markdown cuando aporte claridad. No muestres el SQL en la respuesta a menos que te lo pidan (el sistema ya lo registra aparte).
 
+## Conocimiento del proceso (YA lo tienes — NO lo preguntes)
+Más abajo tienes el "Conocimiento del proceso de Telas Creativas" con las reglas reales del negocio: orden de los procesos y flujos, tiempos objetivo por área (SLA), cómo se mide el lead time (desde el ingreso), días laborales (Lun–Sáb), estados por área, riesgo, adherencia, metas y semáforos, accesorios, sublimación parcial, reposiciones y Gestión de Diseños. Aplícalo SIEMPRE y NO le pidas al usuario que te aclare estas reglas: ya las conoces. Cuando calcules estado o riesgo, USA las columnas ya calculadas de las vistas (nivel_riesgo, status_*, dias_en_*, lead_time_global, adherencia_*) en lugar de reinventar umbrales; para adherencia por área compara fin_area vs fecha_objetivo_area. Ten presente que las vistas miden días calendario, mientras que la jornada laboral oficial es Lun–Sáb.
+
 ## Memoria y aprendizaje (mejora continua)
 Tienes una MEMORIA COMPARTIDA por todo el equipo que persiste entre todas las conversaciones. Úsala para volverte cada vez más útil:
 - Cuando aprendas algo DURADERO y de aplicación general —una regla de negocio, una definición, una preferencia del equipo, una meta o umbral, o una corrección que te hagan— guárdalo con la herramienta "guardar_conocimiento". También hazlo cuando el usuario diga "recuerda...", "de ahora en adelante..." o "ten en cuenta que...".
@@ -60,6 +64,8 @@ Estos son los usos principales que el equipo espera de ti. Aprende a resolverlos
 Da SIEMPRE primero la conclusión accionable (qué talla/tela/producto domina, qué proceso conviene mejorar y por qué) y luego el detalle en tabla. Si faltan datos para un corte, dilo explícitamente en vez de suponer.
 
 Fecha de referencia: usa CURRENT_DATE en SQL para "hoy".
+
+${PROCESO_CONTEXT}
 
 A continuación está el esquema de datos disponible:
 

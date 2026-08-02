@@ -104,12 +104,11 @@ id, tipo, nombre, ancho_pulgadas, stock_metros, stock_yardas, color, codigo, pro
 ### telas.inventario_movimientos
 id, tela_id, tipo_movimiento, motivo, usuario, fecha_movimiento, cantidad_metros, cantidad_yardas.
 
-## Flujos de producción (por tipo_flujo_especial)
-- PRODUCCION_NORMAL / YARDAJE: Diseño → Impresión → Sublimación → Corte → Costura → Empaque → Entrega
-- SOLO_CORTE_COSTURA (solo_corte_costura=true): Corte → Costura → Empaque → Entrega
-- OMITE_CORTE_COSTURA (omite_corte_costura=true): Diseño → Impresión → Sublimación → Empaque → Entrega
-- COMPRA_EXTERNA: solo Entrega
-- VENTA_INVENTARIO: [Sublimación si accesorios_inventario != null] → Empaque → Entrega
+## Flujos de producción
+tipo_flujo_especial tiene 4 valores (PRODUCCION_NORMAL, YARDAJE, COMPRA_EXTERNA, VENTA_INVENTARIO)
+y hay 2 banderas ortogonales (solo_corte_costura, omite_corte_costura). El orden EXACTO de los
+procesos por flujo y flag está en la sección "Conocimiento del proceso — Telas Creativas" de este
+prompt; úsala como fuente de verdad para secuencias, tiempos y estados.
 
 ## Estados por área (status_*): "En espera" | "Pendiente" (cuello de botella) | "Recibido" | "Terminado"
 ## Nivel de riesgo (nivel_riesgo): "Vencido" | "Riesgo Crítico" | "Riesgo Medio" | "A Tiempo"
