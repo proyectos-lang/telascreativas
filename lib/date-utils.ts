@@ -83,18 +83,17 @@ export function formatDateTimeLong(
 /**
  * Suma `daysToAdd` dias habiles a `dateString`.
  *
- * "Dia habil" = lunes a viernes (excluye sabado y domingo).
- * El conteo avanza dia a dia y solo incrementa el contador cuando el dia
- * candidato NO es sabado (6) ni domingo (0). El resultado nunca puede
- * caer en fin de semana porque el ultimo dia contabilizado siempre sera
- * lunes-viernes.
+ * "Dia habil" = lunes a SABADO (jornada oficial de Telas Creativas; solo el
+ * domingo no es laboral). El conteo avanza dia a dia y solo incrementa el
+ * contador cuando el dia candidato NO es domingo (0). El resultado puede caer
+ * en sabado (dia laboral) pero nunca en domingo.
  *
  * Usa UTC para evitar corrimientos por zona horaria al parsear el string,
  * de forma consistente con el resto de fechas de la app.
  *
  * Se usa para calcular las fechas objetivo de cada area al aprobar o
  * reprogramar una orden:
- *   Diseno +3d | Corte +3d | Impresion +5d | Sublimacion +4d | Costura +6d
+ *   Diseno +3d | Corte +3d | Impresion +4d | Sublimacion +5d | Costura +6d | Empaque +8d
  */
 export function addDaysSkippingSundays(
   dateString: string,
@@ -109,8 +108,8 @@ export function addDaysSkippingSundays(
   while (added < daysToAdd) {
     date.setUTCDate(date.getUTCDate() + 1)
     const dow = date.getUTCDay()
-    // Solo contar lunes (1) a viernes (5); ignorar sabado (6) y domingo (0).
-    if (dow !== 0 && dow !== 6) {
+    // Contar lunes (1) a sabado (6); ignorar solo el domingo (0).
+    if (dow !== 0) {
       added++
     }
   }

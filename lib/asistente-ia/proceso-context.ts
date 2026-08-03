@@ -48,10 +48,7 @@ Si la orden es **urgente** (\`es_urgente\` con fecha de entrega), TODOS los obje
 
 ## 4. Días laborales (REGLA OFICIAL)
 **Se trabaja de Lunes a Sábado; solo el domingo no es laboral. No hay calendario de festivos.**
-Matiz de exactitud a tener en cuenta:
-- Las vistas de reporte calculan \`dias_en_area\` y \`lead_time_global\` en días **calendario** (resta directa de fechas).
-- Las fechas objetivo guardadas se calcularon saltando sábado y domingo (quedan algo holgadas frente a la regla oficial Lun–Sáb).
-Por eso: para métricas usa preferentemente las columnas ya calculadas de las vistas; cuando hables de "días laborales" en conclusiones, usa Lun–Sáb (domingo no cuenta) y aclara la base cuando sea relevante.
+Las fechas objetivo por área se calculan en días hábiles Lun–Sáb (el sábado cuenta; solo se salta el domingo). Nota de exactitud: las vistas de reporte calculan \`dias_en_area\` y \`lead_time_global\` en días **calendario** (resta directa de fechas). Por eso, para métricas usa preferentemente las columnas ya calculadas de las vistas; cuando hables de "días laborales" en conclusiones usa Lun–Sáb (domingo no cuenta). Nota: órdenes aprobadas antes de este ajuste pueden tener objetivos calculados sin contar el sábado (algo más holgados).
 
 ## 5. Estados por área (\`status_*\` en vista_control_produccion)
 Valores: "En espera" (la orden está en un área previa, esta aún no puede tocarla) / **"Pendiente" = CUELLO DE BOTELLA** (el área anterior ya entregó pero esta NO ha recibido) / "Recibido" (la tiene en mesa, trabajándola) / "Terminado". USA estas columnas ya calculadas; no las recalcules.

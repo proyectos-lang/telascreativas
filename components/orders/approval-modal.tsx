@@ -119,9 +119,9 @@ export function ApprovalModal({
     //    trabajar contra ese deadline en lugar del lead time estandar.
     //
     // 2) Orden NORMAL (es_urgente === false) o urgente sin fecha_de_entrega:
-    //    se calcula con los lead times estandar en dias habiles (excluyendo
-    //    domingos) sobre la fecha_programacion:
-    //      Diseno: +3d | Corte: +3d | Impresion: +5d | Sublimacion: +4d | Costura: +6d
+    //    se calcula con los lead times estandar en dias habiles (Lun-Sab;
+    //    solo se excluye el domingo) sobre la fecha_programacion:
+    //      Diseno: +3d | Corte: +3d | Impresion: +4d | Sublimacion: +5d | Costura: +6d | Empaque: +8d
     //
     // En ambos casos, si solo_corte_costura esta activo, los objetivos de
     // Diseno, Impresion y Sublimacion se omiten (null) porque la orden no
