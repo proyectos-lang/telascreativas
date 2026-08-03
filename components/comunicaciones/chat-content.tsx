@@ -103,6 +103,7 @@ export function ChatContent() {
   const [jumpId, setJumpId] = useState<string | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [crearTareaOpen, setCrearTareaOpen] = useState(false)
+  const [enlazarOpen, setEnlazarOpen] = useState(false)
   const [mensajeOrigenTarea, setMensajeOrigenTarea] = useState<string | null>(null)
   const [tareaAbiertaId, setTareaAbiertaId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -419,6 +420,16 @@ export function ChatContent() {
                 </Button>
                 <Button
                   variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setEnlazarOpen(true)}
+                  title="Enlazar un pedido o una gestión de diseño"
+                >
+                  <Link2 className="size-4" />
+                  Enlazar
+                </Button>
+                <Button
+                  variant="outline"
                   size="icon"
                   className="size-9"
                   onClick={() => setBuscarOpen((v) => !v)}
@@ -716,6 +727,15 @@ export function ChatContent() {
         />
       )}
 
+      {/* Enlazar un pedido o una gestión de diseño a la conversación */}
+      {convActiva && (
+        <EnlazarReferenciaDialog
+          open={enlazarOpen}
+          onOpenChange={setEnlazarOpen}
+          conversacionId={convActiva.id}
+        />
+      )}
+
       {/* Crear tarea */}
       {convActiva && (
         <CrearTareaDialog
@@ -997,6 +1017,189 @@ function Burbuja({
         )}
       </div>
     </div>
+  )
+}
+
+function EnlazarReferenciaDialog({
+  open,
+  onOpenChange,
+  conversacionId,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  conversacionId: string
+}) {
+  const { enviarMensaje } = useComunicaciones()
+  const { ordenes } = useOrders()
+  const { solicitudes } = useGD()
+  const [tab, setTab] = useState<"pedido" | "gestion">("pedido")
+  const [q, setQ] = useState("")
+  const [nota, setNota] = useState("")
+  const [enviando, setEnviando] = useState(false)
+
+  const term = q.trim().toLowerCase()
+  const pedidosFiltrados = ordenes
+    .filter((o) =>
+      !term
+        ? true
+        : o.pedido.toLowerCase().includes(term) ||
+          (o.cliente ?? "").toLowerCase().includes(term)
+    )
+    .slice(0, 60)
+  const gestionesFiltradas = solicitudes
+    .filter((s) =>
+      !term
+        ? true
+        : (s.numero ?? "").toLowerCase().includes(term) ||
+          (s.cliente ?? "").toLowerCase().includes(term)
+    )
+    .slice(0, 60)
+
+  const enviar = async (
+    tipo: "pedido" | "gestion",
+    valor: string,
+    titulo: string
+  ) => {
+    setEnviando(true)
+    const r = await enviarMensaje(conversacionId, nota.trim(), {
+      tipo: "referencia",
+      referencia_tipo: tipo,
+      referencia_valor: valor,
+    })
+    setEnviando(false)
+    if (r.success) {
+      toast.success(`${titulo} enlazado`)
+      onOpenChange(false)
+      setNota("")
+      setQ("")
+    } else {
+      toast.error("No se pudo enlazar", { description: r.error })
+    }
+  }
+
+  const sinResultados =
+    (tab === "pedido" && pedidosFiltrados.length === 0) ||
+    (tab === "gestion" && gestionesFiltradas.length === 0)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Enlazar en la conversación</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {/* Selector de tipo */}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setTab("pedido")}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1 font-medium transition-colors",
+                tab === "pedido"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Pedidos
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("gestion")}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1 font-medium transition-colors",
+                tab === "gestion"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Gestiones de diseño
+            </button>
+          </div>
+
+          <Textarea
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            placeholder="Nota opcional para acompañar el enlace…"
+            rows={2}
+            className="resize-none"
+          />
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={
+                tab === "pedido"
+                  ? "Buscar pedido o cliente…"
+                  : "Buscar gestión o cliente…"
+              }
+              className="pl-8"
+            />
+          </div>
+
+          <div className="max-h-72 space-y-1 overflow-auto">
+            {tab === "pedido" &&
+              pedidosFiltrados.map((o) => (
+                <button
+                  key={o.pedido}
+                  disabled={enviando}
+                  onClick={() =>
+                    void enviar("pedido", o.pedido, `Pedido ${o.pedido}`)
+                  }
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <Link2 className="size-4 shrink-0 text-indigo-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">
+                      Pedido {o.pedido}
+                      {o.es_urgente && (
+                        <span className="ml-1 text-[11px] text-amber-500">
+                          • urgente
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-400">
+                      {[
+                        o.cliente,
+                        o.estado_produccion || o.estado_aprobado_rechazado,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            {tab === "gestion" &&
+              gestionesFiltradas.map((s) => (
+                <button
+                  key={s.id}
+                  disabled={enviando}
+                  onClick={() =>
+                    void enviar("gestion", String(s.id), `Gestión ${s.numero}`)
+                  }
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <Link2 className="size-4 shrink-0 text-indigo-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">
+                      Gestión {s.numero}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-400">
+                      {[s.cliente, s.estado].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            {sinResultados && (
+              <p className="px-2 py-4 text-center text-xs text-slate-400">
+                Sin resultados.
+              </p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
