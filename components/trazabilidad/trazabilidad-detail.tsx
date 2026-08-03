@@ -1,6 +1,7 @@
 "use client"
 
 import { Orden } from "@/lib/types"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -90,6 +91,7 @@ export function TrazabilidadDetail({ orden, onBack }: TrazabilidadDetailProps) {
           <p className="text-sm text-muted-foreground">
             {orden.cliente || "Sin cliente"}
           </p>
+          <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
         </div>
         <div className="text-right shrink-0">
           <p className="text-3xl font-bold text-foreground leading-none">

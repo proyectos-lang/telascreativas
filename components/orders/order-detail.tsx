@@ -27,6 +27,7 @@ import { EditModeModal } from "./edit-mode-modal"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { addDaysSkippingSundays, getTodayISO } from "@/lib/date-utils"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import {
   ArrowLeft,
   Check,
@@ -540,6 +541,7 @@ export function OrderDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           {/* Modo edicion: boton para activar (pide contrasena) o guardar/cancelar */}
           {!isEditMode ? (
             <Button

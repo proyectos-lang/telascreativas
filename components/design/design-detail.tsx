@@ -9,6 +9,7 @@ import { ReceiveModal } from "./receive-modal"
 import { ChangesModal } from "./changes-modal"
 import { FinishModal } from "./finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
@@ -261,6 +262,7 @@ export function DesignDetail({ orden, onBack }: DesignDetailProps) {
 
         <div className="flex flex-wrap gap-2">
           <ReportarIncidenciaButton pedido={orden.pedido} areaActual="Diseno" />
+          <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <ReposicionBadge info={repo} className="self-center" />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button

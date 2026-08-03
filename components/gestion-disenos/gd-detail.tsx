@@ -23,6 +23,7 @@ import {
   Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -268,6 +269,7 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-1.5">
+          <EnviarPorChatButton tipo="gestion" gestionId={gestion.id} numero={gestion.numero} />
           {canEdit && !isEditing && (
             <Button
               variant="outline"

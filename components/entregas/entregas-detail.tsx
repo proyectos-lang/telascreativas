@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Orden, DetalleOrden } from "@/lib/types"
 import { useEntregas } from "@/lib/entregas-context"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -263,6 +264,7 @@ export function EntregasDetail({ orden, onBack }: EntregasDetailProps) {
 
       {/* Action area */}
       <div className="flex items-center gap-2 flex-wrap">
+        <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
         {isDelivered ? (
           <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 flex-1">
             <CheckCircle2 className="size-4 text-emerald-700" />

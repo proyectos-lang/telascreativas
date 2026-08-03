@@ -34,6 +34,9 @@ import { IndicadoresContent } from "@/components/indicadores/indicadores-content
 import { GDContent } from "@/components/gestion-disenos/gd-content"
 import { GestionDisenosProvider } from "@/lib/gestion-disenos-context"
 import { AsistenteIAContent } from "@/components/asistente-ia/asistente-ia-content"
+import { ComunicacionesProvider } from "@/lib/comunicaciones-context"
+import { ChatContent } from "@/components/comunicaciones/chat-content"
+import { ChatNotificationBanner } from "@/components/comunicaciones/chat-notification-banner"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
@@ -66,6 +69,7 @@ const viewTitles: Record<ActiveView, string> = {
   inventario: "Inventario de Telas",
   "gestion-disenos": "Gestion de Disenos",
   "asistente-ia": "Asistente IA",
+  comunicaciones: "Mensajería",
 }
 
 /**
@@ -156,6 +160,8 @@ function MainApp() {
         return <GDContent />
       case "asistente-ia":
         return <AsistenteIAContent />
+      case "comunicaciones":
+        return <ChatContent />
       default:
         return (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
@@ -168,6 +174,7 @@ function MainApp() {
 
   return (
     <GestionDisenosProvider>
+    <ComunicacionesProvider>
     <OrdersProvider>
       <DesignProvider>
         <CutProvider>
@@ -205,6 +212,7 @@ function MainApp() {
               </Button>
             </header>
             <main className="flex-1 p-4 md:p-6">{renderContent()}</main>
+            <ChatNotificationBanner />
                         </SidebarInset>
                         </SidebarProvider>
                       </AppNavigationProvider>
@@ -217,6 +225,7 @@ function MainApp() {
         </CutProvider>
       </DesignProvider>
     </OrdersProvider>
+    </ComunicacionesProvider>
     </GestionDisenosProvider>
   )
 }

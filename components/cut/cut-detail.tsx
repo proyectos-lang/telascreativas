@@ -8,6 +8,7 @@ import { useCut } from "@/lib/cut-context"
 import { CutReceiveModal } from "./cut-receive-modal"
 import { CutFinishModal } from "./cut-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
@@ -306,6 +307,7 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
 
         <div className="flex flex-wrap gap-2">
           <ReportarIncidenciaButton pedido={orden.pedido} areaActual="Corte" />
+          <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
             size="sm"

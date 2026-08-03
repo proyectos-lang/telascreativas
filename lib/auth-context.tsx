@@ -50,6 +50,10 @@ export interface UsuarioActual {
   gd_admin?: boolean | null
   // Acceso al módulo "Asistente IA" (agente de consulta/análisis, solo lectura).
   asistente_ia?: boolean | null
+  // Foto de perfil (URL pública en el bucket user-avatars).
+  foto_url?: string | null
+  // Permiso para publicar Noticias (Comunicaciones Internas, fase futura).
+  com_publicar_noticias?: boolean | null
   // Any other column the DB might add in the future
   [key: string]: unknown
 }
@@ -116,7 +120,8 @@ export function canViewForUser(
     view === "dashboard" ||
     view === "trazabilidad" ||
     view === "inventario" ||
-    view === "plansemanal"
+    view === "plansemanal" ||
+    view === "comunicaciones"
   )
     return true
   // Gestión de Diseños requiere cualquiera de los tres sub-roles.
@@ -137,6 +142,7 @@ interface AuthContextType {
     password: string
   ) => Promise<{ success: boolean; error?: string }>
   logout: () => void
+  refreshUsuario: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -288,9 +294,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuarioActual(null)
   }, [])
 
+  // Re-consulta telas.usuarios por email y actualiza estado + localStorage.
+  // Se usa tras cambios del propio usuario (p. ej. foto de perfil) o de un admin.
+  const refreshUsuario = useCallback(async () => {
+    const em = usuarioActual?.email
+    if (!em) return
+    const { data, error } = await supabase
+      .schema("telas")
+      .from("usuarios")
+      .select("*")
+      .eq("email", em)
+      .single()
+    if (error || !data) return
+    const fresh: UsuarioActual = { ...(data as UsuarioActual) }
+    if ("password" in fresh) delete (fresh as Record<string, unknown>).password
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh))
+    } catch {
+      /* ignore */
+    }
+    setUsuarioActual(fresh)
+  }, [usuarioActual?.email])
+
   return (
     <AuthContext.Provider
-      value={{ usuarioActual, isHydrated, isSubmitting, login, logout }}
+      value={{ usuarioActual, isHydrated, isSubmitting, login, logout, refreshUsuario }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Sidebar,
   SidebarContent,
@@ -32,9 +33,13 @@ import {
   Layers,
   Brush,
   Sparkles,
+  MessageSquare,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
+import { useComunicaciones } from "@/lib/comunicaciones-context"
+import { UserAvatar } from "@/components/comunicaciones/user-avatar"
+import { PerfilModal } from "@/components/comunicaciones/perfil-modal"
 
 export type ActiveView =
   | "dashboard"
@@ -57,6 +62,7 @@ export type ActiveView =
   | "clientes"
   | "inventario"
   | "asistente-ia"
+  | "comunicaciones"
 
 interface AppSidebarProps {
   activeView: ActiveView
@@ -68,6 +74,7 @@ const menuItems: {
   key: ActiveView
   icon: React.ElementType
   iconColor: string
+  group?: "operaciones" | "comunicaciones"
 }[] = [
   {
     title: "Dashboard",
@@ -176,10 +183,18 @@ const menuItems: {
     icon: Sparkles,
     iconColor: "text-icon-purple",
   },
+  {
+    title: "Mensajería",
+    key: "comunicaciones",
+    icon: MessageSquare,
+    iconColor: "text-icon-cyan",
+    group: "comunicaciones",
+  },
 ]
 
 function AuthSidebarFooter() {
   const { usuarioActual, logout } = useAuth()
+  const [perfilOpen, setPerfilOpen] = useState(false)
   const displayName =
     (usuarioActual?.nombre as string) ||
     (usuarioActual?.usuario as string) ||
@@ -191,10 +206,17 @@ function AuthSidebarFooter() {
   return (
     <>
       <SidebarMenuItem>
-        <div className="flex items-center gap-2 rounded-md px-2 py-2 text-white/80">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white/10">
-            <User className="size-3.5 text-white/80" />
-          </div>
+        <button
+          onClick={() => setPerfilOpen(true)}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-white/80 hover:bg-white/10"
+          title="Mi perfil"
+        >
+          <UserAvatar
+            nombre={displayName}
+            email={emailLabel}
+            fotoUrl={usuarioActual?.foto_url as string | undefined}
+            className="size-7"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium capitalize text-white">
               {displayName}
@@ -205,8 +227,9 @@ function AuthSidebarFooter() {
               </p>
             )}
           </div>
-        </div>
+        </button>
       </SidebarMenuItem>
+      <PerfilModal open={perfilOpen} onOpenChange={setPerfilOpen} />
       <SidebarMenuItem>
         <SidebarMenuButton
           onClick={logout}
@@ -223,6 +246,7 @@ function AuthSidebarFooter() {
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const { usuarioActual } = useAuth()
   const { solicitudes } = useGD()
+  const { unreadTotal } = useComunicaciones()
 
   // Solicitudes activas (ni Finalizado ni Rechazado) — alimentan el badge.
   const gdBadgeCount = solicitudes.filter(
@@ -233,6 +257,35 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const allowedItems = menuItems.filter((item) =>
     canViewForUser(usuarioActual, item.key)
   )
+  const opItems = allowedItems.filter((i) => i.group !== "comunicaciones")
+  const comItems = allowedItems.filter((i) => i.group === "comunicaciones")
+
+  const badgeDe = (key: ActiveView): number => {
+    if (key === "gestion-disenos") return gdBadgeCount
+    if (key === "comunicaciones") return unreadTotal
+    return 0
+  }
+
+  const renderItem = (item: (typeof menuItems)[number]) => {
+    const badge = badgeDe(item.key)
+    return (
+      <SidebarMenuItem key={item.key}>
+        <SidebarMenuButton
+          isActive={activeView === item.key}
+          onClick={() => onViewChange(item.key)}
+          className="text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-white/15 data-[active=true]:text-white"
+        >
+          <item.icon className={`size-4 ${item.iconColor}`} />
+          <span className="flex-1">{item.title}</span>
+          {badge > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold leading-none text-white">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
 
   return (
     <Sidebar>
@@ -262,29 +315,22 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/50">Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/50">Operaciones</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {allowedItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    isActive={activeView === item.key}
-                    onClick={() => onViewChange(item.key)}
-                    className="text-white/80 hover:text-white hover:bg-white/10 data-[active=true]:bg-white/15 data-[active=true]:text-white"
-                  >
-                    <item.icon className={`size-4 ${item.iconColor}`} />
-                    <span className="flex-1">{item.title}</span>
-                    {item.key === "gestion-disenos" && gdBadgeCount > 0 && (
-                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold leading-none text-white">
-                        {gdBadgeCount > 99 ? "99+" : gdBadgeCount}
-                      </span>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenu>{opItems.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {comItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-white/50">
+              Comunicaciones Internas
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{comItems.map(renderItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-white/10">

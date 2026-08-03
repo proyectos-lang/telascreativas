@@ -8,6 +8,7 @@ import { usePrint } from "@/lib/print-context"
 import { PrintReceiveModal } from "./print-receive-modal"
 import { PrintFinishModal } from "./print-finish-modal"
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
+import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
@@ -290,6 +291,7 @@ export function PrintDetail({ orden, onBack }: PrintDetailProps) {
             pedido={orden.pedido}
             areaActual="Impresion"
           />
+          <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <ReposicionBadge info={repo} className="self-center" />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           <Button
