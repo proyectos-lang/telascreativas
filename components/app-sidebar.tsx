@@ -38,6 +38,7 @@ import {
   Newspaper,
   Settings,
   ChevronDown,
+  Search,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
@@ -278,6 +279,15 @@ function AuthSidebarFooter() {
   )
 }
 
+// Normaliza texto para búsqueda: minúsculas + sin acentos/diacríticos.
+function normalizar(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+}
+
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const { usuarioActual } = useAuth()
   const { solicitudes } = useGD()
@@ -299,8 +309,21 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
     { key: "operaciones", label: "Operaciones" },
     { key: "comunicaciones", label: "Comunicaciones Internas" },
   ]
+  // Buscador de módulos. Cuando hay texto, filtra por título (sin acentos) y
+  // fuerza a que todos los grupos se muestren expandidos.
+  const [filtro, setFiltro] = useState("")
+  const filtroNorm = normalizar(filtro)
+  const buscando = filtroNorm.length > 0
+
   const itemsDeGrupo = (g: string) =>
-    allowedItems.filter((i) => (i.group ?? "operaciones") === g)
+    allowedItems.filter(
+      (i) =>
+        (i.group ?? "operaciones") === g &&
+        (!buscando || normalizar(i.title).includes(filtroNorm))
+    )
+  const totalCoincidencias = allowedItems.filter(
+    (i) => !buscando || normalizar(i.title).includes(filtroNorm)
+  ).length
 
   // Estado de expandido/colapsado por grupo (todos abiertos por defecto).
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({
@@ -366,10 +389,32 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Buscador de módulos */}
+        <div className="px-2 pt-2 pb-1">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-white/40" />
+            <input
+              type="text"
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+              placeholder="Buscar módulo..."
+              aria-label="Buscar módulo"
+              className="h-8 w-full rounded-md border border-white/10 bg-white/5 pl-7 pr-2 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-white/30 focus:bg-white/10"
+            />
+          </div>
+        </div>
+
+        {buscando && totalCoincidencias === 0 && (
+          <p className="px-4 py-2 text-xs text-white/40">
+            Sin módulos que coincidan con “{filtro}”.
+          </p>
+        )}
+
         {GRUPOS.map((grupo) => {
           const items = itemsDeGrupo(grupo.key)
           if (items.length === 0) return null
-          const abierto = gruposAbiertos[grupo.key] ?? true
+          // Al buscar, todos los grupos con coincidencias se muestran abiertos.
+          const abierto = buscando ? true : gruposAbiertos[grupo.key] ?? true
           // Suma de badges del grupo — se muestra junto al título cuando está
           // colapsado, para no perder de vista mensajes/pendientes.
           const grupoBadge = items.reduce((acc, it) => acc + badgeDe(it.key), 0)
@@ -398,11 +443,21 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
                   )}
                 </button>
               </SidebarGroupLabel>
-              {abierto && (
-                <SidebarGroupContent>
-                  <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
-                </SidebarGroupContent>
-              )}
+              {/* Contenedor animado: grid-rows 0fr↔1fr para una transición
+                  suave de alto (colapso/expansión) + fade. */}
+              <div
+                className={`grid transition-all duration-300 ease-in-out ${
+                  abierto
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <SidebarGroupContent>
+                    <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
+                  </SidebarGroupContent>
+                </div>
+              </div>
             </SidebarGroup>
           )
         })}

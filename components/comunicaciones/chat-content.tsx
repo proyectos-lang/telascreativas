@@ -236,6 +236,36 @@ export function ChatContent() {
     setArchivos((prev) => [...prev, ...Array.from(list)])
   }
 
+  // Pegar imágenes desde el portapapeles (p. ej. un pantallazo con Ctrl+V).
+  // Extrae los items de tipo imagen del clipboard y los agrega como adjuntos
+  // pendientes, igual que si se hubieran seleccionado con el botón de imagen.
+  const onPasteInput = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    const imgs: File[] = []
+    for (const it of Array.from(items)) {
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        const blob = it.getAsFile()
+        if (!blob) continue
+        // Los pantallazos suelen llegar sin nombre o como "image.png".
+        const ext = (blob.type.split("/")[1] || "png").split("+")[0]
+        const name =
+          blob.name && blob.name.toLowerCase() !== "image.png"
+            ? blob.name
+            : `pantallazo_${Date.now()}.${ext}`
+        imgs.push(new File([blob], name, { type: blob.type }))
+      }
+    }
+    if (imgs.length > 0) {
+      // Evita que además se pegue texto/binario en el input.
+      e.preventDefault()
+      setArchivos((prev) => [...prev, ...imgs])
+      toast.success(
+        imgs.length === 1 ? "Imagen pegada" : `${imgs.length} imágenes pegadas`
+      )
+    }
+  }
+
   const abrirDesdeGlobal = (convId: string, mid: string) => {
     setGlobalOpen(false)
     setActivaId(convId)
@@ -629,13 +659,14 @@ export function ChatContent() {
                 <Textarea
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
+                  onPaste={onPasteInput}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault()
                       void enviar()
                     }
                   }}
-                  placeholder="Escribe un mensaje…"
+                  placeholder="Escribe un mensaje… (puedes pegar una imagen con Ctrl+V)"
                   rows={1}
                   className="max-h-32 min-h-[42px] resize-none bg-white"
                 />

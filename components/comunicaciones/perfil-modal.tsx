@@ -51,7 +51,17 @@ export function PerfilModal({
         .from(AVATAR_BUCKET)
         .upload(path, file, { contentType: file.type, upsert: true })
       if (upErr) {
-        toast.error("No se pudo subir la foto", { description: upErr.message })
+        const esBucketFaltante = /bucket not found/i.test(upErr.message)
+        toast.error(
+          esBucketFaltante
+            ? "Falta crear el bucket de fotos en Supabase"
+            : "No se pudo subir la foto",
+          {
+            description: esBucketFaltante
+              ? `Crea un bucket público llamado "${AVATAR_BUCKET}" en Supabase → Storage.`
+              : upErr.message,
+          }
+        )
         return
       }
       const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path)
