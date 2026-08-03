@@ -37,6 +37,9 @@ import { AsistenteIAContent } from "@/components/asistente-ia/asistente-ia-conte
 import { ComunicacionesProvider } from "@/lib/comunicaciones-context"
 import { ChatContent } from "@/components/comunicaciones/chat-content"
 import { ChatNotificationBanner } from "@/components/comunicaciones/chat-notification-banner"
+import { TareasContent } from "@/components/comunicaciones/tareas-content"
+import { NoticiasContent } from "@/components/comunicaciones/noticias-content"
+import { ConfiguracionContent } from "@/components/configuracion/configuracion-content"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
@@ -70,6 +73,9 @@ const viewTitles: Record<ActiveView, string> = {
   "gestion-disenos": "Gestion de Disenos",
   "asistente-ia": "Asistente IA",
   comunicaciones: "Mensajería",
+  "com-tareas": "Tareas",
+  "com-noticias": "Noticias",
+  configuracion: "Configuración",
 }
 
 /**
@@ -162,6 +168,12 @@ function MainApp() {
         return <AsistenteIAContent />
       case "comunicaciones":
         return <ChatContent />
+      case "com-tareas":
+        return <TareasContent />
+      case "com-noticias":
+        return <NoticiasContent />
+      case "configuracion":
+        return <ConfiguracionContent />
       default:
         return (
           <div className="flex items-center justify-center py-20 text-muted-foreground">

@@ -34,6 +34,9 @@ import {
   Brush,
   Sparkles,
   MessageSquare,
+  ClipboardList,
+  Newspaper,
+  Settings,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
@@ -63,6 +66,9 @@ export type ActiveView =
   | "inventario"
   | "asistente-ia"
   | "comunicaciones"
+  | "com-tareas"
+  | "com-noticias"
+  | "configuracion"
 
 interface AppSidebarProps {
   activeView: ActiveView
@@ -178,6 +184,12 @@ const menuItems: {
     iconColor: "text-icon-teal",
   },
   {
+    title: "Configuración",
+    key: "configuracion",
+    icon: Settings,
+    iconColor: "text-slate-400",
+  },
+  {
     title: "Asistente IA",
     key: "asistente-ia",
     icon: Sparkles,
@@ -188,6 +200,20 @@ const menuItems: {
     key: "comunicaciones",
     icon: MessageSquare,
     iconColor: "text-icon-cyan",
+    group: "comunicaciones",
+  },
+  {
+    title: "Tareas",
+    key: "com-tareas",
+    icon: ClipboardList,
+    iconColor: "text-icon-green",
+    group: "comunicaciones",
+  },
+  {
+    title: "Noticias",
+    key: "com-noticias",
+    icon: Newspaper,
+    iconColor: "text-icon-magenta",
     group: "comunicaciones",
   },
 ]
@@ -246,7 +272,7 @@ function AuthSidebarFooter() {
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const { usuarioActual } = useAuth()
   const { solicitudes } = useGD()
-  const { unreadTotal } = useComunicaciones()
+  const { unreadTotal, noticiasPendientes } = useComunicaciones()
 
   // Solicitudes activas (ni Finalizado ni Rechazado) — alimentan el badge.
   const gdBadgeCount = solicitudes.filter(
@@ -263,6 +289,7 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const badgeDe = (key: ActiveView): number => {
     if (key === "gestion-disenos") return gdBadgeCount
     if (key === "comunicaciones") return unreadTotal
+    if (key === "com-noticias") return noticiasPendientes
     return 0
   }
 

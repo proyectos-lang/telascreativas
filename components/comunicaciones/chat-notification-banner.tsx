@@ -50,7 +50,7 @@ export function ChatNotificationBanner() {
           key={n.id}
           n={n}
           onOpen={() => {
-            navigateTo("comunicaciones")
+            navigateTo(n.vista ?? "comunicaciones")
             dismissNotificacion(n.id)
           }}
           onDismiss={() => dismissNotificacion(n.id)}

@@ -52,7 +52,9 @@ export interface UsuarioActual {
   asistente_ia?: boolean | null
   // Foto de perfil (URL pública en el bucket user-avatars).
   foto_url?: string | null
-  // Permiso para publicar Noticias (Comunicaciones Internas, fase futura).
+  // Acceso al módulo "Comunicaciones Internas" (Mensajería, Tareas, Noticias).
+  mod_comunicaciones?: boolean | null
+  // Permiso para publicar Noticias.
   com_publicar_noticias?: boolean | null
   // Any other column the DB might add in the future
   [key: string]: unknown
@@ -85,6 +87,12 @@ export const VIEW_PERMISSION_MAP: Record<string, keyof UsuarioActual> = {
   indicadores: "indicadores",
   // Asistente IA: controlado por la columna `asistente_ia` en telas.usuarios.
   "asistente-ia": "asistente_ia",
+  // Configuración (gestión de usuarios): solo administradores.
+  configuracion: "mod_admin",
+  // Comunicaciones Internas (Mensajería, Tareas, Noticias): permiso propio.
+  comunicaciones: "mod_comunicaciones",
+  "com-tareas": "mod_comunicaciones",
+  "com-noticias": "mod_comunicaciones",
   // Gestión de Diseños: accesible si el usuario tiene cualquiera de los
   // tres sub-roles (gd_ventas, gd_diseno, gd_admin). Como el mapa solo
   // acepta un único campo keyof UsuarioActual, usamos canViewForUser para
@@ -120,8 +128,7 @@ export function canViewForUser(
     view === "dashboard" ||
     view === "trazabilidad" ||
     view === "inventario" ||
-    view === "plansemanal" ||
-    view === "comunicaciones"
+    view === "plansemanal"
   )
     return true
   // Gestión de Diseños requiere cualquiera de los tres sub-roles.
