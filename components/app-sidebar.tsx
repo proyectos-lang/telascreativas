@@ -37,6 +37,7 @@ import {
   ClipboardList,
   Newspaper,
   Settings,
+  ChevronDown,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
@@ -80,13 +81,14 @@ const menuItems: {
   key: ActiveView
   icon: React.ElementType
   iconColor: string
-  group?: "operaciones" | "comunicaciones"
+  group?: "administrativo" | "operaciones" | "comunicaciones"
 }[] = [
   {
     title: "Dashboard",
     key: "dashboard",
     icon: LayoutDashboard,
     iconColor: "text-icon-cyan",
+    group: "administrativo",
   },
   {
     title: "Mis Pedidos",
@@ -102,12 +104,14 @@ const menuItems: {
     key: "resumendia",
     icon: CalendarCheck2,
     iconColor: "text-icon-teal",
+    group: "administrativo",
   },
   {
     title: "Plan Semanal",
     key: "plansemanal",
     icon: CalendarRange,
     iconColor: "text-icon-cyan",
+    group: "administrativo",
   },
   {
     title: "Reporte de Incidencias",
@@ -116,12 +120,14 @@ const menuItems: {
     // Color rosa coherente con el lenguaje visual de incidencias en los
     // demas modulos (badges rojos del IncidenciasTab por area).
     iconColor: "text-rose-500",
+    group: "administrativo",
   },
   {
     title: "Indicadores",
     key: "indicadores",
     icon: BarChart3,
     iconColor: "text-icon-green",
+    group: "administrativo",
   },
   {
     title: "Programacion de ordenes",
@@ -182,18 +188,21 @@ const menuItems: {
     key: "inventario",
     icon: Layers,
     iconColor: "text-icon-teal",
+    group: "administrativo",
   },
   {
     title: "Configuración",
     key: "configuracion",
     icon: Settings,
     iconColor: "text-slate-400",
+    group: "administrativo",
   },
   {
     title: "Asistente IA",
     key: "asistente-ia",
     icon: Sparkles,
     iconColor: "text-icon-purple",
+    group: "administrativo",
   },
   {
     title: "Mensajería",
@@ -283,8 +292,24 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const allowedItems = menuItems.filter((item) =>
     canViewForUser(usuarioActual, item.key)
   )
-  const opItems = allowedItems.filter((i) => i.group !== "comunicaciones")
-  const comItems = allowedItems.filter((i) => i.group === "comunicaciones")
+  // Definición de los grandes grupos del sidebar (en orden de aparición).
+  // Cada item sin `group` explícito se considera "operaciones".
+  const GRUPOS: { key: "administrativo" | "operaciones" | "comunicaciones"; label: string }[] = [
+    { key: "administrativo", label: "Administrativo" },
+    { key: "operaciones", label: "Operaciones" },
+    { key: "comunicaciones", label: "Comunicaciones Internas" },
+  ]
+  const itemsDeGrupo = (g: string) =>
+    allowedItems.filter((i) => (i.group ?? "operaciones") === g)
+
+  // Estado de expandido/colapsado por grupo (todos abiertos por defecto).
+  const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({
+    administrativo: true,
+    operaciones: true,
+    comunicaciones: true,
+  })
+  const toggleGrupo = (key: string) =>
+    setGruposAbiertos((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const badgeDe = (key: ActiveView): number => {
     if (key === "gestion-disenos") return gdBadgeCount
@@ -341,23 +366,46 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-white/50">Operaciones</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{opItems.map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {comItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-white/50">
-              Comunicaciones Internas
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>{comItems.map(renderItem)}</SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {GRUPOS.map((grupo) => {
+          const items = itemsDeGrupo(grupo.key)
+          if (items.length === 0) return null
+          const abierto = gruposAbiertos[grupo.key] ?? true
+          // Suma de badges del grupo — se muestra junto al título cuando está
+          // colapsado, para no perder de vista mensajes/pendientes.
+          const grupoBadge = items.reduce((acc, it) => acc + badgeDe(it.key), 0)
+          return (
+            <SidebarGroup key={grupo.key}>
+              <SidebarGroupLabel
+                asChild
+                className="text-white/50 hover:text-white/80"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleGrupo(grupo.key)}
+                  className="flex w-full items-center gap-1"
+                  aria-expanded={abierto}
+                >
+                  <ChevronDown
+                    className={`size-3.5 shrink-0 transition-transform duration-200 ${
+                      abierto ? "" : "-rotate-90"
+                    }`}
+                  />
+                  <span className="flex-1 text-left">{grupo.label}</span>
+                  {!abierto && grupoBadge > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold leading-none text-white">
+                      {grupoBadge > 99 ? "99+" : grupoBadge}
+                    </span>
+                  )}
+                </button>
+              </SidebarGroupLabel>
+              {abierto && (
+                <SidebarGroupContent>
+                  <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
+                </SidebarGroupContent>
+              )}
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-white/10">
