@@ -1,7 +1,15 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Upload, X, FileText, Image as ImageIcon, Loader2, Expand } from "lucide-react"
+import {
+  Upload,
+  X,
+  FileText,
+  Image as ImageIcon,
+  FileSpreadsheet,
+  Loader2,
+  Expand,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -15,8 +23,25 @@ const ALLOWED_TYPES = [
   "application/pdf",
   "application/postscript",
   "application/illustrator",
+  // Excel / hojas de cálculo
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.ms-excel", // .xls
+  "text/csv", // .csv
 ]
-const ALLOWED_EXTS = ".ai,.pdf,.png,.jpg,.jpeg,.webp"
+// Extensiones válidas (los .xlsx suelen llegar con MIME vacío o genérico, así
+// que la validación se apoya principalmente en la extensión).
+const ALLOWED_EXT_LIST = [
+  "ai",
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "xlsx",
+  "xls",
+  "csv",
+]
+const ALLOWED_EXTS = ".ai,.pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv"
 const MAX_BYTES = 50 * 1024 * 1024
 
 interface GDFileUploaderProps {
@@ -40,6 +65,8 @@ function fileIcon(url: string) {
   const ext = getExt(url)
   if (ext === "pdf") return <FileText className="size-4 text-red-500" />
   if (ext === "ai") return <FileText className="size-4 text-orange-500" />
+  if (["xlsx", "xls", "csv"].includes(ext))
+    return <FileSpreadsheet className="size-4 text-green-600" />
   return <ImageIcon className="size-4 text-blue-500" />
 }
 
@@ -67,14 +94,14 @@ export function GDFileUploader({
     const remaining = maxFiles - value.length
     const toUpload = Array.from(files).slice(0, remaining)
 
-    const invalid = toUpload.filter(
-      (f) =>
-        !ALLOWED_TYPES.includes(f.type) &&
-        !f.name.toLowerCase().endsWith(".ai")
-    )
+    const invalid = toUpload.filter((f) => {
+      const ext = (f.name.split(".").pop() ?? "").toLowerCase()
+      return !ALLOWED_EXT_LIST.includes(ext) && !ALLOWED_TYPES.includes(f.type)
+    })
     if (invalid.length) {
       toast.error("Formato no permitido", {
-        description: "Solo se permiten: .ai, .pdf, .png, .jpg, .jpeg, .webp",
+        description:
+          "Solo se permiten: .ai, .pdf, .png, .jpg, .jpeg, .webp, .xlsx, .xls, .csv",
       })
       return
     }
