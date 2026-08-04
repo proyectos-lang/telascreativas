@@ -375,6 +375,7 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
   const activaRef = useRef<string | null>(null)
   const usuariosRef = useRef<DirectorioUsuario[]>([])
   const conversacionesRef = useRef<Conversacion[]>([])
+  const mensajesPorConvRef = useRef<Record<string, Mensaje[]>>({})
   useEffect(() => {
     emailRef.current = email
   }, [email])
@@ -384,6 +385,9 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     conversacionesRef.current = conversaciones
   }, [conversaciones])
+  useEffect(() => {
+    mensajesPorConvRef.current = mensajesPorConv
+  }, [mensajesPorConv])
 
   const nombreDe = useCallback((em: string) => {
     const u = usuariosRef.current.find((x) => x.email === em)
@@ -503,6 +507,47 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
   // --- Realtime: nuevos mensajes + receipts de participantes ---
   useEffect(() => {
     if (!email) return
+
+    // Backfill de adjuntos de un mensaje. Los adjuntos (fotos/archivos) se
+    // insertan un instante DESPUÉS del mensaje (tras subir a Storage), así que
+    // al llegar el mensaje por realtime todavía no existen. Reconsultamos con
+    // reintentos y fusionamos (dedupe por id). Esto hace que la imagen se
+    // refleje en la conversación abierta aunque el evento realtime de
+    // chat_adjuntos no llegue (p. ej. su publicación realtime no está activa)
+    // o pierda la carrera con el optimista del remitente.
+    const hidratarAdjuntos = async (
+      mensajeId: string,
+      cid: string,
+      intento = 0
+    ) => {
+      const { data } = await supabase
+        .schema("telas")
+        .from("chat_adjuntos")
+        .select("*")
+        .eq("mensaje_id", mensajeId)
+      const adj = (data ?? []) as Adjunto[]
+      if (adj.length === 0) {
+        if (intento < 5) {
+          setTimeout(() => void hidratarAdjuntos(mensajeId, cid, intento + 1), 800)
+        }
+        return
+      }
+      setMensajesPorConv((prev) => {
+        const arr = prev[cid]
+        if (!arr) return prev
+        let changed = false
+        const next = arr.map((m) => {
+          if (m.id !== mensajeId) return m
+          const existentes = new Set((m.adjuntos ?? []).map((x) => x.id))
+          const nuevos = adj.filter((a) => !existentes.has(a.id))
+          if (nuevos.length === 0) return m
+          changed = true
+          return { ...m, adjuntos: [...(m.adjuntos ?? []), ...nuevos] }
+        })
+        return changed ? { ...prev, [cid]: next } : prev
+      })
+    }
+
     const channel = supabase
       .channel("comunicaciones_rt")
       .on(
@@ -524,6 +569,15 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
             if (arr.some((x) => x.id === m.id)) return prev
             return { ...prev, [m.conversacion_id]: [...arr, m] }
           })
+          // Si el mensaje trae foto/archivo y el hilo está cargado,
+          // backfilleamos sus adjuntos (no dependemos solo del evento
+          // realtime de chat_adjuntos, que puede no llegar).
+          if (
+            (m.tipo === "imagen" || m.tipo === "archivo") &&
+            mensajesPorConvRef.current[m.conversacion_id]
+          ) {
+            void hidratarAdjuntos(m.id, m.conversacion_id, 0)
+          }
           // Actualizar metadata de la conversación (último mensaje + no leídos).
           const esActiva = activaRef.current === m.conversacion_id
           setConversaciones((prev) => {
