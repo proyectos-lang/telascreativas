@@ -26,6 +26,7 @@ import {
   Filter,
   Globe,
   ClipboardList,
+  Smile,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
@@ -59,6 +60,18 @@ function horaCorta(iso: string | null): string {
   return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
 }
 
+// Emojis frecuentes para el selector del chat.
+const EMOJIS = [
+  "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎",
+  "🤩", "🥳", "🤔", "😐", "😴", "😢", "😭", "😅",
+  "😳", "😱", "😡", "🥺", "🙄", "😉", "😇", "🤗",
+  "👍", "👎", "👌", "🙌", "👏", "🙏", "💪", "🤝",
+  "👋", "✌️", "🤞", "🫶", "❤️", "🧡", "💛", "💚",
+  "💙", "💜", "🔥", "✨", "⭐", "🎉", "🎊", "✅",
+  "❌", "⚠️", "❓", "❗", "💯", "👀", "💡", "📌",
+  "📎", "📅", "⏰", "🚀", "☕", "🧵", "🪡", "👕",
+]
+
 export function ChatContent() {
   const { usuarioActual } = useAuth()
   const email = (usuarioActual?.email ?? "").toLowerCase()
@@ -91,6 +104,8 @@ export function ChatContent() {
   const [reply, setReply] = useState<Mensaje | null>(null)
   const [archivos, setArchivos] = useState<File[]>([])
   const [subiendo, setSubiendo] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [consolidadoOpen, setConsolidadoOpen] = useState(false)
   const [globalOpen, setGlobalOpen] = useState(false)
   // Búsqueda dentro de la conversación (client-side sobre los mensajes cargados).
@@ -235,6 +250,23 @@ export function ChatContent() {
   const onPickFiles = (list: FileList | null) => {
     if (!list) return
     setArchivos((prev) => [...prev, ...Array.from(list)])
+  }
+
+  // Inserta un emoji en la posición del cursor del textarea (o al final) y
+  // restaura el foco/caret justo después del emoji.
+  const insertarEmoji = (emoji: string) => {
+    const el = textareaRef.current
+    const start = el?.selectionStart ?? texto.length
+    const end = el?.selectionEnd ?? texto.length
+    const nuevo = texto.slice(0, start) + emoji + texto.slice(end)
+    setTexto(nuevo)
+    requestAnimationFrame(() => {
+      if (el) {
+        const pos = start + emoji.length
+        el.focus()
+        el.setSelectionRange(pos, pos)
+      }
+    })
   }
 
   // Pegar imágenes desde el portapapeles (p. ej. un pantallazo con Ctrl+V).
@@ -666,8 +698,43 @@ export function ChatContent() {
                   >
                     <ImageIcon className="size-4" />
                   </Button>
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-[42px] text-slate-500"
+                      title="Emojis"
+                      onClick={() => setEmojiOpen((v) => !v)}
+                    >
+                      <Smile className="size-4" />
+                    </Button>
+                    {emojiOpen && (
+                      <>
+                        {/* Capa para cerrar al hacer clic fuera */}
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setEmojiOpen(false)}
+                        />
+                        <div className="absolute bottom-[46px] left-0 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                          <div className="grid grid-cols-8 gap-0.5">
+                            {EMOJIS.map((e) => (
+                              <button
+                                key={e}
+                                type="button"
+                                onClick={() => insertarEmoji(e)}
+                                className="flex size-7 items-center justify-center rounded text-lg hover:bg-slate-100"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Textarea
+                  ref={textareaRef}
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
                   onPaste={onPasteInput}
