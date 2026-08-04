@@ -14,11 +14,23 @@ import {
   ChevronDown,
   Brain,
   Trash2,
+  Forward,
+  Search,
+  UsersRound,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
+import { useComunicaciones } from "@/lib/comunicaciones-context"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { UserAvatar } from "@/components/comunicaciones/user-avatar"
 import { cn } from "@/lib/utils"
 
 const supabase = createClient(
@@ -63,6 +75,8 @@ export function AsistenteIAContent() {
   const [loading, setLoading] = useState(false)
   const [conocimiento, setConocimiento] = useState<Conocimiento[]>([])
   const [verConocimiento, setVerConocimiento] = useState(false)
+  // Texto de una respuesta que se está compartiendo al módulo de chat.
+  const [compartirTexto, setCompartirTexto] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -286,7 +300,13 @@ export function AsistenteIAContent() {
               </div>
             </div>
           ) : (
-            mensajes.map((m, i) => <Burbuja key={i} mensaje={m} />)
+            mensajes.map((m, i) => (
+              <Burbuja
+                key={i}
+                mensaje={m}
+                onCompartir={() => setCompartirTexto(m.contenido)}
+              />
+            ))
           )}
           {loading && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -330,11 +350,158 @@ export function AsistenteIAContent() {
           </div>
         </div>
       </div>
+
+      {/* Compartir una respuesta al módulo de chat */}
+      <EnviarAlChatDialog
+        texto={compartirTexto}
+        onOpenChange={(v) => {
+          if (!v) setCompartirTexto(null)
+        }}
+      />
     </div>
   )
 }
 
-function Burbuja({ mensaje }: { mensaje: Mensaje }) {
+/**
+ * Diálogo para reenviar el contenido de una respuesta del asistente a una
+ * conversación del módulo de chat (grupo existente o persona del directorio).
+ * Se envía como mensaje de texto, prefijado para identificar su origen.
+ */
+function EnviarAlChatDialog({
+  texto,
+  onOpenChange,
+}: {
+  texto: string | null
+  onOpenChange: (v: boolean) => void
+}) {
+  const { usuarioActual } = useAuth()
+  const miEmail = (usuarioActual?.email ?? "").toLowerCase()
+  const { usuarios, conversaciones, abrirConversacionDirecta, enviarMensaje } =
+    useComunicaciones()
+  const [q, setQ] = useState("")
+  const [enviando, setEnviando] = useState(false)
+
+  const term = q.trim().toLowerCase()
+  const grupos = conversaciones
+    .filter((c) => c.tipo === "grupo")
+    .filter((c) => !term || (c.nombre ?? "").toLowerCase().includes(term))
+  const personas = usuarios
+    .filter((u) => u.email !== miEmail)
+    .filter(
+      (u) =>
+        !term ||
+        (u.nombre ?? "").toLowerCase().includes(term) ||
+        (u.area ?? "").toLowerCase().includes(term)
+    )
+
+  const enviarA = async (convId: string, destino: string) => {
+    if (!texto) return
+    setEnviando(true)
+    const cuerpo = `🤖 Asistente IA:\n\n${texto}`
+    const r = await enviarMensaje(convId, cuerpo)
+    setEnviando(false)
+    if (r.success) {
+      toast.success(`Enviado a ${destino}`)
+      onOpenChange(false)
+      setQ("")
+    } else {
+      toast.error("No se pudo enviar", { description: r.error })
+    }
+  }
+
+  const enviarAPersona = async (email: string, nombre: string) => {
+    const id = await abrirConversacionDirecta(email)
+    if (!id) {
+      toast.error("No se pudo abrir la conversación")
+      return
+    }
+    await enviarA(id, nombre)
+  }
+
+  return (
+    <Dialog open={texto !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Enviar respuesta al chat</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {texto && (
+            <div className="max-h-24 overflow-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              {texto.length > 240 ? `${texto.slice(0, 240)}…` : texto}
+            </div>
+          )}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar grupo o persona…"
+              className="pl-8"
+            />
+          </div>
+          <div className="max-h-72 space-y-1 overflow-auto">
+            {grupos.length > 0 && (
+              <p className="px-2 pt-1 text-[11px] font-medium uppercase text-slate-400">
+                Grupos
+              </p>
+            )}
+            {grupos.map((c) => (
+              <button
+                key={c.id}
+                disabled={enviando}
+                onClick={() => void enviarA(c.id, c.nombre || "el grupo")}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50 disabled:opacity-50"
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                  <UsersRound className="size-4 text-indigo-600" />
+                </div>
+                <span className="truncate text-sm font-medium text-slate-800">
+                  {c.nombre || "Grupo"}
+                </span>
+              </button>
+            ))}
+            {personas.length > 0 && (
+              <p className="px-2 pt-2 text-[11px] font-medium uppercase text-slate-400">
+                Personas
+              </p>
+            )}
+            {personas.map((u) => (
+              <button
+                key={u.email}
+                disabled={enviando}
+                onClick={() => void enviarAPersona(u.email, u.nombre || u.email)}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50 disabled:opacity-50"
+              >
+                <UserAvatar nombre={u.nombre} email={u.email} fotoUrl={u.foto_url} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {u.nombre || u.email}
+                  </p>
+                  <p className="truncate text-[11px] text-slate-400">
+                    {[u.cargo, u.area].filter(Boolean).join(" · ") || u.email}
+                  </p>
+                </div>
+              </button>
+            ))}
+            {grupos.length === 0 && personas.length === 0 && (
+              <p className="px-2 py-4 text-center text-xs text-slate-400">
+                Sin resultados.
+              </p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function Burbuja({
+  mensaje,
+  onCompartir,
+}: {
+  mensaje: Mensaje
+  onCompartir: () => void
+}) {
   const [verSQL, setVerSQL] = useState(false)
   if (mensaje.rol === "user") {
     return (
@@ -385,6 +552,14 @@ function Burbuja({ mensaje }: { mensaje: Mensaje }) {
             {mensaje.contenido}
           </ReactMarkdown>
         </div>
+        <button
+          onClick={onCompartir}
+          title="Enviar esta respuesta a un chat"
+          className="flex items-center gap-1 text-[11px] text-slate-400 transition-colors hover:text-indigo-600"
+        >
+          <Forward className="size-3" />
+          Enviar al chat
+        </button>
         {mensaje.consultas && mensaje.consultas.length > 0 && (
           <div className="text-xs">
             <button
