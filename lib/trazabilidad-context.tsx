@@ -261,21 +261,40 @@ function enrichOrden(o: Orden): Orden {
   const completed = stages.filter((s) => s.done).length
   const computedPct = Math.round((completed / stages.length) * 100)
 
+  // Estado derivado de las marcas reales por área. Considera tanto los cierres
+  // ("Terminado") como las recepciones ("En <Área>"), de más avanzado a menos.
+  // Antes solo miraba los cierres, por lo que una orden ya RECIBIDA en la
+  // siguiente área (p. ej. recibida en Impresión) no reflejaba que estaba en
+  // proceso. Los nombres de campo coinciden con lib/production-status.ts.
   let estado: string
   if (o.entregado_cliente_si_no === true) estado = "Entregado a Cliente"
   else if (o.efecha_de_empaque) estado = "Empacado - Listo para Entrega"
-  else if (o.coseta_costura) estado = "En Costura Terminada"
+  else if (o.enombre_de_quien_empaca) estado = "En Empaque"
+  else if (o.coseta_costura) estado = "Costura Terminada"
+  else if (o.cosfecha_conteo) estado = "En Costura"
   else if (o.seta_sublimacion) estado = "Sublimacion Terminada"
+  else if (o.sfecha_de_ingreso_sub) estado = "En Sublimacion"
   else if (o.ientrega_impresion) estado = "Impresion Terminada"
+  else if (o.ifecha_de_ingreso_imp) estado = "En Impresion"
   else if (o.cfecha_de_corte) estado = "Corte Terminado"
+  else if (o.cfecha_de_recepcion) estado = "En Corte"
   else if (o.dentrega_diseno) estado = "Diseno Terminado"
+  else if (o.dfecha_de_ingreso_diseno) estado = "En Diseno"
   else estado = "En Programacion"
+
+  // Precedencia: si la orden ya arrancó producción (estado calculado distinto
+  // de "En Programacion"), el estado derivado de las marcas manda sobre el
+  // campo legado `cabecera.estado_produccion`, que no lo actualizan los módulos
+  // de producción y suele quedar obsoleto ("Pendiente"). Si aún no ha entrado
+  // a ninguna área, se conserva el valor previo por compatibilidad.
+  const estadoFinal =
+    estado !== "En Programacion" ? estado : o.estado_produccion || estado
 
   return {
     ...o,
     porcentaje_avance:
       typeof o.porcentaje_avance === "number" ? o.porcentaje_avance : computedPct,
-    estado_produccion: o.estado_produccion || estado,
+    estado_produccion: estadoFinal,
   }
 }
 
