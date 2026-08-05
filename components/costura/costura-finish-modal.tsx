@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { toast } from "sonner"
 import { Orden } from "@/lib/types"
+import { piezasEsperadas, toNum } from "@/lib/produccion-validaciones"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -151,6 +153,44 @@ export function CosturaFinishModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // --- Bloqueos de captura antes de cerrar la costura ---
+    const cantidadNum = toNum(formData.coscantidad_costurada)
+    const esperadas = piezasEsperadas(orden)
+    const tieneCortadas =
+      typeof orden.cpiezas_cortadas === "number" && orden.cpiezas_cortadas > 0
+    const techo = tieneCortadas ? (orden.cpiezas_cortadas as number) : orden.pcs
+
+    // Cantidad costurada obligatoria.
+    if (cantidadNum === null || cantidadNum <= 0) {
+      toast.error("Cantidad costurada obligatoria", {
+        description: "Ingresa la cantidad costurada (> 0) para cerrar la costura.",
+      })
+      return
+    }
+    // Rango: no puede superar lo cortado (o el pedido). Ataja valores errados.
+    if (cantidadNum > techo) {
+      toast.error("Cantidad costurada fuera de rango", {
+        description: `No puede superar ${techo} (${
+          tieneCortadas ? "piezas cortadas" : "piezas del pedido"
+        }).`,
+      })
+      return
+    }
+    // Merma: si se costuró menos de lo esperado, exigir novedad/comentario.
+    if (
+      cantidadNum < esperadas &&
+      !(
+        formData.cosnovedad_de_costura.trim() ||
+        formData.coscomentario_entrega_cs.trim()
+      )
+    ) {
+      toast.error("Explica el faltante", {
+        description: `Costuraste ${cantidadNum} de ${esperadas}. Escribe una novedad o comentario del motivo para poder cerrar.`,
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     const cantidadCosturadaNum = parseFloat(formData.coscantidad_costurada)

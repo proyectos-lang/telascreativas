@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { toast } from "sonner"
 import { Orden, PAPEL_OPTIONS } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -191,10 +192,21 @@ export function PrintFinishModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
 
     const cantidadNum = parseFloat(formData.icantidad_de_la_orden)
     const inchesNum = parseFloat(formData.iinches)
+
+    // Bloqueo: las pulgadas son obligatorias (> 0) porque de ahí se derivan
+    // las yardas de impresión; sin ellas el cierre queda sin ese dato.
+    if (isNaN(inchesNum) || inchesNum <= 0) {
+      toast.error("Pulgadas obligatorias", {
+        description:
+          "Ingresa las pulgadas impresas (> 0) para calcular las yardas y cerrar la impresión.",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
 
     const updates: Partial<Orden> = {
       // Production parameters moved from RECEIVE to FINISH

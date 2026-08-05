@@ -551,6 +551,8 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
         open={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onFinish={handleFinish}
+        totalPcs={totalPcs}
+        totalEmpacados={totalEmpacados}
       />
 
       <ReversarEntregaModal

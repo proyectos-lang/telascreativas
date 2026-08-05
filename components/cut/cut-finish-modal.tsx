@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { toast } from "sonner"
 import { Orden } from "@/lib/types"
+import { esYardaje, toNum } from "@/lib/produccion-validaciones"
 import {
   Dialog,
   DialogContent,
@@ -154,6 +156,43 @@ export function CutFinishModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // --- Bloqueos de captura antes de cerrar el corte ---
+    const esYard = esYardaje(orden)
+    const cyardasNum = toNum(formData.cyardas)
+    const piezasNum = toNum(formData.cpiezas_cortadas)
+
+    // Yardas consumidas siempre obligatorias (habilita rendimiento de tela).
+    if (cyardasNum === null || cyardasNum <= 0) {
+      toast.error("Yardas usadas obligatorias", {
+        description: "Ingresa las yardas consumidas (> 0) para cerrar el corte.",
+      })
+      return
+    }
+    // Piezas obligatorias salvo YARDAJE (donde el dato clave son las yardas).
+    if (!esYard) {
+      if (piezasNum === null || piezasNum <= 0) {
+        toast.error("Piezas cortadas obligatorias", {
+          description: "Ingresa las piezas cortadas (> 0) para cerrar el corte.",
+        })
+        return
+      }
+      // Rango: cortar más de lo pedido es un dato errado.
+      if (piezasNum > orden.pcs) {
+        toast.error("Piezas cortadas fuera de rango", {
+          description: `No pueden superar las ${orden.pcs} piezas del pedido.`,
+        })
+        return
+      }
+      // Merma: si se cortó menos de lo pedido, exigir motivo.
+      if (piezasNum < orden.pcs && !formData.ccomentario_corte.trim()) {
+        toast.error("Explica el faltante", {
+          description: `Cortaste ${piezasNum} de ${orden.pcs}. Escribe un comentario del motivo para poder cerrar.`,
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     const todayDate = new Date()

@@ -343,6 +343,49 @@ export function ManualOrderModal({
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!isValid) return
+
+    // Ciudad obligatoria en cabecera.
+    if (!cabecera.ciudad.trim()) {
+      toast.error("Ciudad obligatoria", {
+        description: "Ingresa la ciudad del pedido.",
+      })
+      return
+    }
+    // Coherencia de fechas: entrega no puede ser anterior a ingreso.
+    if (
+      cabecera.fecha_de_ingreso &&
+      cabecera.fecha_de_entrega &&
+      new Date(cabecera.fecha_de_entrega) < new Date(cabecera.fecha_de_ingreso)
+    ) {
+      toast.error("Fechas incoherentes", {
+        description:
+          "La fecha de entrega no puede ser anterior a la fecha de ingreso.",
+      })
+      return
+    }
+    // Líneas de detalle: no permitir filas parcialmente llenas (líneas
+    // fantasma). Si una fila tiene algún dato, debe tener todos los
+    // obligatorios: nombre, tela, género, estilo, talla y piezas > 0.
+    const filaConDatos = (r: DetalleRow) =>
+      [r.nombre, r.tela, r.genero, r.estilo, r.talla, r.pcs].some((v) =>
+        v.trim()
+      )
+    const filaCompleta = (r: DetalleRow) =>
+      r.nombre.trim() &&
+      r.tela.trim() &&
+      r.genero.trim() &&
+      r.estilo.trim() &&
+      r.talla.trim() &&
+      parseInt(r.pcs) > 0
+    const incompleta = detalles.find((r) => filaConDatos(r) && !filaCompleta(r))
+    if (incompleta) {
+      toast.error("Línea de detalle incompleta", {
+        description:
+          "Cada línea con datos debe tener nombre, tela, género, estilo, talla y piezas (> 0).",
+      })
+      return
+    }
+
     setIsSaving(true)
     setSaveError(null)
 

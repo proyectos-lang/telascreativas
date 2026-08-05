@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import {
   Orden,
   EMBELLECIMIENTO_OPTIONS,
@@ -109,6 +110,18 @@ export function ApprovalModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Máquina de costura obligatoria cuando la orden lleva costura.
+    // (Coherente con la lógica de abajo que limpia maquina_costura si
+    // costura_si_no está desmarcado.)
+    if (formData.costura_si_no && !formData.maquina_costura.trim()) {
+      toast.error("Máquina de costura obligatoria", {
+        description:
+          "Selecciona la máquina (Plana / Sorgete) para aprobar una orden que lleva costura.",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     // Calculo de fechas objetivo:

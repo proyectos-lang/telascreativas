@@ -54,6 +54,10 @@ interface EmpaqueFinishModalProps {
   open: boolean
   onClose: () => void
   onFinish: (data: Partial<Orden>) => Promise<void>
+  // Totales de empaque (sumados de detalleorden por talla en el detail) para
+  // validar faltantes y poblar ecantidad_empacada al cerrar.
+  totalPcs: number
+  totalEmpacados: number
 }
 
 export function EmpaqueFinishModal({
@@ -61,6 +65,8 @@ export function EmpaqueFinishModal({
   open,
   onClose,
   onFinish,
+  totalPcs,
+  totalEmpacados,
 }: EmpaqueFinishModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [motivosDemora, setMotivosDemora] = useState<string[]>([])
@@ -198,6 +204,16 @@ export function EmpaqueFinishModal({
       return
     }
 
+    // Bloqueo por faltantes: si no se empacó todo, exigir un comentario que
+    // explique el motivo (política de merma = comentario obligatorio).
+    const faltan = totalPcs - totalEmpacados
+    if (faltan > 0 && !formData.ecomentario_entrega_e.trim()) {
+      toast.error("Faltan piezas por empacar", {
+        description: `Faltan ${faltan} de ${totalPcs}. Escribe un comentario del motivo para poder cerrar el empaque.`,
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     // 1. Capturar y subir firma
@@ -221,6 +237,9 @@ export function EmpaqueFinishModal({
     //    e_firma_recibe_vendedora recibe la URL publica de la firma.
     const updates: Partial<Orden> = {
       efecha_de_empaque: todayISO,
+      // Poblar el total empacado en cabecera (campo antes sin uso) para que
+      // los reportes tengan la cantidad real de piezas que salieron.
+      ecantidad_empacada: totalEmpacados,
       emotivo_demora_terminado_e:
         formData.emotivo_demora_terminado_e || undefined,
       ecomentario_entrega_e: formData.ecomentario_entrega_e || undefined,

@@ -330,6 +330,26 @@ export function OrderDetail({
       )
     })
 
+    // No permitir que una fila modificada quede incompleta (evita líneas
+    // fantasma / datos que rompen curvas de tallaje y análisis por tela).
+    const rowIncompleta = dirtyRows.find(
+      (r) =>
+        !String(r.nombre ?? "").trim() ||
+        !String(r.tela ?? "").trim() ||
+        !String(r.genero ?? "").trim() ||
+        !String(r.estilo ?? "").trim() ||
+        !String(r.talla ?? "").trim() ||
+        !(Number(r.pcs) > 0)
+    )
+    if (rowIncompleta) {
+      toast.error("Línea de detalle incompleta", {
+        description:
+          "Cada línea debe tener nombre, tela, género, estilo, talla y piezas (> 0).",
+      })
+      setIsSavingEdit(false)
+      return
+    }
+
     for (const row of dirtyRows) {
       const { error: detErr } = await supabase
         .schema("telas")

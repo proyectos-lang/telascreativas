@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import {
   Orden,
   EMBELLECIMIENTO_OPTIONS,
@@ -163,6 +164,15 @@ export function ReprogramModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
+
+    // Máquina de costura obligatoria cuando la orden lleva costura.
+    if (formData.costura_si_no && !formData.maquina_costura.trim()) {
+      toast.error("Máquina de costura obligatoria", {
+        description:
+          "Selecciona la máquina (Plana / Sorgete) para una orden que lleva costura.",
+      })
+      return
+    }
 
     setIsSubmitting(true)
     try {
