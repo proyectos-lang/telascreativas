@@ -12,6 +12,7 @@ import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
+import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
@@ -96,8 +97,8 @@ function InfoRow({
 }
 
 export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
-  const { updateOrden } = useCostura()
-  const { mapa: reposMapa } = useReposicionesPendientes()
+  const { updateOrden, refreshOrdenes } = useCostura()
+  const { mapa: reposMapa, refresh: refreshRepos } = useReposicionesPendientes()
   const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
@@ -421,6 +422,15 @@ export function CosturaDetail({ orden, onBack }: CosturaDetailProps) {
           <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <ReposicionBadge info={repo} className="self-center" />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
+          {repo.pendiente && (
+            <CancelarReposicionButton
+              pedido={orden.pedido}
+              onDone={() => {
+                refreshRepos()
+                void refreshOrdenes()
+              }}
+            />
+          )}
           {/* Boton Recibir Parcial: solo visible cuando Sublimacion marco
               la entrega como Parcial y Costura aun no confirmo el recibo. */}
           {showBotonReciboParcial && (

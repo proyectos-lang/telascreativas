@@ -314,10 +314,20 @@ export function EmpaqueFinishModal({
             </Select>
           </div>
 
-          {/* Comentario de entrega */}
+          {/* Comentario de entrega. Si faltan piezas por empacar, el motivo
+              es obligatorio (bloqueo con excepción). */}
+          {totalPcs - totalEmpacados > 0 && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Faltan <strong>{(totalPcs - totalEmpacados).toLocaleString()}</strong>{" "}
+              de <strong>{totalPcs.toLocaleString()}</strong> piezas por empacar.
+              Para cerrar así, escribe el motivo del faltante abajo.
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="ecomentario_entrega_e" className="text-sm">
-              Comentarios de Entrega
+              {totalPcs - totalEmpacados > 0
+                ? "Motivo del faltante (obligatorio)"
+                : "Comentarios de Entrega"}
             </Label>
             <Textarea
               id="ecomentario_entrega_e"

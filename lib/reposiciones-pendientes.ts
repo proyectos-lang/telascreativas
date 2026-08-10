@@ -200,3 +200,41 @@ export function getReposicionEstado(
 
   return { pendiente: manual || derivadas.length > 0, areas, manual }
 }
+
+/**
+ * Cancela la(s) reposición(es) pendiente(s) de un pedido (acción protegida con
+ * clave desde la UI). Conserva el histórico: marca las incidencias derivadas
+ * abiertas como 'Cancelado' (dejan de contar como pendientes porque el loader
+ * filtra por `ilike 'pendiente'`) y limpia la marca manual de la cabecera.
+ * Invalida ambos caches para que producción recalcule el bloqueo sin recargar.
+ */
+export async function cancelarReposicionDePedido(
+  pedido: string
+): Promise<{ success: boolean; error?: string }> {
+  const p = String(pedido ?? "").trim()
+  if (!p) return { success: false, error: "Pedido inválido" }
+  const nowIso = new Date().toISOString()
+
+  // 1) Incidencias derivadas pendientes → Cancelado (conserva el registro).
+  const { error: incErr } = await supabase
+    .schema("telas")
+    .from("incidencias")
+    .update({ estado_reposicion: "Cancelado", fecha_procesado: nowIso })
+    .eq("pedido", p)
+    .eq("genera_reposicion", true)
+    .ilike("estado_reposicion", "pendiente")
+  if (incErr) return { success: false, error: incErr.message }
+
+  // 2) Marca manual en cabecera → limpiar.
+  const { error: cabErr } = await supabase
+    .schema("telas")
+    .from("cabecera")
+    .update({ pendiente_reposicion: false, area_reposicion: null })
+    .eq("pedido", p)
+  if (cabErr) return { success: false, error: cabErr.message }
+
+  // 3) Invalidar ambos caches a nivel módulo.
+  cachePromise = null
+  fullCachePromise = null
+  return { success: true }
+}

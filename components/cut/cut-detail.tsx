@@ -12,6 +12,7 @@ import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
+import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -87,8 +88,8 @@ function InfoRow({
 }
 
 export function CutDetail({ orden, onBack }: CutDetailProps) {
-  const { updateOrden } = useCut()
-  const { mapa: reposMapa } = useReposicionesPendientes()
+  const { updateOrden, refreshOrdenes } = useCut()
+  const { mapa: reposMapa, refresh: refreshRepos } = useReposicionesPendientes()
   const repo = getReposicionEstado(orden, reposMapa)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
@@ -309,6 +310,15 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
           <ReportarIncidenciaButton pedido={orden.pedido} areaActual="Corte" />
           <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
+          {repo.pendiente && (
+            <CancelarReposicionButton
+              pedido={orden.pedido}
+              onDone={() => {
+                refreshRepos()
+                void refreshOrdenes()
+              }}
+            />
+          )}
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}

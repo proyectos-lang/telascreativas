@@ -149,18 +149,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  // Pedidos ya entregados al cliente o cancelados. La vista de control NO
+  // expone esos campos, así que los traemos de cabecera para excluirlos de los
+  // KPIs de riesgo (una orden entregada —p. ej. COMPRA_EXTERNA— no debe seguir
+  // contando como vencida/riesgo).
+  const [excludedPedidos, setExcludedPedidos] = useState<Set<string>>(new Set())
 
   const fetchRows = async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const [ctrl, lead] = await Promise.all([
+      const [ctrl, lead, cab] = await Promise.all([
         fetchAll((from, to) =>
           supabase.schema("telas").from("vista_control_produccion").select("*").range(from, to)
         ),
         fetchAll((from, to) =>
           supabase.schema("telas").from("vista_lead_times_unificado").select("*").range(from, to)
+        ),
+        fetchAll((from, to) =>
+          supabase
+            .schema("telas")
+            .from("cabecera")
+            .select("pedido, entregado_cliente_si_no, estado_aprobado_rechazado")
+            .or("entregado_cliente_si_no.eq.true,estado_aprobado_rechazado.eq.cancelado")
+            .range(from, to)
         ),
       ])
 
@@ -181,6 +194,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       } else {
         setLeadRows((lead.data || []) as LeadTimeUnificadoRow[])
       }
+
+      // Conjunto de pedidos entregados/cancelados (para excluir de riesgo).
+      if (!cab.error) {
+        const excl = new Set<string>()
+        for (const c of (cab.data || []) as {
+          pedido: string
+          entregado_cliente_si_no: boolean | null
+          estado_aprobado_rechazado: string | null
+        }[]) {
+          const p = String(c.pedido ?? "")
+          if (!p) continue
+          const cancelado =
+            (c.estado_aprobado_rechazado ?? "").toString().trim().toLowerCase() ===
+            "cancelado"
+          if (c.entregado_cliente_si_no === true || cancelado) excl.add(p)
+        }
+        setExcludedPedidos(excl)
+      }
     } catch (err) {
       console.log("[v0] Dashboard - unexpected error:", err)
       setError(err instanceof Error ? err.message : "Error desconocido")
@@ -194,18 +225,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     fetchRows()
   }, [])
 
-  // Filas activas: excluimos las ordenes ya entregadas al cliente
-  // (s_estado_entrega === "Completado"). Estas son la base unica para
-  // TODOS los KPIs principales del dashboard: total en produccion,
-  // ordenes activas, alertas criticas, health score y conteos por riesgo.
-  // Las ordenes Completadas ya salieron de la planta y no deben contar
-  // como carga ni como alerta.
+  // Filas activas: excluimos las ordenes ya ENTREGADAS al cliente o CANCELADAS
+  // (por pedido, cruzando con cabecera). Antes se usaba
+  // `s_estado_entrega === "Completado"` como proxy, pero ese es el estado de la
+  // entrega Sublimación→Costura y NUNCA aplica a flujos sin sublimado (p. ej.
+  // COMPRA_EXTERNA), por lo que órdenes ya entregadas seguían contando como
+  // vencidas/riesgo. Estas filas son la base única de TODOS los KPIs de riesgo.
   const activeRows = useMemo(
-    () =>
-      rows.filter(
-        (r) => (r.s_estado_entrega ?? "").toString() !== "Completado"
-      ),
-    [rows]
+    () => rows.filter((r) => !excludedPedidos.has(String(r.pedido ?? ""))),
+    [rows, excludedPedidos]
   )
 
   // Global KPIs - todos derivados de activeRows

@@ -27,6 +27,7 @@ import {
   type ReactNode,
 } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { invalidateReposicionesCache } from "@/lib/reposiciones-pendientes"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -227,6 +228,10 @@ export function IncidenciasReporteProvider({
             : i
         )
       )
+      // Invalidar el cache de reposiciones para que el bloqueo por reposición
+      // en los módulos de producción (p. ej. "Terminar" en Sublimación) se
+      // levante sin recargar la página.
+      invalidateReposicionesCache()
       return { ok: true }
     },
     []

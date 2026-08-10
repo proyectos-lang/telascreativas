@@ -12,6 +12,7 @@ import { SublimationPartialDeliveryModal } from "./sublimation-partial-delivery-
 import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-incidencia-button"
 import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
+import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
@@ -126,7 +127,7 @@ export interface EntregaParcialRow {
 
 export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
   const { updateOrden, refreshOrdenes } = useSublimation()
-  const { mapa: reposMapa } = useReposicionesPendientes()
+  const { mapa: reposMapa, refresh: refreshRepos } = useReposicionesPendientes()
   const repo = getReposicionEstado(orden, reposMapa)
   // Usuario activo para auditar la "Entrega Total" (mismo patrón que el
   // modal de entrega parcial). Cae a "Desconocido" si no hay sesión.
@@ -636,6 +637,15 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
           <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <ReposicionBadge info={repo} className="self-center" />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
+          {repo.pendiente && (
+            <CancelarReposicionButton
+              pedido={orden.pedido}
+              onDone={() => {
+                refreshRepos()
+                void refreshOrdenes()
+              }}
+            />
+          )}
           <Button
             size="sm"
             onClick={() => setShowReceiveModal(true)}
