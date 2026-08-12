@@ -117,12 +117,13 @@ function toPcs(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0
 }
 
-function esActiva(r: PlanRow): boolean {
+function esCanceladaRechazada(r: PlanRow): boolean {
   const est = (r.estado_aprobado_rechazado ?? "").toString().trim().toLowerCase()
-  if (est === "cancelado" || est === "rechazado") return false
+  return est === "cancelado" || est === "rechazado"
+}
+function esEntregada(r: PlanRow): boolean {
   const status = (r.estatus_actual ?? "").toString().trim().toUpperCase()
-  if (status === "ENTREGADO" || status === "ENTREGAS") return false
-  return true
+  return status === "ENTREGADO" || status === "ENTREGAS"
 }
 
 export function CapacidadContent() {
@@ -150,7 +151,9 @@ export function CapacidadContent() {
       setError(err.message)
       setRows([])
     } else {
-      setRows((data ?? []).filter(esActiva))
+      // Excluimos solo canceladas/rechazadas; las ENTREGADAS se conservan
+      // porque la semana actual y el acumulado anterior sí las cuentan.
+      setRows((data ?? []).filter((r) => !esCanceladaRechazada(r)))
     }
     setLoading(false)
   }, [])
@@ -161,7 +164,14 @@ export function CapacidadContent() {
 
   // Semanas del horizonte + prendas programadas por semana. El backlog vencido
   // (entregas ya pasadas y aún activas) se contabiliza aparte.
-  const { semanas, backlogPcs, backlogPedidos, lunesActual } = useMemo(() => {
+  const {
+    semanas,
+    backlogPcs,
+    backlogPedidos,
+    anterioresPcs,
+    anterioresPedidos,
+    lunesActual,
+  } = useMemo(() => {
     const lunes = lunesDeSemana(new Date())
     const lista: SemanaCapacidad[] = []
     for (let i = 0; i < HORIZONTE_SEMANAS; i++) {
@@ -171,23 +181,41 @@ export function CapacidadContent() {
       lista.push({ idx: i, inicio, fin, numero, ano, programado: 0, pedidos: 0 })
     }
     let bPcs = 0
-    let bPed = 0
+    let bPed = 0 // atrasadas: de semanas anteriores, aún NO entregadas
+    let aPcs = 0
+    let aPed = 0 // acumulado de TODAS las semanas anteriores (incl. entregadas)
     for (const r of rows) {
       const f = parseYMD(r.fecha_de_entrega)
       if (!f) continue
       const pcs = toPcs(r.pcs)
+      const entregada = esEntregada(r)
+      // Semanas anteriores a la actual → acumulado histórico.
       if (f < lunes) {
-        bPcs += pcs
-        bPed += 1
+        aPcs += pcs
+        aPed += 1
+        if (!entregada) {
+          bPcs += pcs
+          bPed += 1
+        }
         continue
       }
       const diffDias = Math.floor((f.getTime() - lunes.getTime()) / 86400000)
       const idx = Math.floor(diffDias / 7)
       if (idx < 0 || idx >= HORIZONTE_SEMANAS) continue
+      // La semana ACTUAL (idx 0) cuenta también las entregadas; las semanas
+      // POSTERIORES solo cuentan lo programado (no entregado).
+      if (idx >= 1 && entregada) continue
       lista[idx].programado += pcs
       lista[idx].pedidos += 1
     }
-    return { semanas: lista, backlogPcs: bPcs, backlogPedidos: bPed, lunesActual: lunes }
+    return {
+      semanas: lista,
+      backlogPcs: bPcs,
+      backlogPedidos: bPed,
+      anterioresPcs: aPcs,
+      anterioresPedidos: aPed,
+      lunesActual: lunes,
+    }
   }, [rows])
 
   const cap = capacidad > 0 ? capacidad : CAPACIDAD_DEFAULT
@@ -308,13 +336,24 @@ export function CapacidadContent() {
           </div>
         </div>
       )}
+      {!loading && anterioresPcs > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+          <CalendarClock className="mt-0.5 size-4 shrink-0 text-slate-400" />
+          <div>
+            Acumulado de <strong>semanas anteriores</strong> (hasta la semana pasada):{" "}
+            <strong>{anterioresPcs.toLocaleString()} prendas</strong> en{" "}
+            {anterioresPedidos.toLocaleString()} pedido
+            {anterioresPedidos !== 1 ? "s" : ""} programados (incluye entregadas).
+          </div>
+        </div>
+      )}
       {!loading && backlogPcs > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
           <CalendarClock className="mt-0.5 size-4 shrink-0" />
           <div>
             <strong>{backlogPcs.toLocaleString()} prendas atrasadas</strong> en{" "}
             {backlogPedidos.toLocaleString()} pedido{backlogPedidos !== 1 ? "s" : ""} con entrega
-            vencida y aún en producción. Consumen capacidad antes que los pedidos nuevos.
+            vencida y aún sin entregar. Consumen capacidad antes que los pedidos nuevos.
           </div>
         </div>
       )}
@@ -403,7 +442,9 @@ export function CapacidadContent() {
                       <TableCell className="font-medium">
                         Semana {s.numero}
                         {esActual && (
-                          <span className="ml-1 text-[10px] text-slate-400">(actual)</span>
+                          <span className="ml-1 text-[10px] text-slate-400">
+                            (actual · incluye entregadas)
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-slate-600">
