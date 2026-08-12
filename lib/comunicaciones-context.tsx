@@ -298,6 +298,10 @@ interface ComunicacionesContextType {
     responsableEmail: string,
     observaciones: string
   ) => Promise<{ success: boolean; error?: string }>
+  comentarTarea: (
+    tareaId: string,
+    texto: string
+  ) => Promise<{ success: boolean; error?: string }>
   // Vista de tareas (Fase 6)
   cargarTareasVista: (
     todas: boolean
@@ -1348,6 +1352,32 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
     [notificarEstadoTarea, nombreDe]
   )
 
+  // Comentario / mensaje libre sobre una tarea, sin cambiar su estado.
+  // Cualquier participante (responsable o creador) puede comentar sin tener
+  // que aprobar/entregar. Queda en el historial y notifica en el chat de origen.
+  const comentarTarea = useCallback(
+    async (tareaId: string, texto: string) => {
+      const yo = emailRef.current
+      const t = texto.trim()
+      if (!t) return { success: false, error: "El comentario está vacío" }
+      const { error } = await supabase
+        .schema("telas")
+        .from("chat_tarea_eventos")
+        .insert({
+          tarea_id: tareaId,
+          responsable_email: null,
+          tipo: "comentario",
+          detalle: t,
+          usuario: yo,
+        })
+      if (error) return { success: false, error: error.message }
+      const snippet = t.length > 80 ? `${t.slice(0, 80)}…` : t
+      await notificarEstadoTarea(tareaId, `comentario de ${nombreDe(yo ?? "")}: ${snippet}`)
+      return { success: true }
+    },
+    [notificarEstadoTarea, nombreDe]
+  )
+
   // --- Vista de tareas (Fase 6) ---
   const cargarTareasVista = useCallback(async (todas: boolean) => {
     const yo = emailRef.current
@@ -1849,6 +1879,7 @@ export function ComunicacionesProvider({ children }: { children: ReactNode }) {
         entregarTarea,
         aceptarTarea,
         devolverTarea,
+        comentarTarea,
         cargarTareasVista,
         reasignarResponsable,
         cambiarFechaEntrega,

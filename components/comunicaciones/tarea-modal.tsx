@@ -90,6 +90,7 @@ export function TareaModal({
     entregarTarea,
     aceptarTarea,
     devolverTarea,
+    comentarTarea,
   } = useComunicaciones()
 
   const [tarea, setTarea] = useState<Tarea | null>(null)
@@ -101,6 +102,8 @@ export function TareaModal({
   const [trabajando, setTrabajando] = useState(false)
   const [devolverPara, setDevolverPara] = useState<string | null>(null)
   const [devolverTexto, setDevolverTexto] = useState("")
+  const [comentario, setComentario] = useState("")
+  const [comentando, setComentando] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const nombreDe = (em: string) => usuarios.find((u) => u.email === em)?.nombre || em
@@ -123,6 +126,7 @@ export function TareaModal({
       setEntregarArchivo(null)
       setDevolverPara(null)
       setDevolverTexto("")
+      setComentario("")
       void recargar()
     }
   }, [open, tareaId, recargar])
@@ -368,20 +372,72 @@ export function TareaModal({
                 )
               })()}
 
-            {/* Historial */}
+            {/* Actividad y comentarios */}
             <div>
               <p className="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500">
-                <History className="size-3.5" /> Historial
+                <History className="size-3.5" /> Actividad y comentarios
               </p>
-              <div className="space-y-1">
-                {eventos.map((e) => (
-                  <div key={e.id} className="flex items-start gap-2 text-xs">
-                    <span className="shrink-0 text-slate-400">{fmt(e.created_at)}</span>
-                    <span className="text-slate-600">
-                      <span className="font-medium">{nombreDe(e.usuario ?? "")}</span> — {e.detalle}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-1.5">
+                {eventos.map((e) =>
+                  e.tipo === "comentario" ? (
+                    <div
+                      key={e.id}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-slate-700">
+                          {nombreDe(e.usuario ?? "")}
+                          {(e.usuario ?? "").toLowerCase() === yo && " (tú)"}
+                        </span>
+                        <span className="text-[10px] text-slate-400">{fmt(e.created_at)}</span>
+                      </div>
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-600">
+                        {e.detalle}
+                      </p>
+                    </div>
+                  ) : (
+                    <div key={e.id} className="flex items-start gap-2 text-xs">
+                      <span className="shrink-0 text-slate-400">{fmt(e.created_at)}</span>
+                      <span className="text-slate-600">
+                        <span className="font-medium">{nombreDe(e.usuario ?? "")}</span> — {e.detalle}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Composer de comentario: cualquier participante puede comentar
+                  sin tener que aprobar/entregar la tarea. */}
+              <div className="mt-2 flex items-end gap-2">
+                <Textarea
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value)}
+                  placeholder="Escribe un comentario o mensaje…"
+                  rows={1}
+                  className="max-h-24 min-h-[38px] flex-1 resize-none text-sm"
+                />
+                <Button
+                  size="sm"
+                  disabled={comentando || !comentario.trim()}
+                  onClick={async () => {
+                    if (!tarea) return
+                    setComentando(true)
+                    const r = await comentarTarea(tarea.id, comentario)
+                    setComentando(false)
+                    if (r.success) {
+                      setComentario("")
+                      await recargar()
+                    } else {
+                      toast.error("No se pudo comentar", { description: r.error })
+                    }
+                  }}
+                >
+                  {comentando ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    "Comentar"
+                  )}
+                </Button>
               </div>
             </div>
           </div>
