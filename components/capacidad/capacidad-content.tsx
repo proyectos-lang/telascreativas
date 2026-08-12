@@ -3,10 +3,11 @@
 /**
  * Módulo "Capacidad" (para comercial).
  *
- * Se apoya en la misma fuente que Plan Semanal (`telas.vista_plan_semanal`):
- * una fila por pedido con su semana de entrega precalculada. Suma las prendas
- * (`pcs`) programadas por semana y las compara contra la capacidad semanal de
- * la planta para:
+ * Lee directamente de `telas.cabecera` (fuente de verdad) para incluir TODAS
+ * las órdenes por su fecha de entrega al cliente — incluidas las que aún no
+ * han pasado por Programación (la vista de Plan Semanal las excluye). Suma las
+ * prendas (`pcs`) por semana de entrega y las compara contra la capacidad
+ * semanal de la planta para:
  *   1) mostrar cuántos pedidos/prendas hay programados en cada semana,
  *   2) avisar si la planta está sobrecargada, y
  *   3) estimar, con un simulador, para cuándo se puede entregar un pedido
@@ -58,9 +59,8 @@ interface PlanRow {
   cliente: string | null
   pcs: number | string | null
   fecha_de_entrega: string | null
-  ano_entrega: number | null
-  semana_ano: number | null
-  estatus_actual: string | null
+  fecha_de_entreganueva: string | null
+  entregado_cliente_si_no: boolean | null
   estado_aprobado_rechazado: string | null
 }
 
@@ -122,8 +122,11 @@ function esCanceladaRechazada(r: PlanRow): boolean {
   return est === "cancelado" || est === "rechazado"
 }
 function esEntregada(r: PlanRow): boolean {
-  const status = (r.estatus_actual ?? "").toString().trim().toUpperCase()
-  return status === "ENTREGADO" || status === "ENTREGAS"
+  return r.entregado_cliente_si_no === true
+}
+/** Fecha de entrega efectiva: la reprogramada si existe, si no la original. */
+function fechaEntregaEfectiva(r: PlanRow): string | null {
+  return r.fecha_de_entreganueva || r.fecha_de_entrega
 }
 
 export function CapacidadContent() {
@@ -137,14 +140,19 @@ export function CapacidadContent() {
     setLoading(true)
     setError(null)
     const anoActual = new Date().getUTCFullYear()
+    const desde = `${anoActual - 1}-01-01`
     const { data, error: err } = await fetchAll<PlanRow>((from, to) =>
       supabase
         .schema("telas")
-        .from("vista_plan_semanal")
+        .from("cabecera")
         .select(
-          "pedido, cliente, pcs, fecha_de_entrega, ano_entrega, semana_ano, estatus_actual, estado_aprobado_rechazado"
+          "pedido, cliente, pcs, fecha_de_entrega, fecha_de_entreganueva, entregado_cliente_si_no, estado_aprobado_rechazado"
         )
-        .gte("ano_entrega", anoActual - 1)
+        // Ventana amplia por fecha de entrega + las órdenes SIN fecha (aún no
+        // programadas), que también queremos mostrar/sumar.
+        .or(
+          `fecha_de_entrega.gte.${desde},fecha_de_entreganueva.gte.${desde},fecha_de_entrega.is.null`
+        )
         .range(from, to)
     )
     if (err) {
@@ -170,6 +178,8 @@ export function CapacidadContent() {
     backlogPedidos,
     anterioresPcs,
     anterioresPedidos,
+    sinProgramarPcs,
+    sinProgramarPedidos,
     lunesActual,
   } = useMemo(() => {
     const lunes = lunesDeSemana(new Date())
@@ -184,11 +194,20 @@ export function CapacidadContent() {
     let bPed = 0 // atrasadas: de semanas anteriores, aún NO entregadas
     let aPcs = 0
     let aPed = 0 // acumulado de TODAS las semanas anteriores (incl. entregadas)
+    let spPcs = 0
+    let spPed = 0 // sin programar: sin fecha de entrega al cliente
     for (const r of rows) {
-      const f = parseYMD(r.fecha_de_entrega)
-      if (!f) continue
       const pcs = toPcs(r.pcs)
       const entregada = esEntregada(r)
+      const f = parseYMD(fechaEntregaEfectiva(r))
+      // Sin fecha de entrega → aún no programada.
+      if (!f) {
+        if (!entregada) {
+          spPcs += pcs
+          spPed += 1
+        }
+        continue
+      }
       // Semanas anteriores a la actual → acumulado histórico.
       if (f < lunes) {
         aPcs += pcs
@@ -214,6 +233,8 @@ export function CapacidadContent() {
       backlogPedidos: bPed,
       anterioresPcs: aPcs,
       anterioresPedidos: aPed,
+      sinProgramarPcs: spPcs,
+      sinProgramarPedidos: spPed,
       lunesActual: lunes,
     }
   }, [rows])
@@ -344,6 +365,17 @@ export function CapacidadContent() {
             <strong>{anterioresPcs.toLocaleString()} prendas</strong> en{" "}
             {anterioresPedidos.toLocaleString()} pedido
             {anterioresPedidos !== 1 ? "s" : ""} programados (incluye entregadas).
+          </div>
+        </div>
+      )}
+      {!loading && sinProgramarPcs > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 text-sm text-indigo-900">
+          <CalendarClock className="mt-0.5 size-4 shrink-0 text-indigo-500" />
+          <div>
+            <strong>{sinProgramarPcs.toLocaleString()} prendas sin programar</strong> en{" "}
+            {sinProgramarPedidos.toLocaleString()} pedido
+            {sinProgramarPedidos !== 1 ? "s" : ""} (aún sin fecha de entrega al cliente).
+            Todavía no ocupan ninguna semana; entrarán a la capacidad cuando se les asigne fecha.
           </div>
         </div>
       )}
