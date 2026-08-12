@@ -202,24 +202,25 @@ export function getReposicionEstado(
 }
 
 /**
- * Cancela la(s) reposición(es) pendiente(s) de un pedido (acción protegida con
- * clave desde la UI). Conserva el histórico: marca las incidencias derivadas
- * abiertas como 'Cancelado' (dejan de contar como pendientes porque el loader
- * filtra por `ilike 'pendiente'`) y limpia la marca manual de la cabecera.
- * Invalida ambos caches para que producción recalcule el bloqueo sin recargar.
+ * Resuelve la(s) reposición(es) pendiente(s) de un pedido dejándolas en el
+ * `estado` indicado (conserva el histórico; dejan de contar como pendientes
+ * porque el loader filtra por `ilike 'pendiente'`) y limpia la marca manual de
+ * la cabecera. Invalida ambos caches para que producción recalcule el bloqueo
+ * sin recargar.
  */
-export async function cancelarReposicionDePedido(
-  pedido: string
+async function resolverReposicionDePedido(
+  pedido: string,
+  estado: string
 ): Promise<{ success: boolean; error?: string }> {
   const p = String(pedido ?? "").trim()
   if (!p) return { success: false, error: "Pedido inválido" }
   const nowIso = new Date().toISOString()
 
-  // 1) Incidencias derivadas pendientes → Cancelado (conserva el registro).
+  // 1) Incidencias derivadas pendientes → nuevo estado (conserva el registro).
   const { error: incErr } = await supabase
     .schema("telas")
     .from("incidencias")
-    .update({ estado_reposicion: "Cancelado", fecha_procesado: nowIso })
+    .update({ estado_reposicion: estado, fecha_procesado: nowIso })
     .eq("pedido", p)
     .eq("genera_reposicion", true)
     .ilike("estado_reposicion", "pendiente")
@@ -237,4 +238,21 @@ export async function cancelarReposicionDePedido(
   cachePromise = null
   fullCachePromise = null
   return { success: true }
+}
+
+/**
+ * CANCELA la reposición pendiente de un pedido (acción protegida con clave):
+ * la reposición ya no se necesita. La marca como 'Cancelado'.
+ */
+export function cancelarReposicionDePedido(pedido: string) {
+  return resolverReposicionDePedido(pedido, "Cancelado")
+}
+
+/**
+ * CONFIRMA la recepción de la reposición de un pedido (acción operativa, sin
+ * clave): las piezas repuestas ya llegaron. La marca como 'Procesado', lo que
+ * libera el pedido para poder cerrar la orden.
+ */
+export function confirmarReposicionDePedido(pedido: string) {
+  return resolverReposicionDePedido(pedido, "Procesado")
 }

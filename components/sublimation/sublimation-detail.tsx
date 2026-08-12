@@ -13,6 +13,7 @@ import { ReportarIncidenciaButton } from "@/components/incidencias/reportar-inci
 import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import { PendienteReposicionButton } from "@/components/incidencias/pendiente-reposicion-button"
 import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
+import { ConfirmarReposicionButton } from "@/components/incidencias/confirmar-reposicion-button"
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
@@ -638,13 +639,23 @@ export function SublimationDetail({ orden, onBack }: SublimationDetailProps) {
           <ReposicionBadge info={repo} className="self-center" />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           {repo.pendiente && (
-            <CancelarReposicionButton
-              pedido={orden.pedido}
-              onDone={() => {
-                refreshRepos()
-                void refreshOrdenes()
-              }}
-            />
+            <>
+              <ConfirmarReposicionButton
+                pedido={orden.pedido}
+                areas={repo.areas}
+                onDone={() => {
+                  refreshRepos()
+                  void refreshOrdenes()
+                }}
+              />
+              <CancelarReposicionButton
+                pedido={orden.pedido}
+                onDone={() => {
+                  refreshRepos()
+                  void refreshOrdenes()
+                }}
+              />
+            </>
           )}
           <Button
             size="sm"

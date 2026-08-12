@@ -13,6 +13,7 @@ import { PendienteReposicionButton } from "@/components/incidencias/pendiente-re
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
+import { ConfirmarReposicionButton } from "@/components/incidencias/confirmar-reposicion-button"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
 import { Badge } from "@/components/ui/badge"
@@ -311,13 +312,23 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
           <EnviarPorChatButton tipo="pedido" pedido={orden.pedido} />
           <PendienteReposicionButton orden={orden} onUpdate={(u) => updateOrden(orden.pedido, u)} />
           {repo.pendiente && (
-            <CancelarReposicionButton
-              pedido={orden.pedido}
-              onDone={() => {
-                refreshRepos()
-                void refreshOrdenes()
-              }}
-            />
+            <>
+              <ConfirmarReposicionButton
+                pedido={orden.pedido}
+                areas={repo.areas}
+                onDone={() => {
+                  refreshRepos()
+                  void refreshOrdenes()
+                }}
+              />
+              <CancelarReposicionButton
+                pedido={orden.pedido}
+                onDone={() => {
+                  refreshRepos()
+                  void refreshOrdenes()
+                }}
+              />
+            </>
           )}
           <Button
             size="sm"
