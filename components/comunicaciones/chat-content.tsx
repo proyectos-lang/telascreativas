@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import {
   MessageSquarePlus,
   Search,
@@ -58,6 +58,67 @@ function horaCorta(iso: string | null): string {
   if (!iso) return ""
   const d = new Date(iso)
   return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+}
+
+function mismoDia(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false
+  const da = new Date(a)
+  const db = new Date(b)
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  )
+}
+
+// Etiqueta del separador de fecha entre mensajes: "Hoy", "Ayer" o la fecha.
+function etiquetaFecha(iso: string | null): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  const hoy = new Date()
+  const ayer = new Date()
+  ayer.setDate(hoy.getDate() - 1)
+  const sameDay = (x: Date, y: Date) =>
+    x.getFullYear() === y.getFullYear() &&
+    x.getMonth() === y.getMonth() &&
+    x.getDate() === y.getDate()
+  if (sameDay(d, hoy)) return "Hoy"
+  if (sameDay(d, ayer)) return "Ayer"
+  return d.toLocaleDateString("es-CO", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    ...(d.getFullYear() !== hoy.getFullYear() ? { year: "numeric" } : {}),
+  })
+}
+
+// Timestamp compacto para la lista de conversaciones: hora si es hoy, "Ayer",
+// o fecha corta (día + mes) si es más antiguo.
+function horaOFecha(iso: string | null): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  const hoy = new Date()
+  const ayer = new Date()
+  ayer.setDate(hoy.getDate() - 1)
+  const sameDay = (x: Date, y: Date) =>
+    x.getFullYear() === y.getFullYear() &&
+    x.getMonth() === y.getMonth() &&
+    x.getDate() === y.getDate()
+  if (sameDay(d, hoy)) return horaCorta(iso)
+  if (sameDay(d, ayer)) return "Ayer"
+  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short" })
+}
+
+// Fecha + hora completas (para el tooltip de cada mensaje).
+function fechaHoraCompleta(iso: string | null): string {
+  if (!iso) return ""
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 // Emojis frecuentes para el selector del chat.
@@ -384,7 +445,7 @@ export function ChatContent() {
                         {tituloConv(c.id)}
                       </span>
                       <span className="shrink-0 text-[10px] text-slate-400">
-                        {horaCorta(c.ultimoMensajeAt)}
+                        {horaOFecha(c.ultimoMensajeAt)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-1">
@@ -592,54 +653,68 @@ export function ChatContent() {
             )}
 
             <div ref={scrollRef} className="flex-1 space-y-2 overflow-auto px-4 py-3">
-              {mensajes.map((m) =>
-                m.tipo === "evento" ? (
-                  <div key={m.id} className="flex justify-center py-0.5">
-                    <span className="rounded-full bg-slate-100 px-3 py-0.5 text-[11px] text-slate-500">
-                      {m.contenido}
+              {mensajes.map((m, i) => {
+                const prev = i > 0 ? mensajes[i - 1] : null
+                const mostrarFecha = !mismoDia(prev?.created_at ?? null, m.created_at)
+                const separador = mostrarFecha ? (
+                  <div className="flex justify-center py-1.5">
+                    <span className="rounded-full bg-slate-200/70 px-3 py-0.5 text-[11px] font-medium capitalize text-slate-500">
+                      {etiquetaFecha(m.created_at)}
                     </span>
                   </div>
-                ) : m.tipo === "tarea" ? (
-                  <div
-                    key={m.id}
-                    id={`msg-${m.id}`}
-                    className={cn(
-                      "flex",
-                      m.remitente_email.toLowerCase() === email ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    <button
-                      onClick={() => m.referencia_valor && setTareaAbiertaId(m.referencia_valor)}
-                      className="flex max-w-[80%] items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-left hover:bg-indigo-100"
+                ) : null
+                const contenido =
+                  m.tipo === "evento" ? (
+                    <div className="flex justify-center py-0.5">
+                      <span className="rounded-full bg-slate-100 px-3 py-0.5 text-[11px] text-slate-500">
+                        {m.contenido}
+                      </span>
+                    </div>
+                  ) : m.tipo === "tarea" ? (
+                    <div
+                      id={`msg-${m.id}`}
+                      className={cn(
+                        "flex",
+                        m.remitente_email.toLowerCase() === email ? "justify-end" : "justify-start"
+                      )}
                     >
-                      <ClipboardList className="size-4 shrink-0 text-indigo-600" />
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-medium text-indigo-500">Tarea</p>
-                        <p className="truncate text-sm text-slate-800">{m.contenido}</p>
-                        <p className="text-[11px] text-indigo-500 underline">Abrir tarea</p>
-                      </div>
-                    </button>
-                  </div>
-                ) : (
-                  <Burbuja
-                    key={m.id}
-                    mensaje={m}
-                    esMio={m.remitente_email.toLowerCase() === email}
-                    esGrupo={convActiva.tipo === "grupo"}
-                    estado={estadoMensaje(m, convActiva, email)}
-                    highlight={highlightId === m.id}
-                    nombreRemitente={
-                      nombrePorEmail.get(m.remitente_email)?.nombre ?? m.remitente_email
-                    }
-                    quoted={m.reply_to ? mensajes.find((x) => x.id === m.reply_to) ?? null : null}
-                    onReply={() => setReply(m)}
-                    onCrearTarea={() => {
-                      setMensajeOrigenTarea(m.id)
-                      setCrearTareaOpen(true)
-                    }}
-                  />
+                      <button
+                        onClick={() => m.referencia_valor && setTareaAbiertaId(m.referencia_valor)}
+                        className="flex max-w-[80%] items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-left hover:bg-indigo-100"
+                      >
+                        <ClipboardList className="size-4 shrink-0 text-indigo-600" />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-indigo-500">Tarea</p>
+                          <p className="truncate text-sm text-slate-800">{m.contenido}</p>
+                          <p className="text-[11px] text-indigo-500 underline">Abrir tarea</p>
+                        </div>
+                      </button>
+                    </div>
+                  ) : (
+                    <Burbuja
+                      mensaje={m}
+                      esMio={m.remitente_email.toLowerCase() === email}
+                      esGrupo={convActiva.tipo === "grupo"}
+                      estado={estadoMensaje(m, convActiva, email)}
+                      highlight={highlightId === m.id}
+                      nombreRemitente={
+                        nombrePorEmail.get(m.remitente_email)?.nombre ?? m.remitente_email
+                      }
+                      quoted={m.reply_to ? mensajes.find((x) => x.id === m.reply_to) ?? null : null}
+                      onReply={() => setReply(m)}
+                      onCrearTarea={() => {
+                        setMensajeOrigenTarea(m.id)
+                        setCrearTareaOpen(true)
+                      }}
+                    />
+                  )
+                return (
+                  <Fragment key={m.id}>
+                    {separador}
+                    {contenido}
+                  </Fragment>
                 )
-              )}
+              })}
             </div>
 
             {reply && (
@@ -1066,7 +1141,9 @@ function Burbuja({
               esMio ? "text-white/70" : "text-slate-400"
             )}
           >
-            <span>{horaCorta(mensaje.created_at)}</span>
+            <span title={fechaHoraCompleta(mensaje.created_at)}>
+              {horaCorta(mensaje.created_at)}
+            </span>
             {esMio && estado === "leido" && <CheckCheck className="size-3 text-sky-200" />}
             {esMio && estado === "recibido" && <CheckCheck className="size-3" />}
             {esMio && estado === "enviado" && <Check className="size-3" />}
