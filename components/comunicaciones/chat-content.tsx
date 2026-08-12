@@ -1101,7 +1101,7 @@ function EnlazarReferenciaDialog({
   const { solicitudes } = useGD()
   const [tab, setTab] = useState<"pedido" | "gestion">("pedido")
   const [q, setQ] = useState("")
-  const [nota, setNota] = useState("")
+  const [mensaje, setMensaje] = useState("")
   const [enviando, setEnviando] = useState(false)
 
   const term = q.trim().toLowerCase()
@@ -1128,16 +1128,22 @@ function EnlazarReferenciaDialog({
     titulo: string
   ) => {
     setEnviando(true)
-    const r = await enviarMensaje(conversacionId, nota.trim(), {
+    // 1) Referencia (tarjeta) sin texto embebido.
+    const r = await enviarMensaje(conversacionId, "", {
       tipo: "referencia",
       referencia_tipo: tipo,
       referencia_valor: valor,
     })
+    // 2) Mensaje aparte, si se escribió: llega justo debajo de la referencia.
+    const texto = mensaje.trim()
+    if (r.success && texto) {
+      await enviarMensaje(conversacionId, texto)
+    }
     setEnviando(false)
     if (r.success) {
-      toast.success(`${titulo} enlazado`)
+      toast.success(texto ? `${titulo} enlazado con mensaje` : `${titulo} enlazado`)
       onOpenChange(false)
-      setNota("")
+      setMensaje("")
       setQ("")
     } else {
       toast.error("No se pudo enlazar", { description: r.error })
@@ -1184,9 +1190,9 @@ function EnlazarReferenciaDialog({
           </div>
 
           <Textarea
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder="Nota opcional para acompañar el enlace…"
+            value={mensaje}
+            onChange={(e) => setMensaje(e.target.value)}
+            placeholder="Escribe un mensaje para enviar junto a la referencia (opcional)…"
             rows={2}
             className="resize-none"
           />

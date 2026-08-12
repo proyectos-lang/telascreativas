@@ -29,9 +29,9 @@ type Props =
 export function EnviarPorChatButton(props: Props) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState("")
-  const [nota, setNota] = useState("")
+  const [mensaje, setMensaje] = useState("")
   const [enviando, setEnviando] = useState(false)
-  const { usuarios, enviarReferencia } = useComunicaciones()
+  const { usuarios, enviarReferencia, enviarMensaje } = useComunicaciones()
   const { usuarioActual } = useAuth()
   const miEmail = (usuarioActual?.email ?? "").toLowerCase()
 
@@ -54,16 +54,24 @@ export function EnviarPorChatButton(props: Props) {
 
   const enviar = async (otroEmail: string) => {
     setEnviando(true)
+    // 1) Enviar la referencia (tarjeta del pedido/gestión).
     const r = await enviarReferencia(otroEmail, {
       tipo: props.tipo,
       valor,
-      nota: nota.trim() || undefined,
     })
+    // 2) Si se escribió un mensaje, enviarlo enseguida como mensaje aparte en
+    //    la misma conversación (llega justo debajo de la referencia).
+    const texto = mensaje.trim()
+    if (r.success && texto && r.conversacionId) {
+      await enviarMensaje(r.conversacionId, texto)
+    }
     setEnviando(false)
     if (r.success) {
-      toast.success(`${titulo} enviado por chat`)
+      toast.success(
+        texto ? `${titulo} y mensaje enviados por chat` : `${titulo} enviado por chat`
+      )
       setOpen(false)
-      setNota("")
+      setMensaje("")
       setQ("")
     } else {
       toast.error("No se pudo enviar", { description: r.error })
@@ -90,9 +98,9 @@ export function EnviarPorChatButton(props: Props) {
           </DialogHeader>
           <div className="space-y-3">
             <Textarea
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              placeholder="Nota opcional para acompañar la referencia…"
+              value={mensaje}
+              onChange={(e) => setMensaje(e.target.value)}
+              placeholder="Escribe un mensaje para enviar junto a la referencia (opcional)…"
               rows={2}
               className="resize-none"
             />
