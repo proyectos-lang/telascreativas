@@ -31,6 +31,7 @@ import { IncidenciasReporteContent } from "@/components/incidencias-reporte/inci
 import { InventarioTelasContent } from "@/components/inventario/inventario-telas-content"
 import { PlanSemanalContent } from "@/components/plan-semanal/plan-semanal-content"
 import { IndicadoresContent } from "@/components/indicadores/indicadores-content"
+import { CapacidadContent } from "@/components/capacidad/capacidad-content"
 import { GDContent } from "@/components/gestion-disenos/gd-content"
 import { GestionDisenosProvider } from "@/lib/gestion-disenos-context"
 import { AsistenteIAContent } from "@/components/asistente-ia/asistente-ia-content"
@@ -66,6 +67,7 @@ const viewTitles: Record<ActiveView, string> = {
   plansemanal: "Plan Semanal",
   incidencias: "Reporte de Incidencias",
   indicadores: "Dashboard de Indicadores",
+  capacidad: "Capacidad de Planta",
   ordenes: "Ordenes",
   produccion: "Produccion",
   clientes: "Clientes",
@@ -162,6 +164,8 @@ function MainApp() {
         return <PlanSemanalContent />
       case "indicadores":
         return <IndicadoresContent />
+      case "capacidad":
+        return <CapacidadContent />
       case "gestion-disenos":
         return <GDContent />
       case "asistente-ia":

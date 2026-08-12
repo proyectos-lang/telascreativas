@@ -56,6 +56,8 @@ export interface UsuarioActual {
   mod_comunicaciones?: boolean | null
   // Permiso para publicar Noticias.
   com_publicar_noticias?: boolean | null
+  // Acceso al módulo "Capacidad" (carga por semana vs capacidad — comercial).
+  mod_capacidad?: boolean | null
   // Any other column the DB might add in the future
   [key: string]: unknown
 }
@@ -93,6 +95,8 @@ export const VIEW_PERMISSION_MAP: Record<string, keyof UsuarioActual> = {
   comunicaciones: "mod_comunicaciones",
   "com-tareas": "mod_comunicaciones",
   "com-noticias": "mod_comunicaciones",
+  // Capacidad (carga por semana vs capacidad): permiso propio (comercial).
+  capacidad: "mod_capacidad",
   // Gestión de Diseños: accesible si el usuario tiene cualquiera de los
   // tres sub-roles (gd_ventas, gd_diseno, gd_admin). Como el mapa solo
   // acepta un único campo keyof UsuarioActual, usamos canViewForUser para

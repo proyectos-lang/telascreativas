@@ -25,6 +25,7 @@ export const PERMISOS: PermisoDef[] = [
   { key: "dashboard_dia", label: "Resumen Día", grupo: "Reportes" },
   { key: "reporte_incidencias", label: "Reporte de Incidencias", grupo: "Reportes" },
   { key: "indicadores", label: "Indicadores", grupo: "Reportes" },
+  { key: "mod_capacidad", label: "Capacidad (comercial)", grupo: "Reportes" },
 
   { key: "gd_ventas", label: "Gestión Diseños — Ventas", grupo: "Gestión de Diseños" },
   { key: "gd_diseno", label: "Gestión Diseños — Diseño", grupo: "Gestión de Diseños" },

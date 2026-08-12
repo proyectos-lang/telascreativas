@@ -39,6 +39,7 @@ import {
   Settings,
   ChevronDown,
   Search,
+  Gauge,
 } from "lucide-react"
 import { useAuth, canViewForUser } from "@/lib/auth-context"
 import { useGD } from "@/lib/gestion-disenos-context"
@@ -62,6 +63,7 @@ export type ActiveView =
   | "plansemanal"
   | "incidencias"
   | "indicadores"
+  | "capacidad"
   | "ordenes"
   | "produccion"
   | "clientes"
@@ -128,6 +130,13 @@ const menuItems: {
     key: "indicadores",
     icon: BarChart3,
     iconColor: "text-icon-green",
+    group: "administrativo",
+  },
+  {
+    title: "Capacidad",
+    key: "capacidad",
+    icon: Gauge,
+    iconColor: "text-icon-cyan",
     group: "administrativo",
   },
   {
