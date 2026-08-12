@@ -34,14 +34,12 @@ export function GDFinalFilesModal({
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    if (!archivos.length) {
-      toast.error("Debes subir al menos un archivo final")
-      return
-    }
+    // Los archivos finales son opcionales: se permite cerrar/finalizar la
+    // solicitud sin adjuntar archivo (p. ej. cuando se entregan por otro medio).
     setLoading(true)
     try {
       const propRes = await updateProposal(propuesta.id, {
-        archivos_finales_urls: archivos,
+        archivos_finales_urls: archivos.length ? archivos : null,
         fecha_archivos_finales: new Date().toISOString(),
         estado: "Aprobada",
       })
@@ -54,8 +52,10 @@ export function GDFinalFilesModal({
         estado_turno: "Finalizado",
       })
       if (solRes.success) {
-        toast.success("Archivos entregados — Solicitud finalizada", {
-          description: `${archivos.length} archivo${archivos.length > 1 ? "s" : ""} subido${archivos.length > 1 ? "s" : ""}.`,
+        toast.success("Solicitud finalizada", {
+          description: archivos.length
+            ? `${archivos.length} archivo${archivos.length > 1 ? "s" : ""} subido${archivos.length > 1 ? "s" : ""}.`
+            : "Se cerró sin archivos finales adjuntos.",
         })
         onClose()
       } else {
@@ -79,11 +79,11 @@ export function GDFinalFilesModal({
         <div className="space-y-4">
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
             El diseño fue aprobado. Sube los archivos finales en los formatos requeridos (.ai, .pdf, .png) y
-            presiona "Finalizar" para cerrar la solicitud.
+            presiona "Finalizar" para cerrar la solicitud. Los archivos son opcionales.
           </div>
 
           <GDFileUploader
-            label="Archivos finales (.ai, .pdf, .png, etc.)"
+            label="Archivos finales (opcional — .ai, .pdf, .png, etc.)"
             value={archivos}
             onChange={setArchivos}
             pathPrefix={`gd_${gestion.id}_final`}
@@ -97,7 +97,7 @@ export function GDFinalFilesModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || !archivos.length}
+            disabled={loading}
             className="gap-2 bg-emerald-600 hover:bg-emerald-700"
           >
             <FolderCheck className="size-4" />

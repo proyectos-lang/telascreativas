@@ -192,6 +192,21 @@ export function GDContent() {
       toast.error("No se pudo identificar la vendedora")
       return
     }
+    // El pedido vinculado (manual) debe ser único: no puede repetirse entre
+    // gestiones. El contexto carga todas las gestiones, así que la validación
+    // contra `solicitudes` es completa.
+    if (tienePedido && numeroPedidoInput.trim()) {
+      const padded = numeroPedidoInput.trim().padStart(8, "0")
+      const dup = solicitudes.find(
+        (s) => (s.pedido_vinculado ?? "").trim() === padded
+      )
+      if (dup) {
+        toast.error("Ese pedido ya está vinculado a otra gestión", {
+          description: `El pedido ${padded} pertenece a la gestión ${dup.numero} (${dup.cliente}). El pedido debe ser único.`,
+        })
+        return
+      }
+    }
     setSaving(true)
     try {
       const payload = {

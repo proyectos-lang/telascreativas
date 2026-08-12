@@ -107,6 +107,19 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
   }
 
   const handleSaveEdit = async () => {
+    // El pedido vinculado debe ser único entre gestiones (no puede repetirse).
+    const pedidoEdit = (editData.pedido_vinculado ?? "").trim()
+    if (pedidoEdit) {
+      const dup = solicitudes.find(
+        (s) => s.id !== gestion.id && (s.pedido_vinculado ?? "").trim() === pedidoEdit
+      )
+      if (dup) {
+        toast.error("Ese pedido ya está vinculado a otra gestión", {
+          description: `El pedido ${pedidoEdit} pertenece a la gestión ${dup.numero} (${dup.cliente}). El pedido debe ser único.`,
+        })
+        return
+      }
+    }
     // Excluir propuestas: viene del join y no es columna real en gestion_disenos.
     // Enviarlo causaba un error silencioso en Supabase que impedía el guardado.
     const { propuestas: _p, ...dataToSave } = editData as GestionDiseno

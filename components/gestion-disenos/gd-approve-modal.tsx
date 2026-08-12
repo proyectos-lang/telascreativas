@@ -33,6 +33,11 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
   const [loading, setLoading] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
+  // Existente sin cambios: no pasó por propuestas ni archivos; la aprobación
+  // de Ventas finaliza la solicitud directamente (no regresa a Diseño).
+  const esExistenteSinCambios =
+    gestion.tipo_diseno === "Existente" && gestion.existente_lleva_cambios === false
+
   const propuestas = gestion.propuestas ?? []
   const activeProp = propuestas[propuestas.length - 1] ?? null
   const previewImages = activeProp?.imagenes_propuesta_urls?.length
@@ -49,16 +54,32 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
         comentario_aprobacion: comentario.trim() || null,
         imagen_aprobada_url: imagenAprobada[0] ?? null,
         fecha_aprobacion: new Date().toISOString(),
-        estado: decision === "APROBADO" ? "Aprobado" : "Rechazado",
-        estado_turno: decision === "APROBADO" ? "En Diseño" : "En Ventas",
+        estado:
+          decision === "APROBADO"
+            ? esExistenteSinCambios
+              ? "Finalizado"
+              : "Aprobado"
+            : "Rechazado",
+        estado_turno:
+          decision === "APROBADO"
+            ? esExistenteSinCambios
+              ? "Finalizado"
+              : "En Diseño"
+            : "En Ventas",
       })
       if (res.success) {
         toast.success(
-          decision === "APROBADO" ? "Diseño aprobado definitivamente" : "Diseño no aprobado",
+          decision === "APROBADO"
+            ? esExistenteSinCambios
+              ? "Diseño existente aprobado y finalizado"
+              : "Diseño aprobado definitivamente"
+            : "Diseño no aprobado",
           {
             description:
               decision === "APROBADO"
-                ? "El diseñador podrá ahora entregar los archivos finales."
+                ? esExistenteSinCambios
+                  ? "La solicitud quedó finalizada."
+                  : "El diseñador podrá ahora entregar los archivos finales."
                 : "La solicitud ha sido rechazada.",
           }
         )
@@ -101,7 +122,9 @@ export function GDApproveModal({ gestion, open, onClose }: GDApproveModalProps) 
           )}
 
           <p className="text-sm text-slate-600">
-            Esta es la aprobación definitiva. Si apruebas, el diseñador procederá a entregar los archivos finales.
+            {esExistenteSinCambios
+              ? "Es un diseño existente sin cambios. Si apruebas, la solicitud queda finalizada directamente (no requiere archivos)."
+              : "Esta es la aprobación definitiva. Si apruebas, el diseñador procederá a entregar los archivos finales."}
           </p>
 
           <div className="flex gap-3">

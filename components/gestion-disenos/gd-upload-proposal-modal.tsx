@@ -34,17 +34,15 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
   const prefix = `gd_${gestion.id}_prop${nextNum}`
 
   const handleSubmit = async () => {
-    if (!imagenesUrls.length) {
-      toast.error("Debes subir al menos una imagen de mockup")
-      return
-    }
+    // La imagen de mockup es opcional: se permite registrar la propuesta sin
+    // adjuntar archivo (p. ej. cuando el mockup se comparte por otro medio).
     setLoading(true)
     try {
       const [propRes] = await Promise.all([
         addProposal(gestion.id, {
           numero_propuesta: nextNum,
-          imagen_mockup_url: imagenesUrls[0],
-          imagenes_propuesta_urls: imagenesUrls,
+          imagen_mockup_url: imagenesUrls[0] ?? null,
+          imagenes_propuesta_urls: imagenesUrls.length ? imagenesUrls : null,
           comentario_diseno: comentario.trim() || null,
           fecha_subida: new Date().toISOString(),
           estado: "Pendiente",
@@ -106,7 +104,7 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
             )}
 
             <GDFileUploader
-              label="Imágenes del mockup * (máx. 5)"
+              label="Imágenes del mockup (opcional, máx. 5)"
               value={imagenesUrls}
               onChange={setImagenesUrls}
               pathPrefix={prefix}
@@ -132,11 +130,11 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
           {!atLimit && (
             <Button
               onClick={handleSubmit}
-              disabled={loading || !imagenesUrls.length}
+              disabled={loading}
               className="gap-2 bg-blue-600 hover:bg-blue-700"
             >
               <Upload className="size-4" />
-              {loading ? "Subiendo..." : "Subir propuesta"}
+              {loading ? "Guardando..." : "Registrar propuesta"}
             </Button>
           )}
         </DialogFooter>
