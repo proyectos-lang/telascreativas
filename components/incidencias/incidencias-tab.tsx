@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +40,8 @@ import {
   Loader2,
   PlayCircle,
   RefreshCw,
+  Search,
+  X,
 } from "lucide-react"
 import { formatDateShort, formatDateTimeLong } from "@/lib/date-utils"
 import {
@@ -100,6 +110,11 @@ export function IncidenciasTab({
   // Estado del flujo de confirmacion para Procesar Reposicion
   const [toProcess, setToProcess] = useState<Incidencia | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Filtros de la tabla (por pedido, cliente y area que reporta).
+  const [fPedido, setFPedido] = useState("")
+  const [fCliente, setFCliente] = useState("")
+  const [fArea, setFArea] = useState("todas")
 
   const fetchIncidencias = useCallback(async () => {
     if (!supabase) {
@@ -208,6 +223,34 @@ export function IncidenciasTab({
   useEffect(() => {
     onPendingCountChange?.(pendingCount)
   }, [pendingCount, onPendingCountChange])
+
+  // Áreas distintas que aparecen como "area_reporta" (para el filtro).
+  const areasReporta = useMemo(
+    () =>
+      [...new Set(incidencias.map((i) => i.area_reporta).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b, "es")
+      ),
+    [incidencias]
+  )
+
+  // Filtrado en cliente por pedido, cliente y área que reporta.
+  const filtered = useMemo(() => {
+    const p = fPedido.trim().toLowerCase()
+    const c = fCliente.trim().toLowerCase()
+    return incidencias.filter((inc) => {
+      if (p && !(inc.pedido ?? "").toLowerCase().includes(p)) return false
+      if (c && !(clienteMap[inc.pedido] ?? "").toLowerCase().includes(c)) return false
+      if (fArea !== "todas" && inc.area_reporta !== fArea) return false
+      return true
+    })
+  }, [incidencias, clienteMap, fPedido, fCliente, fArea])
+
+  const hayFiltros = fPedido.trim() !== "" || fCliente.trim() !== "" || fArea !== "todas"
+  const limpiarFiltros = () => {
+    setFPedido("")
+    setFCliente("")
+    setFArea("todas")
+  }
 
   /**
    * Ejecuta el UPDATE sobre telas.incidencias para marcar una reposicion
@@ -331,185 +374,237 @@ export function IncidenciasTab({
       )}
 
       {!error && !isLoading && incidencias.length > 0 && (
-        <div className="rounded-md border overflow-x-auto bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Pedido</TableHead>
-                <TableHead className="whitespace-nowrap">Cliente</TableHead>
-                <TableHead className="whitespace-nowrap">Genero</TableHead>
-                <TableHead className="whitespace-nowrap">Talla</TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Motivo Especifico
-                </TableHead>
-                <TableHead className="whitespace-nowrap">Rol</TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Area que Reporta
-                </TableHead>
-                <TableHead className="min-w-[240px]">Descripcion</TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Partes a Reponer
-                </TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Procesos Activos
-                </TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Fecha Reporte
-                </TableHead>
-                <TableHead className="whitespace-nowrap">Estado</TableHead>
-                <TableHead className="whitespace-nowrap text-right">
-                  Accion
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incidencias.map((inc) => {
-                const isPending =
-                  inc.genera_reposicion === true &&
-                  (inc.estado_reposicion ?? "").toLowerCase() === "pendiente"
+        <>
+          {/* Filtros: por pedido, cliente y área que reporta */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={fPedido}
+                onChange={(e) => setFPedido(e.target.value)}
+                placeholder="Pedido"
+                className="h-8 w-28 pl-7 text-xs"
+              />
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={fCliente}
+                onChange={(e) => setFCliente(e.target.value)}
+                placeholder="Cliente"
+                className="h-8 w-40 pl-7 text-xs"
+              />
+            </div>
+            <Select value={fArea} onValueChange={setFArea}>
+              <SelectTrigger className="h-8 w-48 text-xs">
+                <SelectValue placeholder="Área que reporta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas las áreas</SelectItem>
+                {areasReporta.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {a}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hayFiltros && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limpiarFiltros}
+                className="h-8 px-2 text-xs text-muted-foreground"
+              >
+                <X className="mr-1 size-3.5" />
+                Limpiar
+              </Button>
+            )}
+            <span className="ml-auto text-xs text-muted-foreground">
+              {filtered.length} de {incidencias.length}
+            </span>
+          </div>
 
-                const fechaReporte = inc.fecha_reporte || inc.created_at || ""
-
-                // Determinar por que razon este modulo ve la incidencia
-                const esGenerador = inc.area_genera === area
-                const esReposicion =
-                  procesoForThisArea !== null &&
-                  Array.isArray(inc.procesos_reposicion) &&
-                  inc.procesos_reposicion.includes(procesoForThisArea)
-
-                return (
-                  <TableRow
-                    key={inc.id}
-                    className={
-                      isPending
-                        ? "bg-rose-50/60 hover:bg-rose-50"
-                        : "hover:bg-muted/40"
-                    }
-                  >
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {inc.pedido}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {clienteMap[inc.pedido] || (
-                        <span className="italic">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {inc.genero || <span className="italic">-</span>}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {inc.talla || <span className="italic">-</span>}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {inc.motivo_especifico || <span className="italic">-</span>}
-                    </TableCell>
-                    {/* Rol: por que este modulo ve la incidencia */}
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        {esGenerador && (
-                          <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-300 text-[10px] px-1.5 py-0 font-medium">
-                            Generó error
-                          </Badge>
-                        )}
-                        {esReposicion && (
-                          <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-300 text-[10px] px-1.5 py-0 font-medium">
-                            Procesa reposición
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      <Badge variant="outline">{inc.area_reporta}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <p className="max-w-md whitespace-pre-wrap break-words">
-                        {inc.descripcion}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {inc.genera_reposicion && inc.partes_reposicion ? (
-                        <div className="flex flex-wrap gap-1">
-                          {inc.partes_reposicion
-                            .split(",")
-                            .map((p) => p.trim())
-                            .filter(Boolean)
-                            .map((parte) => (
-                              <Badge
-                                key={parte}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {parte}
-                              </Badge>
-                            ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {Array.isArray(inc.procesos_reposicion) &&
-                      inc.procesos_reposicion.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {inc.procesos_reposicion.map((proc) => {
-                            // Resaltamos en rojo el proceso que coincide con
-                            // el modulo actual; los demas en gris para dar
-                            // contexto del recorrido completo de la pieza.
-                            const procActual =
-                              procesoReposicionForArea(area) === proc
-                            return (
-                              <Badge
-                                key={proc}
-                                className={
-                                  procActual
-                                    ? "bg-rose-600 hover:bg-rose-700 text-white text-xs"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs border-transparent"
-                                }
-                              >
-                                {proc}
-                              </Badge>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">
-                          legacy
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {fechaReporte ? formatDateShort(fechaReporte) : "-"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {renderEstadoBadge(inc)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right">
-                      {isPending ? (
-                        <Button
-                          size="sm"
-                          onClick={() => setToProcess(inc)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
-                          <PlayCircle className="mr-1 size-3.5" />
-                          Procesar Reposicion
-                        </Button>
-                      ) : inc.fecha_procesado ? (
-                        <span className="text-xs text-muted-foreground">
-                          Procesado el{" "}
-                          {formatDateTimeLong(inc.fecha_procesado)}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          -
-                        </span>
-                      )}
-                    </TableCell>
+          {filtered.length === 0 ? (
+            <div className="rounded-md border bg-white py-8 text-center text-xs text-muted-foreground">
+              Ninguna incidencia coincide con los filtros.
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto bg-white">
+              <Table className="text-xs [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Pedido</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="whitespace-nowrap">Género</TableHead>
+                    <TableHead className="whitespace-nowrap">Talla</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead className="whitespace-nowrap">Rol</TableHead>
+                    <TableHead className="whitespace-nowrap">Reporta</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Partes</TableHead>
+                    <TableHead>Procesos</TableHead>
+                    <TableHead className="whitespace-nowrap">Fecha</TableHead>
+                    <TableHead className="whitespace-nowrap">Estado</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">Acción</TableHead>
                   </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((inc) => {
+                    const isPending =
+                      inc.genera_reposicion === true &&
+                      (inc.estado_reposicion ?? "").toLowerCase() === "pendiente"
+
+                    const fechaReporte = inc.fecha_reporte || inc.created_at || ""
+
+                    // Determinar por que razon este modulo ve la incidencia
+                    const esGenerador = inc.area_genera === area
+                    const esReposicion =
+                      procesoForThisArea !== null &&
+                      Array.isArray(inc.procesos_reposicion) &&
+                      inc.procesos_reposicion.includes(procesoForThisArea)
+
+                    return (
+                      <TableRow
+                        key={inc.id}
+                        className={
+                          isPending
+                            ? "bg-rose-50/60 hover:bg-rose-50"
+                            : "hover:bg-muted/40"
+                        }
+                      >
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {inc.pedido}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <span
+                            className="block max-w-[120px] truncate"
+                            title={clienteMap[inc.pedido] || undefined}
+                          >
+                            {clienteMap[inc.pedido] || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {inc.genero || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {inc.talla || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <span
+                            className="block max-w-[110px] truncate"
+                            title={inc.motivo_especifico || undefined}
+                          >
+                            {inc.motivo_especifico || "-"}
+                          </span>
+                        </TableCell>
+                        {/* Rol: por que este modulo ve la incidencia */}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            {esGenerador && (
+                              <Badge className="w-fit border border-orange-300 bg-orange-100 px-1.5 py-0 text-[9px] font-medium text-orange-800 hover:bg-orange-200">
+                                Generó error
+                              </Badge>
+                            )}
+                            {esReposicion && (
+                              <Badge className="w-fit border border-rose-300 bg-rose-100 px-1.5 py-0 text-[9px] font-medium text-rose-800 hover:bg-rose-200">
+                                Procesa repo
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Badge variant="outline" className="text-[10px]">
+                            {inc.area_reporta}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <p
+                            className="line-clamp-2 max-w-[200px] break-words"
+                            title={inc.descripcion}
+                          >
+                            {inc.descripcion}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          {inc.genera_reposicion && inc.partes_reposicion ? (
+                            <div className="flex max-w-[130px] flex-wrap gap-1">
+                              {inc.partes_reposicion
+                                .split(",")
+                                .map((p) => p.trim())
+                                .filter(Boolean)
+                                .map((parte) => (
+                                  <Badge
+                                    key={parte}
+                                    variant="outline"
+                                    className="px-1 py-0 text-[10px]"
+                                  >
+                                    {parte}
+                                  </Badge>
+                                ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {Array.isArray(inc.procesos_reposicion) &&
+                          inc.procesos_reposicion.length > 0 ? (
+                            <div className="flex max-w-[150px] flex-wrap gap-1">
+                              {inc.procesos_reposicion.map((proc) => {
+                                const procActual =
+                                  procesoReposicionForArea(area) === proc
+                                return (
+                                  <Badge
+                                    key={proc}
+                                    className={
+                                      procActual
+                                        ? "bg-rose-600 px-1 py-0 text-[10px] text-white hover:bg-rose-700"
+                                        : "border-transparent bg-slate-100 px-1 py-0 text-[10px] text-slate-700 hover:bg-slate-200"
+                                    }
+                                  >
+                                    {proc}
+                                  </Badge>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="italic text-muted-foreground">
+                              legacy
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {fechaReporte ? formatDateShort(fechaReporte) : "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {renderEstadoBadge(inc)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right">
+                          {isPending ? (
+                            <Button
+                              size="sm"
+                              onClick={() => setToProcess(inc)}
+                              className="h-7 bg-emerald-600 px-2 text-xs text-white hover:bg-emerald-700"
+                            >
+                              <PlayCircle className="mr-1 size-3.5" />
+                              Procesar
+                            </Button>
+                          ) : inc.fecha_procesado ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              {formatDateTimeLong(inc.fecha_procesado)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Confirmacion antes de marcar como Procesado */}
