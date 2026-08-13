@@ -38,6 +38,8 @@ import { AsistenteIAContent } from "@/components/asistente-ia/asistente-ia-conte
 import { ComunicacionesProvider } from "@/lib/comunicaciones-context"
 import { ChatContent } from "@/components/comunicaciones/chat-content"
 import { ChatNotificationBanner } from "@/components/comunicaciones/chat-notification-banner"
+import { NotificacionesProvider } from "@/lib/notificaciones/notificaciones-context"
+import { NotificationBell } from "@/components/notificaciones/notification-bell"
 import { TareasContent } from "@/components/comunicaciones/tareas-content"
 import { NoticiasContent } from "@/components/comunicaciones/noticias-content"
 import { ConfiguracionContent } from "@/components/configuracion/configuracion-content"
@@ -201,6 +203,7 @@ function MainApp() {
                   <EntregasProvider>
                     <TrazabilidadProvider>
                       <AppNavigationProvider setActiveView={setActiveView}>
+                        <NotificacionesProvider>
                         <SidebarProvider>
           <AppSidebar activeView={activeView} onViewChange={setActiveView} />
           <SidebarInset className="content-cmyk-gradient">
@@ -216,21 +219,26 @@ function MainApp() {
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              {/* Actualizar global: recarga la app para tomar el último despliegue */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.reload()}
-                title="Recargar para aplicar la última versión de la aplicación"
-              >
-                <RefreshCw className="size-4 mr-2" />
-                Actualizar
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Campana global de alertas (chat, tareas, noticias, pendientes) */}
+                <NotificationBell />
+                {/* Actualizar global: recarga la app para tomar el último despliegue */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                  title="Recargar para aplicar la última versión de la aplicación"
+                >
+                  <RefreshCw className="size-4 mr-2" />
+                  Actualizar
+                </Button>
+              </div>
             </header>
             <main className="flex-1 p-4 md:p-6">{renderContent()}</main>
             <ChatNotificationBanner />
                         </SidebarInset>
                         </SidebarProvider>
+                        </NotificacionesProvider>
                       </AppNavigationProvider>
                     </TrazabilidadProvider>
                   </EntregasProvider>
