@@ -79,12 +79,14 @@ export function GDContent() {
   const esDiseno = !!usuarioActual?.gd_diseno
   const esAdmin = !!usuarioActual?.gd_admin
 
-  // Auto-detect role from user flags — no password required
+  // Auto-detect role from user flags — no password required.
+  // Sin ningún sub-rol de GD el fallback es "ventas", el rol de menor
+  // alcance: "admin" abriría Control Gerencia, Catálogos y todas las
+  // solicitudes a alguien que no tiene el permiso.
   const [roleView, setRoleView] = useState<RoleView>(() => {
     if (esAdmin) return "admin"
     if (esDiseno) return "diseno"
-    if (esVentas) return "ventas"
-    return "admin"
+    return "ventas"
   })
 
   const [selected, setSelected] = useState<GestionDiseno | null>(null)
@@ -111,12 +113,20 @@ export function GDContent() {
       ? { esVentas: true, esDiseno: false, esAdmin: false }
       : { esVentas: false, esDiseno: true, esAdmin: false }
 
-  // Filter by effective role: vendedoras see only their own, designers only their assigned
+  // Filtro por rol efectivo: la vendedora ve solo las suyas; el diseñador,
+  // las que tiene asignadas MÁS la bolsa común — las que ya están en turno de
+  // Diseño pero todavía sin diseñador. El diseñador se asigna al aceptar
+  // (ver gd-send-modal), así que sin la bolsa común no habría forma de ver
+  // ni aceptar el trabajo nuevo.
   const solicitudesFiltradas = effectiveAdmin
     ? solicitudes
     : effectiveVentas
     ? solicitudes.filter((s) => s.vendedora === usuarioActual?.nombre)
-    : solicitudes.filter((s) => s.disenador === usuarioActual?.nombre)
+    : solicitudes.filter(
+        (s) =>
+          s.disenador === usuarioActual?.nombre ||
+          (!s.disenador && s.estado_turno === "En Diseño")
+      )
 
   const selectedLive = selected
     ? solicitudes.find((s) => s.id === selected.id) ?? selected

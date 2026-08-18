@@ -595,17 +595,19 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
         </div>
       </div>
 
-      {/* Modals */}
-      {modal === "send" && (
+      {/* Modals. El guard se repite aqui a proposito: el boton ya se
+          oculta, pero asi la accion del otro rol tampoco puede montarse
+          aunque el estado `modal` se fijara por otra via. */}
+      {canSend && modal === "send" && (
         <GDSendModal gestion={gestion} open onClose={() => setModal(null)} />
       )}
-      {modal === "review" && (
+      {canReview && modal === "review" && (
         <GDReviewModal gestion={gestion} open onClose={() => setModal(null)} />
       )}
-      {modal === "upload" && (
+      {canUpload && modal === "upload" && (
         <GDUploadProposalModal gestion={gestion} open onClose={() => setModal(null)} />
       )}
-      {modal === "share" && activeProp && (
+      {canShare && modal === "share" && activeProp && (
         <GDShareClientModal
           gestion={gestion}
           propuesta={activeProp}
@@ -613,7 +615,7 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           onClose={() => setModal(null)}
         />
       )}
-      {modal === "ventas-resp" && activeProp && (
+      {canVentasResp && modal === "ventas-resp" && activeProp && (
         <GDVentasResponseModal
           gestion={gestion}
           propuesta={activeProp}
@@ -621,10 +623,10 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           onClose={() => setModal(null)}
         />
       )}
-      {modal === "approve" && (
+      {canApprove && modal === "approve" && (
         <GDApproveModal gestion={gestion} open onClose={() => setModal(null)} />
       )}
-      {modal === "final-files" && activeProp && (
+      {canFinalFiles && modal === "final-files" && activeProp && (
         <GDFinalFilesModal
           gestion={gestion}
           propuesta={activeProp}
@@ -632,7 +634,7 @@ export function GDDetail({ gestion, usuarioRol, onBack }: GDDetailProps) {
           onClose={() => setModal(null)}
         />
       )}
-      {modal === "reassign" && (
+      {canReassign && modal === "reassign" && (
         <GDReassignModal gestion={gestion} open onClose={() => setModal(null)} />
       )}
       {lightboxSrc && (
