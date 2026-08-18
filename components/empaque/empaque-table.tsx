@@ -98,13 +98,22 @@ export function EmpaqueTable({
     </Badge>
   )
 
-  // Estado Empaque: Terminado (efecha_de_empaque) / En Proceso (enombre_de_quien_empaca) / Pendiente
+  // Estado Empaque: Terminado / En Bordado (salio a proceso externo) /
+  // En Proceso (enombre_de_quien_empaca) / Pendiente.
   const getEstadoEmpaqueBadge = (orden: Orden) => {
     if (orden.efecha_de_empaque) {
       return (
         <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
           <CheckCircle2 className="mr-1 size-3" />
           Terminado
+        </Badge>
+      )
+    }
+    if (orden.e_enviado_bordado === true) {
+      return (
+        <Badge className="bg-fuchsia-600 text-white hover:bg-fuchsia-700">
+          <Clock className="mr-1 size-3" />
+          En Bordado
         </Badge>
       )
     }

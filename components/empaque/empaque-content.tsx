@@ -24,7 +24,7 @@ import { getEmpaqueStatus } from "@/lib/production-status"
 import { ModuleTabs } from "@/components/incidencias/module-tabs"
 import { ModuleResumenCard } from "@/components/shared/module-resumen-card"
 
-const EMPAQUE_ESTADOS = ["Pendiente", "En Proceso", "Terminado"] as const
+const EMPAQUE_ESTADOS = ["Pendiente", "En Proceso", "En Bordado", "Terminado"] as const
 
 export function EmpaqueContent() {
   const { ordenes, isLoading, error, refreshOrdenes } = useEmpaque()

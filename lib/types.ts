@@ -89,6 +89,10 @@ export interface Orden {
   ctiempo_en_corte?: string
   csemana_de_corte?: number
   check_lleva_dtf_si_no?: boolean
+  // URL publica de la firma con la que Costura recibe de Corte. Solo aplica
+  // cuando Corte entrega directo a Costura (solo_corte_costura o YARDAJE),
+  // igual que `s_firma_recibe_costura` en Sublimacion. Bucket: firmas-procesos.
+  c_firma_recibe_costura?: string
   // Campos del modulo de Impresion
   ifecha_objetivo_i?: string
   ifecha_de_ingreso_imp?: string
@@ -191,6 +195,14 @@ export interface Orden {
   // muestra en el detalle de Empaque y Entregas como evidencia de la
   // transferencia Empaque -> Ventas.
   e_firma_recibe_vendedora?: string
+  // Envio a BORDADO (proceso externo). Empaque recibe la prenda pero la manda
+  // a bordar; mientras `e_enviado_bordado` sea true la orden esta fisicamente
+  // fuera y NO se puede cerrar el empaque (la firma a ventas ocurre al
+  // retornar). Ver scripts/empaque-bordado-y-firma-corte.sql
+  e_enviado_bordado?: boolean
+  e_fecha_envio_bordado?: string
+  e_fecha_retorno_bordado?: string
+  e_comentario_bordado?: string
   // Campos del modulo de Entregas (vendedoras)
   entregado_cliente_si_no?: boolean
   fecha_entrega_cliente?: string

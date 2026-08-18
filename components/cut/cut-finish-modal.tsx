@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Orden } from "@/lib/types"
 import { esYardaje, toNum } from "@/lib/produccion-validaciones"
+import { SignaturePad, type SignaturePadHandle } from "@/components/shared/signature-pad"
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   CheckCircle2,
+  PenLine,
   Loader2,
   X,
   Scissors,
@@ -73,6 +75,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// Mismo bucket que usan las firmas de Sublimacion y Empaque.
+const SIGNATURE_BUCKET = "firmas-procesos"
+
 export function CutFinishModal({
   orden,
   open,
@@ -83,6 +88,14 @@ export function CutFinishModal({
   const [motivosDemora, setMotivosDemora] = useState<string[]>([])
   const [loadingMotivos, setLoadingMotivos] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+
+  // Firma de recibido de Costura. Solo aplica cuando Corte entrega DIRECTO a
+  // Costura: ordenes solo_corte_costura (saltan Diseno/Impresion/Sublimacion)
+  // y ordenes YARDAJE (donde el Corte va despues de Sublimacion). En el resto
+  // del flujo la entrega a Costura la firma Sublimacion.
+  const previaEsCorte = orden.solo_corte_costura === true || esYardaje(orden)
+  const [signatureEmpty, setSignatureEmpty] = useState(true)
+  const signatureRef = useRef<SignaturePadHandle>(null)
 
   const [formData, setFormData] = useState({
     cpiezas_cortadas: "",
@@ -101,7 +114,28 @@ export function CutFinishModal({
       cmotivo_demora_terminado_c: orden.cmotivo_demora_terminado_c || "",
       ccomentario_corte: orden.ccomentario_corte || "",
     })
+    signatureRef.current?.clear()
+    setSignatureEmpty(true)
   }, [open, orden])
+
+  /**
+   * Sube la firma al bucket publico. Nombre unico con timestamp: usar un
+   * nombre fijo con upsert falla porque RLS bloquea el UPDATE de
+   * storage.objects (mismo motivo documentado en Sublimacion).
+   */
+  const uploadSignature = async (blob: Blob): Promise<string | null> => {
+    const safePedido = String(orden.pedido).replace(/[^a-zA-Z0-9_-]/g, "_")
+    const filename = `corte_recibe_costura_${safePedido}_${Date.now()}.png`
+    const { error: uploadError } = await supabase.storage
+      .from(SIGNATURE_BUCKET)
+      .upload(filename, blob, { contentType: "image/png", upsert: true })
+    if (uploadError) {
+      toast.error("Error al subir firma", { description: uploadError.message })
+      return null
+    }
+    const { data } = supabase.storage.from(SIGNATURE_BUCKET).getPublicUrl(filename)
+    return data?.publicUrl || null
+  }
 
   // Load motivos_demora from telas.motivos_demora (field `nombre`)
   useEffect(() => {
@@ -193,7 +227,32 @@ export function CutFinishModal({
       }
     }
 
+    // Firma de recibido de Costura (solo cuando Corte entrega directo).
+    if (previaEsCorte && signatureRef.current?.isEmpty()) {
+      toast.error("Firma requerida", {
+        description: "Costura debe firmar la recepción del corte.",
+      })
+      return
+    }
+
     setIsSubmitting(true)
+
+    let firmaUrl: string | null = null
+    if (previaEsCorte) {
+      const blob = await signatureRef.current?.toBlob()
+      if (!blob) {
+        toast.error("No se pudo capturar la firma", {
+          description: "Intenta firmar nuevamente.",
+        })
+        setIsSubmitting(false)
+        return
+      }
+      firmaUrl = await uploadSignature(blob)
+      if (!firmaUrl) {
+        setIsSubmitting(false)
+        return
+      }
+    }
 
     const todayDate = new Date()
     const fechaCorte = todayDate.toISOString().split("T")[0]
@@ -209,6 +268,7 @@ export function CutFinishModal({
       cmotivo_demora_terminado_c:
         formData.cmotivo_demora_terminado_c || undefined,
       ccomentario_corte: formData.ccomentario_corte || undefined,
+      ...(firmaUrl ? { c_firma_recibe_costura: firmaUrl } : {}),
     }
 
     if (tiempoEnCorte) {
@@ -383,6 +443,31 @@ export function CutFinishModal({
               />
             </div>
 
+            {/* Firma de recibido de Costura: solo cuando Corte entrega directo
+                (solo_corte_costura o YARDAJE). En el resto del flujo la firma
+                de entrega a Costura la registra Sublimacion. */}
+            {previaEsCorte && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm">
+                    <PenLine className="size-4 text-emerald-600" />
+                    Firma de recibido — Costura{" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Esta orden pasa de Corte directo a Costura. Quien recibe debe
+                    firmar como evidencia de la transferencia.
+                  </p>
+                  <SignaturePad
+                    ref={signatureRef}
+                    onChange={setSignatureEmpty}
+                    ariaLabel="Firma de quien recibe en Costura"
+                  />
+                </div>
+              </>
+            )}
+
             <Separator />
 
             {/* Auto-calculated preview */}
@@ -445,7 +530,12 @@ export function CutFinishModal({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (previaEsCorte && signatureEmpty)}
+              title={
+                previaEsCorte && signatureEmpty
+                  ? "Costura debe firmar la recepción antes de terminar"
+                  : undefined
+              }
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {isSubmitting ? (

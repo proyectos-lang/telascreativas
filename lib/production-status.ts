@@ -14,7 +14,7 @@ import { Orden } from "@/lib/types"
  */
 
 export type ProductionStatus = "Pendiente" | "Recibido" | "Terminado"
-export type EmpaqueStatus = "Pendiente" | "En Proceso" | "Terminado"
+export type EmpaqueStatus = "Pendiente" | "En Proceso" | "En Bordado" | "Terminado"
 
 export function getDisenoStatus(orden: Orden): ProductionStatus {
   if (orden.dentrega_diseno) return "Terminado"
@@ -48,6 +48,9 @@ export function getCosturaStatus(orden: Orden): ProductionStatus {
 
 export function getEmpaqueStatus(orden: Orden): EmpaqueStatus {
   if (orden.efecha_de_empaque) return "Terminado"
+  // La orden salio a bordado (proceso externo): sigue asignada a Empaque pero
+  // no esta fisicamente ahi, y no se puede cerrar hasta que retorne.
+  if (orden.e_enviado_bordado === true) return "En Bordado"
   if (orden.enombre_de_quien_empaca) return "En Proceso"
   return "Pendiente"
 }

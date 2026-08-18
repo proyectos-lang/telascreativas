@@ -269,6 +269,8 @@ function enrichOrden(o: Orden): Orden {
   let estado: string
   if (o.entregado_cliente_si_no === true) estado = "Entregado a Cliente"
   else if (o.efecha_de_empaque) estado = "Empacado - Listo para Entrega"
+  // Salió a bordado (proceso externo): sigue asignada a Empaque pero no está ahí.
+  else if (o.e_enviado_bordado === true) estado = "En Bordado"
   else if (o.enombre_de_quien_empaca) estado = "En Empaque"
   else if (o.coseta_costura) estado = "Costura Terminada"
   else if (o.cosfecha_conteo) estado = "En Costura"

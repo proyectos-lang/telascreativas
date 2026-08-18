@@ -34,6 +34,7 @@ import { PendienteReposicionButton } from "@/components/incidencias/pendiente-re
 import { ReposicionBadge } from "@/components/shared/reposicion-badge"
 import { useReposicionesPendientes, getReposicionEstado } from "@/lib/reposiciones-pendientes"
 import { CancelarReposicionButton } from "@/components/incidencias/cancelar-reposicion-button"
+import { getTodayISO } from "@/lib/date-utils"
 import { ConfirmarReposicionButton } from "@/components/incidencias/confirmar-reposicion-button"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
@@ -67,6 +68,10 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
   // Empaque state
   const isPacked = Boolean(orden.efecha_de_empaque)
   const hasPacker = Boolean(orden.enombre_de_quien_empaca)
+  // La orden salio a bordado (proceso externo): no se puede cerrar el empaque
+  // hasta que retorne, porque la firma a ventas se da al volver de bordado.
+  const enBordado = orden.e_enviado_bordado === true
+  const [bordadoLoading, setBordadoLoading] = useState(false)
   const isCosturaFinished = Boolean(orden.coseta_costura)
   const isSoloCorteCostura = orden.solo_corte_costura === true
 
@@ -142,6 +147,14 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
         <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">
           <CheckCircle2 className="mr-1 size-3" />
           Terminado
+        </Badge>
+      )
+    }
+    if (enBordado) {
+      return (
+        <Badge className="bg-fuchsia-600 text-white hover:bg-fuchsia-700">
+          <Scissors className="mr-1 size-3" />
+          En Bordado
         </Badge>
       )
     }
@@ -306,12 +319,60 @@ export function EmpaqueDetail({ orden, onBack }: EmpaqueDetailProps) {
           {recibirLabel}
         </Button>
 
+        {/* Envío a bordado: proceso externo. Mientras la orden esté fuera no
+            se puede cerrar el empaque (la firma a ventas se da al retornar). */}
+        {hasPacker && !isPacked && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={bordadoLoading}
+            onClick={async () => {
+              setBordadoLoading(true)
+              const hoy = getTodayISO()
+              const r = await updateOrden(
+                orden.pedido,
+                enBordado
+                  ? { e_enviado_bordado: false, e_fecha_retorno_bordado: hoy }
+                  : { e_enviado_bordado: true, e_fecha_envio_bordado: hoy }
+              )
+              setBordadoLoading(false)
+              if (r.success) {
+                toast.success(
+                  enBordado ? "Orden retornó de bordado" : "Orden enviada a bordado",
+                  {
+                    description: enBordado
+                      ? "Ya se puede cerrar el empaque."
+                      : "No se podrá cerrar el empaque hasta que retorne.",
+                  }
+                )
+              } else {
+                toast.error("No se pudo actualizar", { description: r.error })
+              }
+            }}
+            className={
+              enBordado
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm"
+                : "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100 text-sm"
+            }
+            title={
+              enBordado
+                ? "Marcar que la orden ya volvió de bordado"
+                : "Marcar que la orden se envió a bordado (bloquea el cierre)"
+            }
+          >
+            <Scissors className="mr-1 size-3.5" />
+            {enBordado ? "Retornó de bordado" : "Enviar a bordado"}
+          </Button>
+        )}
+
         <Button
           size="sm"
           onClick={() => setShowFinishModal(true)}
-          disabled={!hasPacker || isPacked || repo.pendiente}
+          disabled={!hasPacker || isPacked || repo.pendiente || enBordado}
           title={
-            repo.pendiente
+            enBordado
+              ? "La orden está en bordado — márcala como retornada para poder cerrar el empaque"
+              : repo.pendiente
               ? `Pendiente por reposición${repo.areas.length ? ` de ${repo.areas.join(", ")}` : ""} — no se puede terminar`
               : totalPcs > 0 && !isFullyPacked
               ? `Faltan ${(totalPcs - totalEmpacados).toLocaleString()} de ${totalPcs.toLocaleString()} piezas por empacar — deberás justificar el faltante al cerrar`

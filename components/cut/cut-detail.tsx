@@ -16,6 +16,7 @@ import { CancelarReposicionButton } from "@/components/incidencias/cancelar-repo
 import { ConfirmarReposicionButton } from "@/components/incidencias/confirmar-reposicion-button"
 import { ReversarEntregaModal } from "@/components/shared/reversar-entrega-modal"
 import { InstructionsAndComments } from "@/components/shared/instructions-and-comments"
+import { FirmasTransferencia } from "@/components/shared/firmas-transferencia"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -183,6 +184,8 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
       cyardas: null,
       cmotivo_demora_terminado_c: null,
       ccomentario_corte: null,
+      // La firma de recibido de Costura pierde validez al reversar la entrega.
+      c_firma_recibe_costura: null,
     } as unknown as Partial<Orden>)
     if (result.success) {
       toast.success("Entrega reversada", {
@@ -592,6 +595,17 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
 
       {/* Instrucciones del Planner. En Corte solo se muestran las del
           planner; Corte y Diseno corren en paralelo dentro del flujo. */}
+      {/* Firma de transferencia Corte -> Costura. Solo existe cuando Corte
+          entrega directo (solo_corte_costura o YARDAJE). */}
+      <FirmasTransferencia
+        firmas={[
+          {
+            label: "Recibido por Costura",
+            url: orden.c_firma_recibe_costura,
+          },
+        ]}
+      />
+
       <InstructionsAndComments orden={orden} area="corte" />
 
       {/* Receive in Cut Modal */}
