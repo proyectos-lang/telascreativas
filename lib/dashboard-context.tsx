@@ -22,6 +22,7 @@ import {
   type AreaLT,
   type LeadTimeUnificadoRow,
 } from "@/lib/lead-time-unificado"
+import { pasaPorArea } from "@/lib/capacidad/motor"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -37,6 +38,83 @@ export interface AreaEfficiency {
   nGeneral: number
 }
 
+/**
+ * Adherencia a la fecha objetivo por área (% de cumplimiento).
+ *  - enProceso: pedidos vigentes en planta AHORA. Si el área ya cerró se
+ *    compara fin vs objetivo; si sigue abierta, se compara HOY vs objetivo
+ *    (sigue a tiempo o ya se pasó) — así refleja el riesgo vivo.
+ *  - general: pedidos ENTREGADOS AL CLIENTE DENTRO DEL MES EN CURSO
+ *    = desempeño real cerrado del mes.
+ */
+export interface AreaAdherence {
+  area: string
+  key: string
+  enProceso: number
+  general: number
+  nEnProceso: number
+  nGeneral: number
+}
+
+/** Fila de cabecera con fechas objetivo/fin por área (para adherencia). */
+interface AdherenciaRow {
+  pedido: string
+  estado_aprobado_rechazado: string | null
+  efecha_de_empaque: string | null
+  entregado_cliente_si_no: boolean | null
+  fecha_entrega_cliente: string | null
+  tipo_flujo_especial: string | null
+  solo_corte_costura: boolean | null
+  costura_si_no: boolean | string | null
+  accesorios_inventario: string | null
+  dfecha_objetivo_d: string | null
+  cfecha_objetivo_c: string | null
+  ifecha_objetivo_i: string | null
+  sfecha_objetivo_s: string | null
+  cosfecha_objetivo_cs: string | null
+  efecha_objetivo_e: string | null
+  dentrega_diseno: string | null
+  cfecha_de_corte: string | null
+  ientrega_impresion: string | null
+  seta_sublimacion: string | null
+  coseta_costura: string | null
+}
+
+/** Fila de telas.vista_kpi_adherencia (misma fuente que el módulo Indicadores). */
+interface KpiAdhRow {
+  ano: number | null
+  mes: number | null
+  semana: number | null
+  total_ordenes: number | null
+  adherencia_diseno: number | null
+  adherencia_impresion: number | null
+  adherencia_sublimacion: number | null
+  adherencia_corte: number | null
+  adherencia_costura: number | null
+  adherencia_empaque: number | null
+}
+
+/**
+ * Áreas con adherencia: objetivo vs fin. Orden = flujo real de planta
+ * (Diseño → Impresión → Corte → Sublimación → Costura), con Empaque al cierre.
+ */
+const AREAS_ADH: {
+  key: string
+  label: string
+  /** Clave del área en el motor de flujos (lib/capacidad/motor.ts). */
+  motor: string
+  /** Columna equivalente en telas.vista_kpi_adherencia. */
+  kpi: keyof KpiAdhRow
+  objetivo: keyof AdherenciaRow
+  fin: keyof AdherenciaRow
+}[] = [
+  { key: "diseno", label: "Diseño", motor: "Diseno", kpi: "adherencia_diseno", objetivo: "dfecha_objetivo_d", fin: "dentrega_diseno" },
+  { key: "impresion", label: "Impresión", motor: "Impresion", kpi: "adherencia_impresion", objetivo: "ifecha_objetivo_i", fin: "ientrega_impresion" },
+  { key: "corte", label: "Corte", motor: "Corte", kpi: "adherencia_corte", objetivo: "cfecha_objetivo_c", fin: "cfecha_de_corte" },
+  { key: "sublimacion", label: "Sublimación", motor: "Sublimacion", kpi: "adherencia_sublimacion", objetivo: "sfecha_objetivo_s", fin: "seta_sublimacion" },
+  { key: "costura", label: "Costura", motor: "Costura", kpi: "adherencia_costura", objetivo: "cosfecha_objetivo_cs", fin: "coseta_costura" },
+  { key: "empaque", label: "Empaque", motor: "Empaque", kpi: "adherencia_empaque", objetivo: "efecha_objetivo_e", fin: "efecha_de_empaque" },
+]
+
 interface DashboardContextType {
   rows: VistaControlProduccion[]
   isLoading: boolean
@@ -46,6 +124,7 @@ interface DashboardContextType {
   // Fuente única por-orden para la Eficiencia de Tiempos (vista unificada).
   leadRows: LeadTimeUnificadoRow[]
   efficiencyByArea: AreaEfficiency[]
+  adherenceByArea: AreaAdherence[]
   // Derived metrics
   totalPcs: number
   totalOrders: number
@@ -154,13 +233,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // KPIs de riesgo (una orden entregada —p. ej. COMPRA_EXTERNA— no debe seguir
   // contando como vencida/riesgo).
   const [excludedPedidos, setExcludedPedidos] = useState<Set<string>>(new Set())
+  // Filas de cabecera con fechas objetivo/fin por área (adherencia).
+  const [adhRows, setAdhRows] = useState<AdherenciaRow[]>([])
+  // Adherencia del mes desde la MISMA vista que usa el módulo Indicadores,
+  // para que los números cuadren entre ambos módulos.
+  const [kpiAdhRows, setKpiAdhRows] = useState<KpiAdhRow[]>([])
 
   const fetchRows = async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const [ctrl, lead, cab] = await Promise.all([
+      const ahoraF = new Date()
+      const [ctrl, lead, cab, adh, kpiAdh] = await Promise.all([
         fetchAll((from, to) =>
           supabase.schema("telas").from("vista_control_produccion").select("*").range(from, to)
         ),
@@ -174,6 +259,27 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             .select("pedido, entregado_cliente_si_no, estado_aprobado_rechazado")
             .or("entregado_cliente_si_no.eq.true,estado_aprobado_rechazado.eq.cancelado")
             .range(from, to)
+        ),
+        // Adherencia: fechas objetivo (fijadas al aprobar) vs fechas de fin.
+        fetchAll<AdherenciaRow>((from, to) =>
+          supabase
+            .schema("telas")
+            .from("cabecera")
+            .select(
+              "pedido, estado_aprobado_rechazado, efecha_de_empaque, entregado_cliente_si_no, fecha_entrega_cliente, tipo_flujo_especial, solo_corte_costura, costura_si_no, accesorios_inventario, dfecha_objetivo_d, cfecha_objetivo_c, ifecha_objetivo_i, sfecha_objetivo_s, cosfecha_objetivo_cs, efecha_objetivo_e, dentrega_diseno, cfecha_de_corte, ientrega_impresion, seta_sublimacion, coseta_costura"
+            )
+            .eq("estado_aprobado_rechazado", "Aprobado")
+            .range(from, to) as never
+        ),
+        // Adherencia oficial del mes en curso (fuente compartida con Indicadores).
+        fetchAll<KpiAdhRow>((from, to) =>
+          supabase
+            .schema("telas")
+            .from("vista_kpi_adherencia")
+            .select("*")
+            .eq("ano", ahoraF.getFullYear())
+            .eq("mes", ahoraF.getMonth() + 1)
+            .range(from, to) as never
         ),
       ])
 
@@ -212,6 +318,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
         setExcludedPedidos(excl)
       }
+
+      if (!adh.error) setAdhRows((adh.data || []) as AdherenciaRow[])
+      if (!kpiAdh.error) setKpiAdhRows((kpiAdh.data || []) as KpiAdhRow[])
     } catch (err) {
       console.log("[v0] Dashboard - unexpected error:", err)
       setError(err instanceof Error ? err.message : "Error desconocido")
@@ -376,6 +485,58 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     })
   }, [leadRows])
 
+  // Adherencia por área: % de cumplimiento de la fecha objetivo.
+  //  - general: de las órdenes que YA terminaron el área, cuántas lo hicieron
+  //    en o antes de su fecha objetivo (desempeño real, incluye cerrados).
+  //  - enProceso: solo órdenes vigentes (aprobadas, sin empacar). Si el área ya
+  //    cerró se juzga fin vs objetivo; si sigue abierta se juzga HOY vs objetivo
+  //    (aún a tiempo vs ya vencida), de modo que refleja el riesgo vivo.
+  const adherenceByArea = useMemo<AreaAdherence[]>(() => {
+    const hoy = new Date(new Date().toDateString()).getTime()
+    const ts = (v: string | null): number | null => {
+      if (!v) return null
+      const t = new Date(String(v).slice(0, 10)).getTime()
+      return Number.isNaN(t) ? null : t
+    }
+    // "General" sale de telas.vista_kpi_adherencia (mes en curso), ponderado por
+    // total_ordenes — idéntico al módulo Indicadores para que los datos cuadren.
+    const totOrd = kpiAdhRows.reduce((acc, r) => acc + (Number(r.total_ordenes) || 0), 0)
+    const adhKpi = (col: keyof KpiAdhRow): { pct: number; n: number } => {
+      if (totOrd <= 0) return { pct: 0, n: 0 }
+      const wsum = kpiAdhRows.reduce(
+        (acc, r) => acc + (Number(r[col]) || 0) * (Number(r.total_ordenes) || 0),
+        0
+      )
+      return { pct: Math.round((wsum / totOrd) * 10) / 10, n: totOrd }
+    }
+    return AREAS_ADH.map((a) => {
+      const gen = adhKpi(a.kpi)
+      let okProc = 0
+      let nProc = 0
+      for (const r of adhRows) {
+        // Solo cuenta si el área aplica al flujo de la orden.
+        if (!pasaPorArea(a.motor, r as never)) continue
+        const obj = ts(r[a.objetivo] as string | null)
+        if (obj === null) continue
+        const fin = ts(r[a.fin] as string | null)
+        const vigente = !r.efecha_de_empaque
+        if (vigente) {
+          nProc++
+          // Sin cerrar: sigue a tiempo mientras hoy no pase el objetivo.
+          if (fin !== null ? fin <= obj : hoy <= obj) okProc++
+        }
+      }
+      return {
+        area: a.label,
+        key: a.key,
+        enProceso: nProc > 0 ? Math.round((okProc / nProc) * 1000) / 10 : 0,
+        general: gen.pct,
+        nEnProceso: nProc,
+        nGeneral: gen.n,
+      }
+    })
+  }, [adhRows, kpiAdhRows])
+
   // Counts por nivel de riesgo (para distribucion y health score).
   // Calculados sobre activeRows: una orden ya Completada no debe sumar
   // como "A Tiempo" ni como alerta de Vencido / Riesgo Medio.
@@ -444,6 +605,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         lastUpdated,
         leadRows,
         efficiencyByArea,
+        adherenceByArea,
         totalPcs,
         totalOrders,
         criticalAlerts,

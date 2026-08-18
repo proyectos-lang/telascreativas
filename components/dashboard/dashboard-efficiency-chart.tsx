@@ -136,7 +136,7 @@ export function DashboardEfficiencyChart() {
                 accessibilityLayer
                 data={efficiencyByArea}
                 layout="vertical"
-                margin={{ top: 8, right: 44, left: 8, bottom: 0 }}
+                margin={{ top: 26, right: 44, left: 8, bottom: 0 }}
                 barGap={2}
               >
                 <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" />

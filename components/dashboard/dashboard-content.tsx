@@ -8,6 +8,7 @@ import { DashboardKpis } from "./dashboard-kpis"
 import { DashboardPipeline } from "./dashboard-pipeline"
 import { DashboardWorkloadChart } from "./dashboard-workload-chart"
 import { DashboardEfficiencyChart } from "./dashboard-efficiency-chart"
+import { DashboardAdherenceChart } from "./dashboard-adherence-chart"
 import { DashboardRiskRadar } from "./dashboard-risk-radar"
 import { DashboardTrackingTable } from "./dashboard-tracking-table"
 
@@ -37,18 +38,17 @@ function DashboardInner() {
       {/* 3) Pipeline - Horizontal flow of 6 production stages with bottleneck */}
       <DashboardPipeline />
 
-      {/* 4) Charts + Risk radar - Bento 3 cols */}
+      {/* 4) Charts - Carga, Eficiencia y Adherencia en una fila de 3 */}
       <div className="grid gap-3 lg:grid-cols-3">
-        <div className="lg:col-span-2 grid gap-3 md:grid-cols-2">
-          <DashboardWorkloadChart />
-          <DashboardEfficiencyChart />
-        </div>
-        <div className="lg:col-span-1">
-          <DashboardRiskRadar />
-        </div>
+        <DashboardWorkloadChart />
+        <DashboardEfficiencyChart />
+        <DashboardAdherenceChart />
       </div>
 
-      {/* 5) Master tracking table */}
+      {/* 5) Radar de Riesgo - linea completa debajo de los graficos */}
+      <DashboardRiskRadar />
+
+      {/* 6) Master tracking table */}
       <DashboardTrackingTable />
     </div>
   )

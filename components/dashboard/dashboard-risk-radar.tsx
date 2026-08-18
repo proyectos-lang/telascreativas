@@ -161,7 +161,7 @@ export function DashboardRiskRadar() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+          <div className="grid gap-2 max-h-[320px] overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
             {riskRows.map((row) => (
               <RiskRow key={row.pedido} row={row} />
             ))}

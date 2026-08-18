@@ -135,9 +135,13 @@ export function TabAdherencia({ rows, filtro }: Props) {
       map.set(key, arr)
     }
     return Array.from(map.entries()).map(([periodo, list]) => {
+      // Ponderado por total_ordenes (mismo criterio que la tabla de
+      // "Cumplimiento por departamento" y que el Dashboard): un periodo con
+      // 100 ordenes no puede pesar igual que uno con 3.
+      const agg = agregar(list)
       const entry: Record<string, number | string> = { periodo }
       for (const a of AREAS) {
-        entry[a.key] = Number(avg(list.map((r) => r[a.key])).toFixed(1))
+        entry[a.key] = Number(agg.areas[a.key].toFixed(1))
       }
       return entry
     })

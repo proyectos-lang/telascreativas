@@ -10,10 +10,12 @@
  * OJO: Number(null) === 0, por eso se valida el valor crudo antes de convertir.
  */
 
+// Orden de presentacion = flujo real de planta:
+// Diseno -> Impresion -> Corte -> Sublimacion -> Costura
 export const AREAS_LT = [
   "diseno",
-  "corte",
   "impresion",
+  "corte",
   "sublimacion",
   "costura",
 ] as const
