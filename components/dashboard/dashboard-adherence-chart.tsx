@@ -33,16 +33,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-const INDIGO = "#6366f1"
-const VIOLET = "#a855f7"
+// Mismos colores de serie que el grafico de Eficiencia de Tiempos: asi
+// "En proceso" y "General" se leen igual en los dos graficos del dashboard.
+const TEAL = "#14b8a6"
+const AMBER = "#f59e0b"
 const ROSE = "#ef4444"
 
 // Meta de adherencia a la fecha objetivo por área.
 const META_PCT = 90
 
 const chartConfig = {
-  enProceso: { label: "En proceso (vigentes)", color: VIOLET },
-  general: { label: "General (entregados del mes)", color: INDIGO },
+  enProceso: { label: "En proceso (vigentes)", color: AMBER },
+  general: { label: "General (entregados del mes)", color: TEAL },
 } satisfies ChartConfig
 
 export function DashboardAdherenceChart() {
@@ -159,7 +161,7 @@ export function DashboardAdherenceChart() {
                 <Bar
                   dataKey="enProceso"
                   name="En proceso (vigentes)"
-                  fill={VIOLET}
+                  fill={AMBER}
                   radius={[0, 4, 4, 0]}
                 >
                   <LabelList
@@ -167,14 +169,14 @@ export function DashboardAdherenceChart() {
                     position="right"
                     fontSize={10}
                     fontWeight={700}
-                    fill="#7e22ce"
+                    fill="#b45309"
                     formatter={(v: number) => `${v}%`}
                   />
                 </Bar>
                 <Bar
                   dataKey="general"
                   name="General (entregados del mes)"
-                  fill={INDIGO}
+                  fill={TEAL}
                   radius={[0, 4, 4, 0]}
                 >
                   <LabelList
@@ -182,7 +184,7 @@ export function DashboardAdherenceChart() {
                     position="right"
                     fontSize={10}
                     fontWeight={700}
-                    fill="#4338ca"
+                    fill="#0f766e"
                     formatter={(v: number) => `${v}%`}
                   />
                 </Bar>
@@ -193,11 +195,11 @@ export function DashboardAdherenceChart() {
             <div className="mt-3 flex items-start gap-1.5 rounded-md bg-slate-50 px-3 py-2">
               <Info className="mt-0.5 size-3 shrink-0 text-slate-400" />
               <p className="text-[11px] leading-snug text-slate-500">
-                <span className="font-semibold text-indigo-700">General</span> es la
+                <span className="font-semibold text-teal-700">General</span> es la
                 adherencia oficial de <strong><span className="capitalize">{mesLabel}</span></strong>,
                 tomada de la misma fuente del módulo <strong>Indicadores</strong> y ponderada
                 por número de órdenes (los valores coinciden entre ambos módulos).{" "}
-                <span className="font-semibold text-violet-700">En proceso</span> son los
+                <span className="font-semibold text-amber-700">En proceso</span> son los
                 pedidos que siguen vigentes en planta hoy (aún a tiempo vs ya pasados de
                 fecha). Meta: {META_PCT}%.
               </p>
