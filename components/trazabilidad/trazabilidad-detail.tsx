@@ -9,7 +9,9 @@ import { Separator } from "@/components/ui/separator"
 import { TrazabilidadTimeline } from "./trazabilidad-timeline"
 import { TrazabilidadNovedades } from "./trazabilidad-novedades"
 import { TrazabilidadProducts } from "./trazabilidad-products"
+import { TrazabilidadIncidencias } from "./trazabilidad-incidencias"
 import {
+  AlertOctagon,
   AlertTriangle,
   ArrowLeft,
   Calendar,
@@ -191,8 +193,21 @@ export function TrazabilidadDetail({ orden, onBack }: TrazabilidadDetailProps) {
           </CardContent>
         </Card>
 
-        {/* Products */}
+        {/* Incidencias del pedido: reportes, reposiciones y su estado. */}
         <Card className="lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertOctagon className="size-4 text-rose-500" />
+              Incidencias y Reposiciones
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TrazabilidadIncidencias pedido={orden.pedido} />
+          </CardContent>
+        </Card>
+
+        {/* Products */}
+        <Card className="lg:col-span-5">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Package className="size-4 text-icon-teal" />

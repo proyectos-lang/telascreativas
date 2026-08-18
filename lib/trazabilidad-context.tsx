@@ -136,7 +136,19 @@ export function TrazabilidadProvider({ children }: { children: ReactNode }) {
         setError(cabError.message)
         setOrdenes([])
       } else {
-        setOrdenes((data || []).map((o) => enrichOrden(o as Orden)))
+        // Las ordenes canceladas se descartan aqui, antes de enriquecer: no
+        // deben aparecer en la lista ni contaminar los selects de cliente /
+        // vendedora ni el contador de entregadas. Mismo criterio que usan los
+        // modulos de produccion (cut-context, print-context, etc.).
+        setOrdenes(
+          (data || [])
+            .filter(
+              (o) =>
+                (o.estado_aprobado_rechazado ?? "").toString().toLowerCase() !==
+                "cancelado"
+            )
+            .map((o) => enrichOrden(o as Orden))
+        )
       }
     } catch (err) {
       console.error("[v0] Trazabilidad - Error:", err)
