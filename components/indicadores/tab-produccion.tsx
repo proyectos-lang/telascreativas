@@ -9,8 +9,17 @@
  * Capacidad (`telas.capacidad_areas`). El % de cumplimiento por día es
  * unidades / meta.
  *
- * Los domingos se omiten (no laborales). Para Corte, Impresión y Sublimación
- * también se omite el sábado, porque esas áreas trabajan Lun–Vie.
+ * MISMA DEFINICIÓN QUE CAPACIDAD. El "real por día" de cada área es el
+ * **P85 de prendas/día sobre los días CON ACTIVIDAD, excluyendo domingos**,
+ * calculado con un percentil continuo equivalente al `percentile_cont` de
+ * Postgres. Es exactamente lo que hace `telas.fn_capacidad_calibrar`, de donde
+ * sale la meta: así el número de esta pestaña y el de Capacidad → Capacidad
+ * real son directamente comparables (mismo periodo ⇒ mismo valor).
+ *
+ * Consecuencias del criterio, a propósito:
+ *  - Los días sin producción NO diluyen el indicador (no entran al percentil).
+ *  - Se excluye solo el domingo, aunque Corte/Impresión/Sublimación trabajen
+ *    Lun–Vie: si hubo actividad un sábado, cuenta, igual que en la calibración.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -46,14 +55,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-/** Áreas con su fecha de fin y su clave en telas.capacidad_areas. */
+/**
+ * Áreas con su fecha de fin en cabecera y su clave en telas.capacidad_areas.
+ * El mapeo debe coincidir con el de fn_capacidad_calibrar para que el P85 de
+ * esta pestaña sea el mismo que el de Capacidad.
+ */
 const AREAS = [
-  { key: "diseno", label: "Diseño", fin: "dentrega_diseno", capacidad: "Diseno", lunVie: false },
-  { key: "impresion", label: "Impresión", fin: "ientrega_impresion", capacidad: "Impresion", lunVie: true },
-  { key: "corte", label: "Corte", fin: "cfecha_de_corte", capacidad: "Corte", lunVie: true },
-  { key: "sublimacion", label: "Sublimación", fin: "seta_sublimacion", capacidad: "Sublimacion", lunVie: true },
-  { key: "costura", label: "Costura", fin: "coseta_costura", capacidad: "Costura", lunVie: false },
-  { key: "empaque", label: "Empaque", fin: "efecha_de_empaque", capacidad: "Empaque", lunVie: false },
+  { key: "diseno", label: "Diseño", fin: "dentrega_diseno", capacidad: "Diseno" },
+  { key: "impresion", label: "Impresión", fin: "ientrega_impresion", capacidad: "Impresion" },
+  { key: "corte", label: "Corte", fin: "cfecha_de_corte", capacidad: "Corte" },
+  { key: "sublimacion", label: "Sublimación", fin: "seta_sublimacion", capacidad: "Sublimacion" },
+  { key: "costura", label: "Costura", fin: "coseta_costura", capacidad: "Costura" },
+  { key: "empaque", label: "Empaque", fin: "efecha_de_empaque", capacidad: "Empaque" },
 ] as const
 
 type AreaDef = (typeof AREAS)[number]
@@ -93,13 +106,29 @@ function diasDelMes(ano: number, mes: number): string[] {
   return out
 }
 
-/** ¿El área trabaja ese día? Domingo nunca; sábado solo las áreas Lun–Sáb. */
-function esLaborable(ymd: string, area: AreaDef): boolean {
+/**
+ * Día contable: se excluye SOLO el domingo, exactamente igual que la
+ * calibración de Capacidad (`telas.fn_capacidad_calibrar` filtra
+ * `extract(dow) <> 0`). Mantener el mismo filtro es lo que permite que el P85
+ * de esta pestaña coincida con el de Capacidad → Capacidad real.
+ */
+function esDiaContable(ymd: string): boolean {
   const [y, m, d] = ymd.split("-").map(Number)
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  if (dow === 0) return false
-  if (dow === 6 && area.lunVie) return false
-  return true
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() !== 0
+}
+
+/**
+ * Percentil continuo, equivalente a `percentile_cont` de Postgres (el que usa
+ * fn_capacidad_calibrar), para que el P85 salga idéntico.
+ */
+function percentilCont(valores: number[], p: number): number | null {
+  if (!valores.length) return null
+  const s = [...valores].sort((a, b) => a - b)
+  const idx = (s.length - 1) * p
+  const lo = Math.floor(idx)
+  const hi = Math.ceil(idx)
+  if (lo === hi) return s[lo]
+  return s[lo] + (s[hi] - s[lo]) * (idx - lo)
 }
 
 const pct = (v: number | null): string => (v == null ? "—" : `${Math.round(v)}%`)
@@ -152,9 +181,21 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
   // porque este indicador es de control diario.
   const mesEfectivo = filtro.mes === MES_TODOS ? new Date().getMonth() + 1 : filtro.mes
 
+  /**
+   * Días del mes hasta HOY. Los días futuros se excluyen: mostrarlos como 0
+   * unidades hundía el promedio y hacía ver la línea cayendo a cero al final
+   * del mes. En meses ya cerrados se muestra el mes completo.
+   */
+  const diasVisibles = useMemo(() => {
+    const todos = diasDelMes(filtro.ano, mesEfectivo)
+    const hoy = new Date()
+    const hoyYMD = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`
+    return todos.filter((d) => d <= hoyYMD)
+  }, [filtro.ano, mesEfectivo])
+
   /** Serie diaria por área: unidades entregadas y % de cumplimiento. */
   const series = useMemo(() => {
-    const dias = diasDelMes(filtro.ano, mesEfectivo)
+    const dias = diasVisibles
     return AREAS.map((area) => {
       const meta = metaDe(area)
       // Unidades terminadas por dia.
@@ -166,35 +207,44 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
         if (!ymd.startsWith(`${filtro.ano}-${String(mesEfectivo).padStart(2, "0")}`)) continue
         porDia.set(ymd, (porDia.get(ymd) ?? 0) + toPcs(r.pcs))
       }
-      const data = dias
-        .filter((d) => esLaborable(d, area))
-        .map((d) => {
-          const unidades = porDia.get(d) ?? 0
-          return {
-            dia: d.slice(8),
-            fecha: d,
-            unidades,
-            meta: meta ?? 0,
-            cumplimiento: meta ? (unidades / meta) * 100 : null,
-          }
-        })
+      const data = dias.filter(esDiaContable).map((d) => {
+        const unidades = porDia.get(d) ?? 0
+        return {
+          dia: d.slice(8),
+          fecha: d,
+          unidades,
+          meta: meta ?? 0,
+          cumplimiento: meta ? (unidades / meta) * 100 : null,
+        }
+      })
       const totalUnidades = data.reduce((a, x) => a + x.unidades, 0)
-      const diasConMeta = data.filter((x) => x.cumplimiento != null)
-      const cumplPromedio = diasConMeta.length
-        ? diasConMeta.reduce((a, x) => a + (x.cumplimiento ?? 0), 0) / diasConMeta.length
+      const diasCumplidos = data.filter((x) => (x.cumplimiento ?? 0) >= 100).length
+
+      // MISMA definición que la calibración de Capacidad: P85 de prendas/día
+      // sobre los días CON ACTIVIDAD (los días en cero no cuentan), excluyendo
+      // domingos. Así el "real por día" de aquí es directamente comparable con
+      // el P85 de Capacidad → Capacidad real, que es de donde sale la meta.
+      const activos = data.filter((x) => x.unidades > 0).map((x) => x.unidades)
+      const realPorDia = percentilCont(activos, 0.85)
+      const promedioActivos = activos.length
+        ? activos.reduce((a, b) => a + b, 0) / activos.length
         : null
-      const diasCumplidos = diasConMeta.filter((x) => (x.cumplimiento ?? 0) >= 100).length
+      const cumplPromedio =
+        meta && realPorDia != null ? (realPorDia / meta) * 100 : null
       return {
         area,
         meta,
         data,
         totalUnidades,
+        realPorDia,
+        promedioActivos,
         cumplPromedio,
         diasCumplidos,
-        diasHabiles: data.length,
+        diasActivos: activos.length,
+        diasContables: data.length,
       }
     })
-  }, [rows, filtro.ano, mesEfectivo, metaDe])
+  }, [rows, diasVisibles, metaDe])
 
   const sinCapacidad = series.every((s) => s.meta == null)
 
@@ -218,6 +268,8 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
             </h2>
             <p className="text-xs text-slate-500">
               Prendas terminadas cada día vs. la meta diaria del módulo Capacidad.
+              El real por día es el <strong>P85 sobre días con actividad</strong>,
+              la misma definición que usa Capacidad. Solo hasta hoy.
               {filtro.mes === MES_TODOS && " (el filtro está en todo el año: se muestra el mes actual)"}
             </p>
           </div>
@@ -260,13 +312,31 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
                 {pct(s.cumplPromedio)} cumplimiento
               </Badge>
             </div>
-            <p className="mt-0.5 text-lg font-bold leading-tight text-slate-800">
-              {s.totalUnidades.toLocaleString()}{" "}
-              <span className="text-xs font-normal text-slate-400">prendas</span>
+            {/* Real por día vs meta diaria: el dato de control. */}
+            <p className="mt-0.5 flex items-baseline gap-1 leading-tight">
+              <span
+                className={cn(
+                  "text-xl font-bold",
+                  s.cumplPromedio == null
+                    ? "text-slate-800"
+                    : s.cumplPromedio >= 100
+                    ? "text-emerald-600"
+                    : s.cumplPromedio >= 85
+                    ? "text-amber-600"
+                    : "text-rose-600"
+                )}
+              >
+                {s.realPorDia == null ? "—" : Math.round(s.realPorDia).toLocaleString()}
+              </span>
+              <span className="text-sm font-medium text-slate-400">
+                / {s.meta ? s.meta.toLocaleString() : "—"}
+              </span>
+              <span className="text-[11px] text-slate-400">pcs/día (P85)</span>
             </p>
             <p className="text-[11px] text-slate-500">
-              Meta {s.meta ? `${s.meta.toLocaleString()}/día` : "sin definir"} ·{" "}
-              {s.diasCumplidos} de {s.diasHabiles} días cumplidos
+              {s.totalUnidades.toLocaleString()} prendas · {s.diasActivos} día
+              {s.diasActivos !== 1 ? "s" : ""} con actividad ·{" "}
+              {s.diasCumplidos} sobre la meta
             </p>
           </Card>
         ))}
@@ -282,7 +352,8 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
                 {s.area.label}
               </p>
               <span className="text-[11px] text-slate-400">
-                {s.area.lunVie ? "Lun–Vie" : "Lun–Sáb"}
+                P85 {s.realPorDia == null ? "—" : Math.round(s.realPorDia)} · prom{" "}
+                {s.promedioActivos == null ? "—" : Math.round(s.promedioActivos)}
               </span>
             </div>
             <ResponsiveContainer width="100%" height={200}>
@@ -355,7 +426,7 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {diasDelMes(filtro.ano, mesEfectivo).map((d) => {
+              {diasVisibles.map((d) => {
                 const dow = new Date(d + "T00:00:00Z").getUTCDay()
                 if (dow === 0) return null
                 return (
@@ -404,9 +475,9 @@ export function TabProduccion({ filtro }: { filtro: IndicadoresFiltro }) {
         </div>
         <p className="mt-1.5 text-[11px] text-slate-500">
           % = prendas terminadas ese día ÷ meta diaria del área (parámetro
-          <strong> Capacidad (pcs/día)</strong> del módulo Capacidad). Se omiten los
-          domingos, y los sábados en Corte, Impresión y Sublimación (jornada
-          Lun–Vie). Pasa el mouse sobre una celda para ver las unidades.
+          <strong> Capacidad (pcs/día)</strong> del módulo Capacidad). Se omiten
+          únicamente los domingos, igual que la calibración de Capacidad. Pasa el
+          mouse sobre una celda para ver las unidades.
         </p>
       </div>
     </div>
