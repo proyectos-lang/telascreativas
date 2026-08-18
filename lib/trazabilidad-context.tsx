@@ -35,6 +35,11 @@ export interface TrazabilidadFilters {
   // Se compara solo a nivel YYYY-MM-DD para evitar desfases por timezone.
   fechaEntrega: string // YYYY-MM-DD
   urgencia: "todos" | "urgente" | "normal"
+  /**
+   * Estados de produccion seleccionados (`estado_produccion` derivado en
+   * enrichOrden). Vacio = todos.
+   */
+  estados: string[]
 }
 
 export const INITIAL_TRAZABILIDAD_FILTERS: TrazabilidadFilters = {
@@ -44,7 +49,30 @@ export const INITIAL_TRAZABILIDAD_FILTERS: TrazabilidadFilters = {
   fechaIngreso: "",
   fechaEntrega: "",
   urgencia: "todos",
+  estados: [],
 }
+
+/**
+ * Estados que puede devolver `enrichOrden`, en orden de flujo. Alimentan el
+ * filtro de Status del modulo.
+ */
+export const ESTADOS_PRODUCCION = [
+  "En Programacion",
+  "En Diseno",
+  "Diseno Terminado",
+  "En Corte",
+  "Corte Terminado",
+  "En Impresion",
+  "Impresion Terminada",
+  "En Sublimacion",
+  "Sublimacion Terminada",
+  "En Costura",
+  "Costura Terminada",
+  "En Empaque",
+  "En Bordado",
+  "Empacado - Listo para Entrega",
+  "Entregado a Cliente",
+] as const
 
 interface TrazabilidadContextType {
   ordenes: Orden[]
@@ -171,8 +199,23 @@ export function TrazabilidadProvider({ children }: { children: ReactNode }) {
           return false
         }
 
-        // Cliente: coincidencia exacta.
-        if (filters.cliente && o.cliente !== filters.cliente) return false
+        // Cliente: coincidencia PARCIAL (el filtro es una barra de texto).
+        if (
+          filters.cliente &&
+          !(o.cliente ?? "")
+            .toLowerCase()
+            .includes(filters.cliente.trim().toLowerCase())
+        ) {
+          return false
+        }
+
+        // Status / estado de produccion (multi-seleccion; vacio = todos).
+        if (
+          filters.estados.length > 0 &&
+          !filters.estados.includes(o.estado_produccion ?? "")
+        ) {
+          return false
+        }
 
         // Vendedora: coincidencia exacta.
         if (filters.vendedora && o.vendedora !== filters.vendedora) {

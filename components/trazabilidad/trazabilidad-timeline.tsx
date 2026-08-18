@@ -20,6 +20,13 @@ interface Stage {
   label: string
   icon: React.ElementType
   dateField: keyof Orden
+  /**
+   * Campo que marca que el area YA RECIBIO la orden (aunque no la haya
+   * terminado). Sirve para pintar la etapa "En proceso" en vez de "Pendiente":
+   * antes el timeline solo miraba la fecha de fin y contradecia al estado que
+   * se muestra arriba ("En Impresion" vs nodo "Pendiente").
+   */
+  recepcionField?: keyof Orden
   // Tailwind classes used when the stage is completed (filled icon)
   doneBg: string
   doneBorder: string
@@ -36,6 +43,7 @@ const STAGES: Stage[] = [
     label: "Diseno",
     icon: Palette,
     dateField: "dentrega_diseno",
+    recepcionField: "dfecha_de_ingreso_diseno",
     doneBg: "bg-amber-400",
     doneBorder: "border-amber-400",
     doneText: "text-white",
@@ -47,6 +55,7 @@ const STAGES: Stage[] = [
     label: "Corte",
     icon: Scissors,
     dateField: "cfecha_de_corte",
+    recepcionField: "cfecha_de_recepcion",
     doneBg: "bg-emerald-500",
     doneBorder: "border-emerald-500",
     doneText: "text-white",
@@ -58,6 +67,7 @@ const STAGES: Stage[] = [
     label: "Impresion",
     icon: Printer,
     dateField: "ientrega_impresion",
+    recepcionField: "ifecha_de_ingreso_imp",
     doneBg: "bg-cyan-500",
     doneBorder: "border-cyan-500",
     doneText: "text-white",
@@ -69,6 +79,7 @@ const STAGES: Stage[] = [
     label: "Sublimacion",
     icon: Flame,
     dateField: "seta_sublimacion",
+    recepcionField: "sfecha_de_ingreso_sub",
     doneBg: "bg-rose-500",
     doneBorder: "border-rose-500",
     doneText: "text-white",
@@ -80,6 +91,7 @@ const STAGES: Stage[] = [
     label: "Costura",
     icon: Shirt,
     dateField: "coseta_costura",
+    recepcionField: "cosfecha_conteo",
     doneBg: "bg-purple-500",
     doneBorder: "border-purple-500",
     doneText: "text-white",
@@ -91,6 +103,7 @@ const STAGES: Stage[] = [
     label: "Empaque",
     icon: PackageCheck,
     dateField: "efecha_de_empaque",
+    recepcionField: "enombre_de_quien_empaca",
     doneBg: "bg-teal-500",
     doneBorder: "border-teal-500",
     doneText: "text-white",
@@ -132,7 +145,13 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
       s.key === "entrega"
         ? deliveredToClient || (!!raw && String(raw).trim() !== "")
         : !!raw && String(raw).trim() !== ""
-    return { ...s, done, dateValue: raw as string | undefined }
+    // El area ya recibio la orden pero aun no la termina: "En proceso".
+    const rawRecep = s.recepcionField
+      ? (orden[s.recepcionField] as unknown)
+      : undefined
+    const enProceso =
+      !done && !!rawRecep && String(rawRecep).trim() !== ""
+    return { ...s, done, enProceso, dateValue: raw as string | undefined }
   })
 
   return (
@@ -172,6 +191,8 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
                     "size-10 rounded-full border-2 flex items-center justify-center transition-all shadow-sm",
                     stage.done
                       ? `${stage.doneBg} ${stage.doneBorder} ${stage.doneText}`
+                      : stage.enProceso
+                      ? `bg-background ${stage.doneBorder} ${stage.doneLabelText} border-dashed animate-pulse`
                       : "bg-background border-border text-muted-foreground",
                   ].join(" ")}
                 >
@@ -180,7 +201,9 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
                 <p
                   className={[
                     "text-xs font-semibold text-center",
-                    stage.done ? stage.doneLabelText : "text-muted-foreground",
+                    stage.done || stage.enProceso
+                      ? stage.doneLabelText
+                      : "text-muted-foreground",
                   ].join(" ")}
                 >
                   {stage.label}
@@ -193,6 +216,15 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
                     ].join(" ")}
                   >
                     {formatDate(stage.dateValue) || "Entregado"}
+                  </p>
+                ) : stage.enProceso ? (
+                  <p
+                    className={[
+                      "text-[10px] font-semibold text-center leading-tight",
+                      stage.doneLabelText,
+                    ].join(" ")}
+                  >
+                    En proceso
                   </p>
                 ) : (
                   <p className="text-[10px] text-center text-muted-foreground italic leading-tight">
@@ -217,6 +249,8 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
                     "size-10 rounded-full border-2 flex items-center justify-center shrink-0 shadow-sm",
                     stage.done
                       ? `${stage.doneBg} ${stage.doneBorder} ${stage.doneText}`
+                      : stage.enProceso
+                      ? `bg-background ${stage.doneBorder} ${stage.doneLabelText} border-dashed animate-pulse`
                       : "bg-background border-border text-muted-foreground",
                   ].join(" ")}
                 >
@@ -250,6 +284,12 @@ export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
                     ].join(" ")}
                   >
                     Entregado el {formatDate(stage.dateValue) || "-"}
+                  </p>
+                ) : stage.enProceso ? (
+                  <p
+                    className={["text-xs font-semibold", stage.doneLabelText].join(" ")}
+                  >
+                    En proceso
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">

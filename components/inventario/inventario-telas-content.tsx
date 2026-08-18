@@ -415,6 +415,8 @@ function StockActualTab({
   const [search, setSearch] = useState("")
   const [filterTipo, setFilterTipo] = useState("__todos__")
   const [filterColor, setFilterColor] = useState("__todos__")
+  // Filtro rapido: solo telas agotadas (mismo criterio que el badge rojo 0.00).
+  const [soloEnCero, setSoloEnCero] = useState(false)
 
   const tiposUnicos = useMemo(
     () => Array.from(new Set(telas.map((t) => t.tipo))).sort(),
@@ -431,6 +433,7 @@ function StockActualTab({
     return telas.filter((t) => {
       if (filterTipo !== "__todos__" && t.tipo !== filterTipo) return false
       if (filterColor !== "__todos__" && t.color !== filterColor) return false
+      if (soloEnCero && !(t.stock_metros <= 0 || t.stock_yardas <= 0)) return false
       if (!q) return true
       return (
         t.nombre.toLowerCase().includes(q) ||
@@ -441,7 +444,7 @@ function StockActualTab({
         (t.referencia_cliente ?? "").toLowerCase().includes(q)
       )
     })
-  }, [telas, search, filterTipo, filterColor])
+  }, [telas, search, filterTipo, filterColor, soloEnCero])
 
   if (loading) {
     return (
@@ -489,6 +492,18 @@ function StockActualTab({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Solo telas agotadas: mismo criterio que el badge rojo de la tabla. */}
+        <Button
+          variant={soloEnCero ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSoloEnCero((v) => !v)}
+          className={soloEnCero ? "gap-1.5 bg-rose-600 hover:bg-rose-700" : "gap-1.5"}
+          title="Mostrar solo las telas con existencia en cero"
+        >
+          <AlertTriangle className="size-4" />
+          {soloEnCero ? "Solo en cero" : "En cero"}
+        </Button>
 
         <Button
           variant="outline"

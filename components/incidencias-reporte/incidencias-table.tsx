@@ -109,10 +109,12 @@ function GroupDetailTable({
   rows,
   canEdit,
   onProcess,
+  clienteMap,
 }: {
   rows: IncidenciaReporte[]
   canEdit: boolean
   onProcess: (inc: IncidenciaReporte) => void
+  clienteMap: Record<string, string>
 }) {
   return (
     <div className="rounded-md border bg-background overflow-x-auto">
@@ -121,6 +123,9 @@ function GroupDetailTable({
           <TableRow className="bg-muted/40">
             <TableHead className="whitespace-nowrap text-xs h-9">
               Pedido
+            </TableHead>
+            <TableHead className="whitespace-nowrap text-xs h-9">
+              Cliente
             </TableHead>
             <TableHead className="whitespace-nowrap text-xs h-9">
               Estado
@@ -169,6 +174,14 @@ function GroupDetailTable({
               >
                 <TableCell className="font-medium whitespace-nowrap text-sm py-2">
                   {inc.pedido}
+                </TableCell>
+                <TableCell className="text-sm py-2 text-muted-foreground">
+                  <span
+                    className="block max-w-[140px] truncate"
+                    title={clienteMap[inc.pedido] || undefined}
+                  >
+                    {clienteMap[inc.pedido] || "—"}
+                  </span>
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2">
                   <EstadoBadge inc={inc} />
@@ -236,7 +249,7 @@ function GroupDetailTable({
 }
 
 export function IncidenciasTable() {
-  const { filteredIncidencias, isLoading } = useIncidenciasReporte()
+  const { filteredIncidencias, isLoading, clienteMap } = useIncidenciasReporte()
   const { usuarioActual } = useAuth()
   const canEdit = isPlanner(usuarioActual)
 
@@ -500,6 +513,7 @@ export function IncidenciasTable() {
                   {isOpen && (
                     <div className="border-t bg-muted/20 p-2">
                       <GroupDetailTable
+                      clienteMap={clienteMap}
                         rows={g.rows}
                         canEdit={canEdit}
                         onProcess={(inc) => setToProcess(inc)}
@@ -517,6 +531,7 @@ export function IncidenciasTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="whitespace-nowrap">Pedido</TableHead>
+                  <TableHead className="whitespace-nowrap">Cliente</TableHead>
                   <TableHead className="whitespace-nowrap">Estado</TableHead>
                   <TableHead className="whitespace-nowrap">Reporta</TableHead>
                   <TableHead className="whitespace-nowrap">
@@ -555,6 +570,14 @@ export function IncidenciasTable() {
                     >
                       <TableCell className="font-medium whitespace-nowrap">
                         {inc.pedido}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <span
+                          className="block max-w-[160px] truncate"
+                          title={clienteMap[inc.pedido] || undefined}
+                        >
+                          {clienteMap[inc.pedido] || "—"}
+                        </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <EstadoBadge inc={inc} />

@@ -64,6 +64,10 @@ export interface FiltrosState {
   desde: string | null // YYYY-MM-DD
   hasta: string | null // YYYY-MM-DD
   search: string
+  /** Coincidencia parcial contra el nombre del cliente (cruzado con cabecera). */
+  cliente: string
+  /** Coincidencia parcial contra el numero de pedido. */
+  pedido: string
 }
 
 interface KpisData {
@@ -88,6 +92,8 @@ interface IncidenciasReporteContextValue {
   // Datos crudos + estado
   incidencias: IncidenciaReporte[]
   filteredIncidencias: IncidenciaReporte[]
+  /** Mapa pedido -> cliente para mostrar/filtrar por cliente. */
+  clienteMap: Record<string, string>
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -136,6 +142,8 @@ const INITIAL_FILTROS: FiltrosState = {
   desde: null,
   hasta: null,
   search: "",
+  cliente: "",
+  pedido: "",
 }
 
 /** Devuelve la fecha "YYYY-MM-DD" del valor (preferimos fecha_reporte). */
@@ -155,6 +163,8 @@ export function IncidenciasReporteProvider({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filtros, setFiltrosState] = useState<FiltrosState>(INITIAL_FILTROS)
+  // pedido -> cliente (la tabla incidencias no lo guarda; se cruza con cabecera)
+  const [clienteMap, setClienteMap] = useState<Record<string, string>>({})
 
   const setFiltros = useCallback((next: Partial<FiltrosState>) => {
     setFiltrosState((prev) => ({ ...prev, ...next }))
@@ -186,7 +196,26 @@ export function IncidenciasReporteProvider({
       return
     }
 
-    setIncidencias((data ?? []) as IncidenciaReporte[])
+    const rows = (data ?? []) as IncidenciaReporte[]
+    setIncidencias(rows)
+
+    // La tabla de incidencias no guarda el cliente: lo cruzamos con cabecera
+    // (mismo patron que components/incidencias/incidencias-tab.tsx).
+    const pedidosUnicos = [...new Set(rows.map((r) => r.pedido).filter(Boolean))]
+    if (pedidosUnicos.length > 0) {
+      const { data: cab } = await supabase
+        .schema("telas")
+        .from("cabecera")
+        .select("pedido, cliente")
+        .in("pedido", pedidosUnicos)
+      if (cab) {
+        const map: Record<string, string> = {}
+        for (const r of cab as { pedido: string; cliente: string | null }[]) {
+          if (r.pedido) map[r.pedido] = r.cliente ?? ""
+        }
+        setClienteMap(map)
+      }
+    }
     setIsLoading(false)
   }, [])
 
@@ -272,6 +301,16 @@ export function IncidenciasReporteProvider({
       const fechaISO = getFechaISO(inc)
       if (filtros.desde && (!fechaISO || fechaISO < filtros.desde)) return false
       if (filtros.hasta && (!fechaISO || fechaISO > filtros.hasta)) return false
+      // Cliente (coincidencia parcial; el cliente viene de cabecera)
+      if (filtros.cliente.trim()) {
+        const c = filtros.cliente.trim().toLowerCase()
+        if (!(clienteMap[inc.pedido] ?? "").toLowerCase().includes(c)) return false
+      }
+      // Numero de pedido (coincidencia parcial)
+      if (filtros.pedido.trim()) {
+        const p = filtros.pedido.trim().toLowerCase()
+        if (!(inc.pedido ?? "").toLowerCase().includes(p)) return false
+      }
       // Search libre
       if (term) {
         const haystack = [
@@ -288,7 +327,7 @@ export function IncidenciasReporteProvider({
       }
       return true
     })
-  }, [incidencias, filtros])
+  }, [incidencias, filtros, clienteMap])
 
   // ---------- KPIs ----------
   const kpis = useMemo<KpisData>(() => {
@@ -456,6 +495,7 @@ export function IncidenciasReporteProvider({
       value={{
         incidencias,
         filteredIncidencias,
+        clienteMap,
         isLoading,
         error,
         refetch,

@@ -21,8 +21,11 @@ import {
 } from "lucide-react"
 import {
   useTrazabilidad,
+  ESTADOS_PRODUCCION,
   type TrazabilidadFilters as TrazabilidadFiltersType,
 } from "@/lib/trazabilidad-context"
+import { ClienteCombobox } from "@/components/shared/cliente-combobox"
+import { MultiSelectFilter } from "@/components/shared/multi-select-filter"
 
 export function TrazabilidadFilters() {
   const {
@@ -49,7 +52,8 @@ export function TrazabilidadFilters() {
     filters.vendedora !== "" ||
     filters.fechaIngreso !== "" ||
     filters.fechaEntrega !== "" ||
-    filters.urgencia !== "todos"
+    filters.urgencia !== "todos" ||
+    filters.estados.length > 0
 
   return (
     <div className="space-y-4">
@@ -91,35 +95,32 @@ export function TrazabilidadFilters() {
             </div>
           </div>
 
-          {/* Cliente */}
+          {/* Cliente: barra de texto con autocompletado (mismo control que
+              usa Programacion). El filtro es por coincidencia parcial. */}
           <div className="space-y-1.5">
             <Label htmlFor="trz-filter-cliente" className="text-xs">
               Cliente
             </Label>
-            <Select
-              value={filters.cliente || "todos"}
-              onValueChange={(value) =>
-                updateFilter("cliente", value === "todos" ? "" : value)
-              }
-            >
-              <SelectTrigger id="trz-filter-cliente" className="h-8 text-xs">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos" className="text-xs">
-                  Todos
-                </SelectItem>
-                {clientes.map((cliente) => (
-                  <SelectItem
-                    key={cliente}
-                    value={cliente}
-                    className="text-xs"
-                  >
-                    {cliente}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClienteCombobox
+              id="trz-filter-cliente"
+              value={filters.cliente}
+              clientes={clientes}
+              onChange={(v) => updateFilter("cliente", v)}
+            />
+          </div>
+
+          {/* Status / estado de produccion (multi-seleccion) */}
+          <div className="space-y-1.5">
+            <Label htmlFor="trz-filter-estado" className="text-xs">
+              Status
+            </Label>
+            <MultiSelectFilter
+              id="trz-filter-estado"
+              value={filters.estados}
+              options={ESTADOS_PRODUCCION}
+              onChange={(v) => updateFilter("estados", v)}
+              allLabel="Todos"
+            />
           </div>
 
           {/* Vendedora */}

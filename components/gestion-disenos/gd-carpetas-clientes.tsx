@@ -124,6 +124,26 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
   const [query, setQuery] = useState("")
   const [clienteSel, setClienteSel] = useState<string | null>(null)
   const [disenoSel, setDisenoSel] = useState<number | null>(null)
+
+  /**
+   * Navegacion entre vistas. La barra de busqueda se limpia al cambiar de
+   * nivel: antes el texto se arrastraba y el usuario veia una lista filtrada
+   * sin entender por que.
+   */
+  const irAClientes = () => {
+    setClienteSel(null)
+    setDisenoSel(null)
+    setQuery("")
+  }
+  const irACliente = (key: string | null) => {
+    setClienteSel(key)
+    setDisenoSel(null)
+    setQuery("")
+  }
+  const irADiseno = (id: number | null) => {
+    setDisenoSel(id)
+    setQuery("")
+  }
   const [lightbox, setLightbox] = useState<string | null>(null)
 
   // Precalcula archivos por gestión (memo por id) para no recorrer repetido.
@@ -166,7 +186,18 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
 
   // ---- Vista 3: archivos de un diseño ----
   if (disenoActual && clienteActual) {
-    const archivos = archivosPorId.get(disenoActual.id) ?? []
+    const todosArchivos = archivosPorId.get(disenoActual.id) ?? []
+    // Busqueda dentro del diseno: por categoria o por nombre de archivo.
+    const qArch = query.trim().toLowerCase()
+    const archivos = qArch
+      ? todosArchivos.filter(
+          (a) =>
+            a.categoria.toLowerCase().includes(qArch) ||
+            decodeURIComponent(a.url.split("?")[0].split("/").pop() ?? "")
+              .toLowerCase()
+              .includes(qArch)
+        )
+      : todosArchivos
     // Agrupar por categoría preservando orden de inserción.
     const grupos: { categoria: string; items: Archivo[] }[] = []
     const idx = new Map<string, number>()
@@ -184,13 +215,13 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
       <div className="space-y-4">
         <Breadcrumb
           items={[
-            { label: "Clientes", onClick: () => { setClienteSel(null); setDisenoSel(null) } },
-            { label: clienteActual.nombre, onClick: () => setDisenoSel(null) },
+            { label: "Clientes", onClick: irAClientes },
+            { label: clienteActual.nombre, onClick: () => irADiseno(null) },
             { label: disenoActual.numero },
           ]}
         />
         <button
-          onClick={() => setDisenoSel(null)}
+          onClick={() => irADiseno(null)}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
         >
           <ArrowLeft className="size-4" /> Volver a los diseños de {clienteActual.nombre}
@@ -207,9 +238,24 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
           <span className="text-xs text-slate-400">{archivos.length} archivo{archivos.length !== 1 ? "s" : ""}</span>
         </div>
 
+        {/* Buscador dentro del diseno: categoria o nombre de archivo. */}
+        {todosArchivos.length > 0 && (
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar archivo o categoría..."
+              className="pl-9 h-9 bg-white"
+            />
+          </div>
+        )}
+
         {archivos.length === 0 ? (
           <p className="py-10 text-center text-sm text-slate-400">
-            Este diseño aún no tiene archivos adjuntos.
+            {todosArchivos.length === 0
+              ? "Este diseño aún no tiene archivos adjuntos."
+              : "Ningún archivo coincide con esa búsqueda."}
           </p>
         ) : (
           <div className="space-y-5">
@@ -245,12 +291,12 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
       <div className="space-y-4">
         <Breadcrumb
           items={[
-            { label: "Clientes", onClick: () => setClienteSel(null) },
+            { label: "Clientes", onClick: irAClientes },
             { label: clienteActual.nombre },
           ]}
         />
         <button
-          onClick={() => setClienteSel(null)}
+          onClick={irAClientes}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
         >
           <ArrowLeft className="size-4" /> Volver a clientes
@@ -264,9 +310,28 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
           </span>
         </div>
 
+        {/* Buscador dentro del cliente: numero de diseno o estado. */}
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar diseño o estado..."
+            className="pl-9 h-9 bg-white"
+          />
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {clienteActual.disenos
             .slice()
+            .filter((d) => {
+              const q = query.trim().toLowerCase()
+              if (!q) return true
+              return (
+                (d.numero ?? "").toLowerCase().includes(q) ||
+                (d.estado ?? "").toLowerCase().includes(q)
+              )
+            })
             .sort((a, b) =>
               (b.fecha_creacion ?? "").localeCompare(a.fecha_creacion ?? "")
             )
@@ -275,7 +340,7 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
               return (
                 <button
                   key={d.id}
-                  onClick={() => setDisenoSel(d.id)}
+                  onClick={() => irADiseno(d.id)}
                   className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/50"
                 >
                   <Folder className="size-8 shrink-0 text-indigo-400" />
@@ -337,7 +402,7 @@ export function GDCarpetasClientes({ solicitudes }: Props) {
           {clientesFiltrados.map((c) => (
             <button
               key={c.key}
-              onClick={() => setClienteSel(c.key)}
+              onClick={() => irACliente(c.key)}
               className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/50"
             >
               <Folder className="size-8 shrink-0 text-indigo-400" />

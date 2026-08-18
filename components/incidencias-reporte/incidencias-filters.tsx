@@ -43,7 +43,7 @@ export function IncidenciasFilters() {
           <h3 className="text-sm font-semibold text-foreground">Filtros</h3>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           {/* Estado */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Estado</Label>
@@ -114,6 +114,42 @@ export function IncidenciasFilters() {
               onChange={(e) => setFiltros({ hasta: e.target.value || null })}
               className="h-9"
             />
+          </div>
+
+          {/* Cliente (se cruza con cabecera) */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground" htmlFor="f_cliente">
+              Cliente
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="f_cliente"
+                type="text"
+                placeholder="Nombre del cliente..."
+                value={filtros.cliente}
+                onChange={(e) => setFiltros({ cliente: e.target.value })}
+                className="h-9 pl-8"
+              />
+            </div>
+          </div>
+
+          {/* Numero de pedido */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground" htmlFor="f_pedido">
+              Pedido
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="f_pedido"
+                type="text"
+                placeholder="N.o de pedido..."
+                value={filtros.pedido}
+                onChange={(e) => setFiltros({ pedido: e.target.value })}
+                className="h-9 pl-8"
+              />
+            </div>
           </div>
 
           {/* Busqueda libre */}
