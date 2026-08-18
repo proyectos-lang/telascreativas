@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Newspaper,
   AlertTriangle,
+  Palette,
   Volume2,
   VolumeX,
   RefreshCw,
@@ -41,6 +42,7 @@ const ICONO: Record<AlertaTipo, typeof Bell> = {
   chat: MessageSquare,
   tarea: ClipboardList,
   noticia: Newspaper,
+  diseno: Palette,
   operativo: AlertTriangle,
 }
 
@@ -48,6 +50,7 @@ const COLOR: Record<AlertaTipo, string> = {
   chat: "text-icon-cyan",
   tarea: "text-icon-green",
   noticia: "text-icon-magenta",
+  diseno: "text-indigo-500",
   operativo: "text-rose-500",
 }
 
@@ -55,6 +58,7 @@ const GRUPOS: { tipo: AlertaTipo; label: string }[] = [
   { tipo: "chat", label: "Mensajes sin leer" },
   { tipo: "tarea", label: "Tareas" },
   { tipo: "noticia", label: "Noticias" },
+  { tipo: "diseno", label: "Gestión de Diseños" },
   { tipo: "operativo", label: "Pendientes operativos" },
 ]
 

@@ -13,8 +13,14 @@
  *   - sobreviven a un refresco de página,
  *   - desaparecen solos cuando el pendiente se resuelve (leer el chat, entregar
  *     la tarea, confirmar la noticia).
- * Los eventos realtime existentes (`notificaciones` de chat y `gdNotifications`)
- * se usan solo como disparador del sonido / notificación del sistema.
+ * Los eventos realtime de chat (`notificaciones`) se usan solo como disparador
+ * del sonido / notificación del sistema.
+ *
+ * Excepción: los cambios de estado de Gestión de Diseños (`gdNotifications`)
+ * SÍ se listan como items además de sonar, porque son transiciones puntuales
+ * ("Pendiente Revisión → En Progreso") que no se pueden reconstruir mirando el
+ * estado actual. Se acumulan por sesión y conviven con los pendientes por rol,
+ * que sí son derivados y persistentes.
  */
 
 import {
@@ -30,6 +36,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { useComunicaciones, type TareaVistaRow } from "@/lib/comunicaciones-context"
 import { useGD } from "@/lib/gestion-disenos-context"
+import type { GDNotification } from "@/lib/gestion-disenos-context"
 import { useAppNavigation } from "@/lib/app-navigation"
 import { useReposicionesPendientes } from "@/lib/reposiciones-pendientes"
 import {
@@ -42,7 +49,7 @@ import {
   reproducirTono,
 } from "./alertas"
 
-export type AlertaTipo = "chat" | "tarea" | "noticia" | "operativo"
+export type AlertaTipo = "chat" | "tarea" | "noticia" | "diseno" | "operativo"
 
 export interface AlertaItem {
   id: string
@@ -88,6 +95,14 @@ function diasHasta(fecha: string | null): number | null {
 export function NotificacionesProvider({ children }: { children: ReactNode }) {
   const { usuarioActual } = useAuth()
   const email = (usuarioActual?.email ?? "").toLowerCase()
+  const nombre = usuarioActual?.nombre ?? ""
+
+  // Roles de Gestión de Diseños: cada uno solo recibe los pendientes de su
+  // lado del flujo (Ventas no ve el turno de Diseño y viceversa).
+  const esVentas = !!usuarioActual?.gd_ventas
+  const esDiseno = !!usuarioActual?.gd_diseno
+  const esAdminGD = !!usuarioActual?.gd_admin
+  const verGD = esVentas || esDiseno || esAdminGD
   const {
     conversaciones,
     usuarios,
@@ -101,6 +116,10 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
   const { mapa: reposMapa } = useReposicionesPendientes()
 
   const [tareas, setTareas] = useState<TareaVistaRow[]>([])
+  // Cambios de estado de GD ocurridos en esta sesión. Se acumulan aparte de
+  // `gdNotifications` para que descartar el banner del módulo no los borre
+  // de la campana.
+  const [cambiosGD, setCambiosGD] = useState<GDNotification[]>([])
   const [cargandoTareas, setCargandoTareas] = useState(false)
   const [silenciado, setSilenciadoState] = useState(false)
   const [permisoEscritorio, setPermisoEscritorio] = useState<
@@ -250,7 +269,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // 4) Operativos: reposiciones pendientes y gestiones de diseño en curso.
+    // 4) Operativos: reposiciones pendientes.
     const repos = reposMapa.size
     if (repos > 0) {
       out.push({
@@ -263,17 +282,105 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    const gdActivas = solicitudes.filter(
-      (s) => s.estado_turno !== "Finalizado" && s.estado !== "Rechazado"
-    ).length
-    if (gdActivas > 0) {
-      out.push({
-        id: "gd-activas",
-        tipo: "operativo",
-        titulo: "Gestión de Diseños",
-        texto: `${gdActivas} solicitud${gdActivas !== 1 ? "es" : ""} en proceso`,
-        onClick: () => navigateRef.current("gestion-disenos"),
-      })
+    // 5) Gestión de Diseños.
+    //    (a) Pendientes por rol, derivados del estado real: sobreviven al
+    //        refresco y desaparecen cuando la solicitud cambia de turno.
+    //    (b) Cambios de estado recientes, uno por evento (ver `cambiosGD`).
+    if (verGD) {
+      const activas = solicitudes.filter(
+        (s) =>
+          s.estado_turno !== "Finalizado" &&
+          s.estado !== "Finalizado" &&
+          s.estado !== "Rechazado"
+      )
+      const irAGD = () => navigateRef.current("gestion-disenos")
+
+      if (esDiseno || esAdminGD) {
+        // Sin diseñador asignado = a la espera de que Diseño las acepte.
+        // Son de todo el equipo, no de una persona.
+        const porAceptar = activas.filter(
+          (s) =>
+            s.estado_turno === "En Diseño" &&
+            s.estado === "Pendiente Revision" &&
+            !s.disenador
+        ).length
+        if (porAceptar > 0) {
+          out.push({
+            id: "gd-por-aceptar",
+            tipo: "diseno",
+            titulo: "Solicitudes por aceptar",
+            texto: `${porAceptar} solicitud${
+              porAceptar !== 1 ? "es" : ""
+            } esperan que Diseño las tome`,
+            urgente: true,
+            onClick: irAGD,
+          })
+        }
+        const mias = activas.filter(
+          (s) =>
+            s.estado_turno === "En Diseño" &&
+            (esAdminGD ? true : s.disenador === nombre) &&
+            s.estado !== "Pendiente Revision"
+        ).length
+        if (mias > 0) {
+          out.push({
+            id: "gd-turno-diseno",
+            tipo: "diseno",
+            titulo: esAdminGD ? "En turno de Diseño" : "En tu turno (Diseño)",
+            texto: `${mias} solicitud${mias !== 1 ? "es" : ""} por trabajar`,
+            urgente: !esAdminGD,
+            onClick: irAGD,
+          })
+        }
+      }
+
+      if (esVentas || esAdminGD) {
+        const propias = (s: (typeof activas)[number]) =>
+          esAdminGD ? true : s.vendedora === nombre
+        const enVentas = activas.filter(
+          (s) => s.estado_turno === "En Ventas" && propias(s)
+        ).length
+        if (enVentas > 0) {
+          out.push({
+            id: "gd-turno-ventas",
+            tipo: "diseno",
+            titulo: esAdminGD ? "En turno de Ventas" : "En tu turno (Ventas)",
+            texto: `${enVentas} solicitud${
+              enVentas !== 1 ? "es" : ""
+            } esperan respuesta de Ventas`,
+            urgente: !esAdminGD,
+            onClick: irAGD,
+          })
+        }
+        const enCliente = activas.filter(
+          (s) => s.estado_turno === "En Cliente" && propias(s)
+        ).length
+        if (enCliente > 0) {
+          out.push({
+            id: "gd-en-cliente",
+            tipo: "diseno",
+            titulo: "Esperando al cliente",
+            texto: `${enCliente} propuesta${
+              enCliente !== 1 ? "s" : ""
+            } sin respuesta del cliente`,
+            onClick: irAGD,
+          })
+        }
+      }
+
+      // (b) Cambios de estado ocurridos en esta sesión.
+      for (const c of cambiosGD) {
+        out.push({
+          id: `gd-cambio-${c.id}`,
+          tipo: "diseno",
+          titulo: `${c.numero} — ${c.cliente}`,
+          texto: c.esNueva
+            ? `Nueva solicitud · ${c.nuevoEstado}`
+            : `${c.estadoAnterior ?? "—"} → ${c.nuevoEstado} · ${c.nuevoTurno}`,
+          ts: c.timestamp,
+          onClick: irAGD,
+        })
+      }
     }
 
     // Urgentes primero, luego lo más reciente.
@@ -289,10 +396,22 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     noticiasPendientes,
     reposMapa,
     solicitudes,
+    cambiosGD,
+    verGD,
+    esVentas,
+    esDiseno,
+    esAdminGD,
+    nombre,
   ])
 
   const porTipo = useMemo(() => {
-    const acc: Record<AlertaTipo, number> = { chat: 0, tarea: 0, noticia: 0, operativo: 0 }
+    const acc: Record<AlertaTipo, number> = {
+      chat: 0,
+      tarea: 0,
+      noticia: 0,
+      diseno: 0,
+      operativo: 0,
+    }
     for (const i of items) acc[i.tipo]++
     return acc
   }, [items])
@@ -325,7 +444,8 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     }
   }, [notificaciones])
 
-  // Gestión de Diseños: cambios de turno/estado.
+  // Gestión de Diseños: cualquier cambio de estado o de turno.
+  // El evento llega ya filtrado por rol desde gestion-disenos-context.
   const vistosGD = useRef<Set<string>>(new Set())
   const primeraCargaGD = useRef(true)
   useEffect(() => {
@@ -334,15 +454,23 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       primeraCargaGD.current = false
       return
     }
-    for (const n of gdNotifications) {
-      if (vistosGD.current.has(n.id)) continue
+    const nuevos = gdNotifications.filter((n) => !vistosGD.current.has(n.id))
+    if (nuevos.length === 0) return
+    for (const n of nuevos) {
       vistosGD.current.add(n.id)
-      alertar(`Gestión ${n.numero}`, `${n.cliente} — ${n.nuevoEstado} · ${n.nuevoTurno}`, {
+      const detalle = n.esNueva
+        ? `Nueva solicitud · ${n.nuevoEstado}`
+        : `${n.estadoAnterior ?? "—"} → ${n.nuevoEstado} · ${n.nuevoTurno}`
+      alertar(`${n.numero} — ${n.cliente}`, detalle, {
         tono: "tarea",
+        // Tag por solicitud: si cambia dos veces seguidas, el segundo aviso
+        // reemplaza al primero en vez de apilarse.
         tag: `gd-${n.numero}`,
         onClick: () => navigateRef.current("gestion-disenos"),
       })
     }
+    // Los más recientes primero, con tope para no crecer sin límite.
+    setCambiosGD((prev) => [...nuevos.reverse(), ...prev].slice(0, 25))
   }, [gdNotifications])
 
   // Tareas: al refrescar, avisa de las nuevas urgentes (vencidas / vencen hoy /
