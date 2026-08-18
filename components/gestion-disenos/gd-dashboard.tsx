@@ -1,13 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertTriangle } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { AlertTriangle, Timer } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { GestionDiseno, EstadoGD } from "@/lib/gestion-disenos-types"
 import { ESTADO_GD_COLORS, ESTADO_TURNO_COLORS } from "@/lib/gestion-disenos-types"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { GDTimelineModal } from "./gd-timeline-modal"
+import { calcularIndicadores } from "@/lib/gestion-disenos-tiempos"
 
 const ACTIVE_ESTADOS = new Set<EstadoGD>([
   "Borrador",
@@ -63,6 +66,12 @@ interface GDDashboardProps {
 
 export function GDDashboard({ solicitudes, onSelect }: GDDashboardProps) {
   const [now, setNow] = useState(() => Date.now())
+  // Solicitud cuya linea de tiempo se esta viendo.
+  const [timelineDe, setTimelineDe] = useState<GestionDiseno | null>(null)
+
+  // Indicadores de tiempos sobre TODAS las solicitudes (no solo las activas),
+  // para que los promedios incluyan los ciclos ya cerrados.
+  const ind = useMemo(() => calcularIndicadores(solicitudes), [solicitudes])
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60000)
@@ -76,16 +85,43 @@ export function GDDashboard({ solicitudes, onSelect }: GDDashboardProps) {
 
   const alertCount = rows.filter((r) => now - r._last.getTime() > 24 * 60 * 60 * 1000).length
 
-  if (!rows.length) {
-    return (
-      <div className="flex h-40 items-center justify-center text-sm text-slate-400">
-        No hay solicitudes activas.
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-3">
+      {/* Indicadores de tiempos del proceso de diseno */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          { label: "Aceptacion", v: ind.diasAceptacion, hint: "creacion -> Diseno" },
+          { label: "1a propuesta", v: ind.diasPrimeraPropuesta, hint: "creacion -> envio" },
+          { label: "Aprobacion", v: ind.diasAprobacion, hint: "creacion -> aprobado" },
+          { label: "Ciclo total", v: ind.diasTotal, hint: "solo finalizadas" },
+          { label: "Propuestas", v: ind.propuestasPromedio, hint: "promedio", unidad: "" },
+          { label: "Ciclos cambio", v: ind.ciclosPromedio, hint: "promedio", unidad: "" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">{k.label}</p>
+            <p className="text-base font-bold leading-tight text-slate-800">
+              {k.v == null ? "—" : `${k.v.toFixed(1)}${k.unidad ?? "d"}`}
+            </p>
+            <p className="text-[10px] text-slate-400">{k.hint}</p>
+          </div>
+        ))}
+      </div>
+      {ind.diasPorResponsable.length > 0 && (
+        <p className="text-[11px] text-slate-500">
+          Tiempo promedio por responsable:{" "}
+          {ind.diasPorResponsable
+            .map((x) => `${x.responsable} ${x.dias.toFixed(1)}d`)
+            .join(" · ")}
+          {" "}· sobre {ind.n} solicitud{ind.n !== 1 ? "es" : ""}
+        </p>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="flex h-32 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-400">
+          No hay solicitudes activas.
+        </div>
+      ) : (
+      <>
       <div className="flex items-center gap-4 text-xs text-slate-500">
         <span>{rows.length} solicitudes activas</span>
         {alertCount > 0 && (
@@ -108,6 +144,7 @@ export function GDDashboard({ solicitudes, onSelect }: GDDashboardProps) {
               <th className="px-3 py-2.5 text-left font-medium">Último proceso</th>
               <th className="px-3 py-2.5 text-left font-medium">Tiempo</th>
               <th className="px-3 py-2.5 text-center font-medium">⚠️</th>
+              <th className="px-3 py-2.5 text-center font-medium">Tiempos</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -161,12 +198,36 @@ export function GDDashboard({ solicitudes, onSelect }: GDDashboardProps) {
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
+                  <td className="px-3 py-2.5 text-center">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 px-2 text-xs"
+                      onClick={(e) => {
+                        // No abrir el detalle: esta accion es solo la linea de tiempo.
+                        e.stopPropagation()
+                        setTimelineDe(s)
+                      }}
+                      title="Ver linea de tiempo y tiempos entre procesos"
+                    >
+                      <Timer className="size-3.5" />
+                      Ver
+                    </Button>
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+      </>
+      )}
+
+      <GDTimelineModal
+        gestion={timelineDe}
+        open={timelineDe !== null}
+        onClose={() => setTimelineDe(null)}
+      />
     </div>
   )
 }
