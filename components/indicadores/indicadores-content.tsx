@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   BarChart3,
+  Factory,
   Palette,
   Gauge,
   Timer,
@@ -44,6 +45,7 @@ import {
   supabase,
 } from "./shared"
 import { TabDiseno } from "./tab-diseno"
+import { TabProduccion } from "./tab-produccion"
 import { TabAdherencia } from "./tab-adherencia"
 import { TabLeadTimes } from "./tab-lead-times"
 import { TabReprocesos } from "./tab-reprocesos"
@@ -57,7 +59,13 @@ const YEAR_OPTIONS = Array.from(
 
 const SEMANAS = Array.from({ length: 53 }, (_, i) => i + 1)
 
-type TabKey = "diseno" | "adherencia" | "leadtimes" | "reprocesos" | "detalle"
+type TabKey =
+  | "produccion"
+  | "diseno"
+  | "adherencia"
+  | "leadtimes"
+  | "reprocesos"
+  | "detalle"
 
 export function IndicadoresContent() {
   const [filtro, setFiltro] = useState<IndicadoresFiltro>({
@@ -443,6 +451,10 @@ export function IndicadoresContent() {
       {/* Pestañas */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
+          <TabsTrigger value="produccion" className="gap-2">
+            <Factory className="size-4" />
+            Produccion
+          </TabsTrigger>
           <TabsTrigger value="diseno" className="gap-2">
             <Palette className="size-4" />
             Rendimiento Diseno
@@ -469,6 +481,9 @@ export function IndicadoresContent() {
           <LoadingState />
         ) : (
           <>
+            <TabsContent value="produccion" className="mt-4">
+              <TabProduccion filtro={filtro} />
+            </TabsContent>
             <TabsContent value="diseno" className="mt-4">
               <TabDiseno rows={diseno} filtro={filtro} />
             </TabsContent>
