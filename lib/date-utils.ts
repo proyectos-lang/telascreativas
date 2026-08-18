@@ -91,9 +91,9 @@ export function formatDateTimeLong(
  * Usa UTC para evitar corrimientos por zona horaria al parsear el string,
  * de forma consistente con el resto de fechas de la app.
  *
- * Se usa para calcular las fechas objetivo de cada area al aprobar o
- * reprogramar una orden:
- *   Diseno +3d | Corte +3d | Impresion +4d | Sublimacion +5d | Costura +6d | Empaque +8d
+ * Se usa para las areas que trabajan Lun-Sab (Diseno, Costura, Empaque). Las
+ * areas con jornada Lun-Vie (Corte, Impresion, Sublimacion) usan
+ * `addDaysSkippingWeekends`. Ver lib/fechas-objetivo.ts para los offsets.
  */
 export function addDaysSkippingSundays(
   dateString: string,
@@ -114,6 +114,58 @@ export function addDaysSkippingSundays(
     }
   }
 
+  const yyyy = date.getUTCFullYear()
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const dd = String(date.getUTCDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+/**
+ * Suma `daysToAdd` dias habiles a `dateString` contando SOLO lunes a viernes.
+ *
+ * CORTE, IMPRESION y SUBLIMACION trabajan de lunes a viernes (no sabado), asi
+ * que sus fechas objetivo se calculan con esta variante: el resultado nunca
+ * cae en sabado ni en domingo.
+ *
+ * Usa UTC igual que `addDaysSkippingSundays` para evitar corrimientos de zona.
+ */
+export function addDaysSkippingWeekends(
+  dateString: string,
+  daysToAdd: number
+): string {
+  if (!dateString) return ""
+
+  const [y, m, d] = dateString.split("-").map(Number)
+  const date = new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+
+  let added = 0
+  while (added < daysToAdd) {
+    date.setUTCDate(date.getUTCDate() + 1)
+    const dow = date.getUTCDay()
+    // Contar solo lunes (1) a viernes (5).
+    if (dow >= 1 && dow <= 5) {
+      added++
+    }
+  }
+
+  const yyyy = date.getUTCFullYear()
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const dd = String(date.getUTCDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+/**
+ * Si la fecha cae en sabado o domingo, la retrocede al viernes anterior.
+ * Se usa en las areas Lun-Vie cuando la fecha objetivo viene impuesta desde
+ * fuera (ordenes urgentes, que toman la fecha de entrega al cliente tal cual).
+ */
+export function retrocederAViernes(dateString: string): string {
+  if (!dateString) return ""
+  const [y, m, d] = dateString.split("-").map(Number)
+  const date = new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+  const dow = date.getUTCDay()
+  if (dow === 6) date.setUTCDate(date.getUTCDate() - 1) // sabado -> viernes
+  else if (dow === 0) date.setUTCDate(date.getUTCDate() - 2) // domingo -> viernes
   const yyyy = date.getUTCFullYear()
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0")
   const dd = String(date.getUTCDate()).padStart(2, "0")

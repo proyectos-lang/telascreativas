@@ -46,7 +46,8 @@ import {
   X,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { addDaysSkippingSundays, formatDateLong } from "@/lib/date-utils"
+import { formatDateLong } from "@/lib/date-utils"
+import { calcularFechasObjetivo } from "@/lib/fechas-objetivo"
 
 /**
  * Payload que emite el modal al guardar una reprogramacion.
@@ -176,48 +177,16 @@ export function ReprogramModal({
 
     setIsSubmitting(true)
     try {
-      const fechaBase = formData.fecha_programacion
-      const fechaEntregaYMD = orden.fecha_de_entrega
-        ? String(orden.fecha_de_entrega).slice(0, 10)
-        : undefined
-      const useUrgentDates = formData.es_urgente && Boolean(fechaEntregaYMD)
-
-      const skipDesignPrint = formData.solo_corte_costura
-      const skipCorteCostura = formData.omite_corte_costura
-
-      const targetDiseno = skipDesignPrint
-        ? undefined
-        : useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 3)
-
-      const targetCorte = skipCorteCostura
-        ? undefined
-        : useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 3)
-
-      const targetImpresion = skipDesignPrint
-        ? undefined
-        : useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 4)
-
-      const targetSublimacion = skipDesignPrint
-        ? undefined
-        : useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 5)
-
-      const targetCostura = skipCorteCostura
-        ? undefined
-        : useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 6)
-
-      const targetEmpaque = useUrgentDates
-        ? (fechaEntregaYMD as string)
-        : addDaysSkippingSundays(fechaBase, 8)
+      // Misma fuente unica que Aprobacion y reversion (lib/fechas-objetivo.ts).
+      const objetivos = calcularFechasObjetivo({
+        fechaBase: formData.fecha_programacion,
+        esUrgente: formData.es_urgente,
+        fechaEntrega: orden.fecha_de_entrega,
+        soloCorteCostura: formData.solo_corte_costura,
+        omiteCorteCostura: formData.omite_corte_costura,
+        tipoFlujo,
+        costuraSiNo: formData.costura_si_no,
+      })
 
       const accesoriosCsv =
         tipoFlujo === "VENTA_INVENTARIO" && accesoriosSeleccionados.length > 0
@@ -229,12 +198,7 @@ export function ReprogramModal({
         tipo_flujo_especial: tipoFlujo,
         accesorios_inventario: accesoriosCsv,
         maquina_costura: formData.costura_si_no ? formData.maquina_costura : undefined,
-        dfecha_objetivo_d: targetDiseno,
-        cfecha_objetivo_c: targetCorte,
-        ifecha_objetivo_i: targetImpresion,
-        sfecha_objetivo_s: targetSublimacion,
-        cosfecha_objetivo_cs: targetCostura,
-        efecha_objetivo_e: targetEmpaque,
+        ...objetivos,
       })
       onClose()
     } finally {

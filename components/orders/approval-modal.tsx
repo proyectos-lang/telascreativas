@@ -45,7 +45,8 @@ import {
   Ruler,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { addDaysSkippingSundays, formatDateLong } from "@/lib/date-utils"
+import { formatDateLong } from "@/lib/date-utils"
+import { calcularFechasObjetivo } from "@/lib/fechas-objetivo"
 
 interface ApprovalModalProps {
   orden: Orden
@@ -124,78 +125,23 @@ export function ApprovalModal({
 
     setIsSubmitting(true)
 
-    // Calculo de fechas objetivo:
-    //
-    // 1) Orden URGENTE (es_urgente === true) y con fecha_de_entrega definida:
-    //    todas las fechas objetivo se igualan a la fecha pactada con el
-    //    cliente (fecha_de_entrega). Esto fuerza a TODAS las areas a
-    //    trabajar contra ese deadline en lugar del lead time estandar.
-    //
-    // 2) Orden NORMAL (es_urgente === false) o urgente sin fecha_de_entrega:
-    //    se calcula con los lead times estandar en dias habiles (Lun-Sab;
-    //    solo se excluye el domingo) sobre la fecha_programacion:
-    //      Diseno: +3d | Corte: +3d | Impresion: +4d | Sublimacion: +5d | Costura: +6d | Empaque: +8d
-    //
-    // En ambos casos, si solo_corte_costura esta activo, los objetivos de
-    // Diseno, Impresion y Sublimacion se omiten (null) porque la orden no
-    // pasara por esas areas.
+    // Fechas objetivo: se calculan con la fuente unica lib/fechas-objetivo.ts,
+    // compartida con Reprogramacion y con la reversion de rechazo. Resume:
+    //  - Corte/Impresion/Sublimacion cuentan solo Lun-Vie (no trabajan sabado).
+    //  - En YARDAJE el Corte va DESPUES de Sublimacion (+6) y Costura pasa a +7.
+    //  - solo_corte_costura, omite_corte_costura y yardaje-sin-costura dejan
+    //    vacias las areas que la orden no atraviesa.
+    //  - Urgente con fecha de entrega: todas las areas apuntan a esa fecha.
     const fechaBase = formData.fecha_programacion
-    const skipDesignPrint = formData.solo_corte_costura
-    // Normalizamos fecha_de_entrega a YYYY-MM-DD para mantener consistencia
-    // con el formato que devuelve addDaysSkippingSundays.
-    const fechaEntregaYMD = orden.fecha_de_entrega
-      ? String(orden.fecha_de_entrega).slice(0, 10)
-      : undefined
-    const useUrgentDates = formData.es_urgente && Boolean(fechaEntregaYMD)
-
-    // Si la orden OMITE Corte y Costura, las fechas objetivo de esas
-    // dos areas se envian como null para limpiar valores previos.
-    const skipCorteCostura = formData.omite_corte_costura
-
-    // Calculo PLANO de fechas objetivo: cada area suma sus dias habiles
-    // directamente sobre fechaBase (fecha_programacion), de forma
-    // independiente. Para ordenes urgentes con fecha_de_entrega todas
-    // las areas adoptan ese deadline directamente.
-    //   Diseno:     fechaBase + 3d
-    //   Corte:      fechaBase + 3d
-    //   Impresion:  fechaBase + 4d
-    //   Sublimacion:fechaBase + 5d
-    //   Costura:    fechaBase + 6d
-    //   Empaque:    fechaBase + 8d
-
-    const targetDiseno = skipDesignPrint
-      ? null
-      : useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 3)
-
-    const targetCorte = skipCorteCostura
-      ? null
-      : useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 3)
-
-    const targetImpresion = skipDesignPrint
-      ? null
-      : useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 4)
-
-    const targetSublimacion = skipDesignPrint
-      ? null
-      : useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 5)
-
-    const targetCostura = skipCorteCostura
-      ? null
-      : useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 6)
-
-    const targetEmpaque = useUrgentDates
-      ? (fechaEntregaYMD as string)
-      : addDaysSkippingSundays(fechaBase, 8)
+    const objetivos = calcularFechasObjetivo({
+      fechaBase,
+      esUrgente: formData.es_urgente,
+      fechaEntrega: orden.fecha_de_entrega,
+      soloCorteCostura: formData.solo_corte_costura,
+      omiteCorteCostura: formData.omite_corte_costura,
+      tipoFlujo,
+      costuraSiNo: formData.costura_si_no,
+    })
 
     // Construye el CSV de accesorios. Solo se persiste cuando el flujo
     // es VENTA_INVENTARIO; en cualquier otro caso se manda undefined
@@ -212,12 +158,7 @@ export function ApprovalModal({
       // Fechas objetivo calculadas automaticamente. Si el flujo omite
       // alguna area, su fecha objetivo se manda como undefined para
       // limpiar el valor previo en BD.
-      dfecha_objetivo_d: targetDiseno ?? undefined,
-      cfecha_objetivo_c: targetCorte ?? undefined,
-      ifecha_objetivo_i: targetImpresion ?? undefined,
-      sfecha_objetivo_s: targetSublimacion ?? undefined,
-      cosfecha_objetivo_cs: targetCostura ?? undefined,
-      efecha_objetivo_e: targetEmpaque,
+      ...objetivos,
       // Tipo de flujo especial seleccionado en el RadioGroup. Decide en
       // que modulos de produccion sera visible la orden.
       tipo_flujo_especial: tipoFlujo,

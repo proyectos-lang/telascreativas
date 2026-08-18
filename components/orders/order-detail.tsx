@@ -26,7 +26,8 @@ import { CancelModal } from "./cancel-modal"
 import { EditModeModal } from "./edit-mode-modal"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { addDaysSkippingSundays, getTodayISO } from "@/lib/date-utils"
+import { getTodayISO } from "@/lib/date-utils"
+import { calcularFechasObjetivo } from "@/lib/fechas-objetivo"
 import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import {
   ArrowLeft,
@@ -441,21 +442,23 @@ export function OrderDetail({
     setActionLoading("reversion")
 
     const fechaBase = orden.fecha_programacion || getTodayISO()
-    const skip = orden.solo_corte_costura
-    const targetCorte = addDaysSkippingSundays(fechaBase, 3)
-    const targetCostura = addDaysSkippingSundays(fechaBase, 6)
-    const targetEmpaque = addDaysSkippingSundays(fechaBase, 8)
 
+    // Misma fuente unica que Aprobacion y Reprogramacion. Antes esta reversion
+    // ignoraba omite_corte_costura, el flujo YARDAJE y las ordenes urgentes,
+    // generando fechas distintas a las de los otros dos caminos.
     const payload: Partial<Orden> = {
       estado_aprobado_rechazado: "Aprobado",
       motivo_reversion: motivo,
       fecha_programacion: fechaBase,
-      dfecha_objetivo_d: skip ? undefined : addDaysSkippingSundays(fechaBase, 3),
-      cfecha_objetivo_c: targetCorte,
-      ifecha_objetivo_i: skip ? undefined : addDaysSkippingSundays(fechaBase, 4),
-      sfecha_objetivo_s: skip ? undefined : addDaysSkippingSundays(fechaBase, 5),
-      cosfecha_objetivo_cs: targetCostura,
-      efecha_objetivo_e: targetEmpaque,
+      ...calcularFechasObjetivo({
+        fechaBase,
+        esUrgente: orden.es_urgente,
+        fechaEntrega: orden.fecha_de_entrega,
+        soloCorteCostura: orden.solo_corte_costura,
+        omiteCorteCostura: orden.omite_corte_costura,
+        tipoFlujo: orden.tipo_flujo_especial,
+        costuraSiNo: orden.costura_si_no,
+      }),
     }
 
     const result = await onUpdateOrden(orden.pedido, payload)

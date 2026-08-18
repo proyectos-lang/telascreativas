@@ -32,14 +32,15 @@ Banderas (ortogonales al tipo de flujo):
 Una etapa está "terminada" cuando su fecha de fin no es NULL: Diseño=\`dentrega_diseno\`, Corte=\`cfecha_de_corte\`, Impresión=\`ientrega_impresion\`, Sublimación=\`seta_sublimacion\`, Costura=\`coseta_costura\`, Empaque=\`efecha_de_empaque\`.
 
 ## 2. Tiempos objetivo por área (SLA)
-Al aprobar la orden, el Planner guarda las fechas objetivo por área = \`fecha_programacion\` + N días hábiles (asignaciones en PARALELO desde la programación, no acumulativas):
+Al aprobar la orden, el Planner guarda las fechas objetivo por área = \`fecha_programacion\` + N días hábiles:
 - Diseño (\`dfecha_objetivo_d\`): +3
-- Corte (\`cfecha_objetivo_c\`): +3
+- Corte (\`cfecha_objetivo_c\`): +3 · **en YARDAJE +6** (el corte va después de sublimación)
 - Impresión (\`ifecha_objetivo_i\`): +4
 - Sublimación (\`sfecha_objetivo_s\`): +5
-- Costura (\`cosfecha_objetivo_cs\`): +6
+- Costura (\`cosfecha_objetivo_cs\`): +6 · **en YARDAJE +7**
 - Empaque (\`efecha_objetivo_e\`): +8
-Si la orden es **urgente** (\`es_urgente\` con fecha de entrega), TODOS los objetivos se igualan a \`fecha_de_entrega\` (se ignoran los SLA estándar). Las banderas de flujo anulan los objetivos de las áreas que se saltan.
+Además se garantiza que cada etapa quede al menos un día hábil DESPUÉS de la etapa anterior del flujo, así que las fechas nunca salen desordenadas (Corte e Impresión son paralelas en producción normal).
+Si la orden es **urgente** (\`es_urgente\` con fecha de entrega), TODOS los objetivos se igualan a \`fecha_de_entrega\` (se ignoran los SLA estándar); en las áreas Lun–Vie, si esa fecha cae en fin de semana se retrocede al viernes. Las banderas de flujo anulan los objetivos de las áreas que se saltan; en YARDAJE sin costura no se asignan objetivos de Corte, Costura ni Empaque.
 
 ## 3. Reloj / lead time
 - **Lead time global** = \`fecha_entrega_cliente − fecha_de_ingreso\`. El reloj arranca en el **INGRESO** de la venta, NO en la aprobación del Planner (la aprobación solo fija los objetivos).
@@ -47,8 +48,8 @@ Si la orden es **urgente** (\`es_urgente\` con fecha de entrega), TODOS los obje
 - \`en_proceso\` = Aprobado AND \`efecha_de_empaque\` IS NULL (órdenes vivas). \`cerrado\` = ya empacada.
 
 ## 4. Días laborales (REGLA OFICIAL)
-**Se trabaja de Lunes a Sábado; solo el domingo no es laboral. No hay calendario de festivos.**
-Las fechas objetivo por área se calculan en días hábiles Lun–Sáb (el sábado cuenta; solo se salta el domingo). Nota de exactitud: las vistas de reporte calculan \`dias_en_area\` y \`lead_time_global\` en días **calendario** (resta directa de fechas). Por eso, para métricas usa preferentemente las columnas ya calculadas de las vistas; cuando hables de "días laborales" en conclusiones usa Lun–Sáb (domingo no cuenta). Nota: órdenes aprobadas antes de este ajuste pueden tener objetivos calculados sin contar el sábado (algo más holgados).
+**La planta trabaja de Lunes a Sábado; el domingo no es laboral. No hay calendario de festivos.**
+**EXCEPCIÓN por área: Corte, Impresión y Sublimación trabajan solo de Lunes a VIERNES** (no sábado), así que sus fechas objetivo se calculan contando únicamente Lun–Vie y nunca caen en fin de semana. Diseño, Costura y Empaque sí cuentan el sábado (solo se salta el domingo). Nota de exactitud: las vistas de reporte calculan \`dias_en_area\` y \`lead_time_global\` en días **calendario** (resta directa de fechas). Por eso, para métricas usa preferentemente las columnas ya calculadas de las vistas; cuando hables de "días laborales" en conclusiones usa Lun–Sáb (domingo no cuenta). Nota: órdenes aprobadas antes de este ajuste pueden tener objetivos calculados sin contar el sábado (algo más holgados).
 
 ## 5. Estados por área (\`status_*\` en vista_control_produccion)
 Valores: "En espera" (la orden está en un área previa, esta aún no puede tocarla) / **"Pendiente" = CUELLO DE BOTELLA** (el área anterior ya entregó pero esta NO ha recibido) / "Recibido" (la tiene en mesa, trabajándola) / "Terminado". USA estas columnas ya calculadas; no las recalcules.

@@ -476,8 +476,9 @@ Una fila por pedido. DDL en `scripts/vista_lead_times_unificado.sql`.
 ## Flujos de producción
 
 ```
-PRODUCCION_NORMAL:  Diseño → Impresión → Sublimación → Corte → Costura → Empaque → Entrega
+PRODUCCION_NORMAL:  Diseño → (Corte ‖ Impresión) → Sublimación → Costura → Empaque → Entrega
 YARDAJE:            Diseño → Impresión → Sublimación → Corte → Costura → Empaque → Entrega
+                    (el Corte va DESPUÉS de Sublimación; sin costura: → Entrega)
 SOLO_CORTE_COSTURA: Corte → Costura → Empaque → Entrega
 OMITE_CORTE_COSTURA: Diseño → Impresión → Sublimación → Empaque → Entrega
 COMPRA_EXTERNA:     (solo) Entrega

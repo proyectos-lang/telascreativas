@@ -18,15 +18,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, AlertCircle, RefreshCw, PenLine, Ban } from "lucide-react"
+import { CalendarDays, AlertCircle, RefreshCw, PenLine, Ban, CalendarClock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ManualOrderView } from "./manual-order-view"
+import { RecalcularFechasModal } from "./recalcular-fechas-modal"
+import { useAuth } from "@/lib/auth-context"
 
 export function OrdersContent() {
   const { ordenes, isLoading, error, updateOrden, refreshOrdenes } = useOrders()
   const [selectedOrder, setSelectedOrder] = useState<Orden | null>(null)
   const [filters, setFilters] = useState<OrderFilters>(INITIAL_FILTERS)
   const [showManualView, setShowManualView] = useState(false)
+  const [showRecalcular, setShowRecalcular] = useState(false)
+  const { usuarioActual } = useAuth()
+  const esAdmin = usuarioActual?.mod_admin === true
 
   // Extract unique clientes and vendedoras for filter dropdowns
   const { clientes, vendedoras } = useMemo(() => {
@@ -150,6 +155,17 @@ export function OrdersContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {esAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRecalcular(true)}
+                title="Aplicar las reglas vigentes de fechas objetivo a las órdenes activas"
+              >
+                <CalendarClock className="size-4 mr-2" />
+                Recalcular fechas
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -345,6 +361,12 @@ export function OrdersContent() {
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      <RecalcularFechasModal
+        open={showRecalcular}
+        onOpenChange={setShowRecalcular}
+        onDone={refreshOrdenes}
+      />
     </Card>
   )
 }
