@@ -155,11 +155,13 @@ export function OrderDetail({
     fecha_de_entrega: string
     pcs: string
     ciudad: string
+    estilo_de_la_prenda: string
   }>({
     fecha_de_ingreso: "",
     fecha_de_entrega: "",
     pcs: "",
     ciudad: "",
+    estilo_de_la_prenda: "",
   })
   const [editDetalles, setEditDetalles] = useState<DetalleOrden[]>([])
 
@@ -227,6 +229,7 @@ export function OrderDetail({
       fecha_de_entrega: toDateInput(orden.fecha_de_entrega),
       pcs: orden.pcs != null ? String(orden.pcs) : "",
       ciudad: orden.ciudad || "",
+      estilo_de_la_prenda: orden.estilo_de_la_prenda || "",
     })
     // Copia shallow de los detalles para permitir edicion inmutable por fila.
     setEditDetalles(detalles.map((d) => ({ ...d })))
@@ -275,7 +278,7 @@ export function OrderDetail({
 
   /**
    * Persiste los cambios del modo edicion.
-   * - cabecera: UPDATE con los 4 campos editables via onUpdateOrden.
+   * - cabecera: UPDATE con los campos editables via onUpdateOrden.
    * - detalleorden: UPDATE individual por cada fila modificada (match por id2).
    * Solo se envian filas que realmente cambiaron para reducir trafico.
    */
@@ -298,12 +301,13 @@ export function OrderDetail({
 
     setIsSavingEdit(true)
 
-    // 1. UPDATE cabecera solo con los 4 campos editables.
+    // 1. UPDATE cabecera solo con los campos editables.
     const headerUpdates: Partial<Orden> = {
       fecha_de_ingreso: editHeader.fecha_de_ingreso || undefined,
       fecha_de_entrega: editHeader.fecha_de_entrega || undefined,
       pcs: editHeader.pcs === "" ? undefined : pcsNum,
       ciudad: editHeader.ciudad || undefined,
+      estilo_de_la_prenda: editHeader.estilo_de_la_prenda.trim() || undefined,
     }
 
     const headerResult = await onUpdateOrden(orden.pedido, headerUpdates)
@@ -757,7 +761,24 @@ export function OrderDetail({
               <InfoRow icon={MapPin} label="Ciudad" value={orden.ciudad} iconColor="text-icon-coral" />
             )}
             <Separator />
-            <InfoRow icon={ShirtIcon} label="Estilo de Prenda" value={orden.estilo_de_la_prenda} iconColor="text-icon-magenta" />
+            {isEditMode ? (
+              <EditableRow
+                icon={ShirtIcon}
+                label="Estilo de Prenda"
+                iconColor="text-icon-magenta"
+              >
+                <Input
+                  value={editHeader.estilo_de_la_prenda}
+                  onChange={(e) =>
+                    handleEditHeaderChange("estilo_de_la_prenda", e.target.value)
+                  }
+                  placeholder="Camiseta, Sudadera..."
+                  className="h-8 text-sm"
+                />
+              </EditableRow>
+            ) : (
+              <InfoRow icon={ShirtIcon} label="Estilo de Prenda" value={orden.estilo_de_la_prenda} iconColor="text-icon-magenta" />
+            )}
             <Separator />
             <InfoRow icon={Tag} label="Etiqueta" value={orden.etiqueta} iconColor="text-icon-yellow" />
             <Separator />
