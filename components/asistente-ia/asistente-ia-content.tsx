@@ -169,6 +169,13 @@ export function AsistenteIAContent() {
           aprendizajes: json.aprendizajes,
         },
       ])
+      // El servidor cae a un modelo de respaldo si el principal está saturado.
+      if (json.modeloAlterno) {
+        toast.info("Respondido con un modelo de respaldo", {
+          description:
+            "El modelo principal estaba saturado. La respuesta puede ser menos detallada.",
+        })
+      }
       cargarConversaciones()
       if (json.aprendizajes && json.aprendizajes.length) cargarConocimiento()
     } catch (e) {

@@ -11,8 +11,44 @@ export const runtime = "nodejs"
 export const maxDuration = 300
 
 const MODELO = "claude-opus-5"
+// Respaldo cuando el principal está saturado (529). Mismo contrato de API.
+const MODELO_ALTERNO = "claude-sonnet-5"
 const MAX_TOOL_RESULT_CHARS = 12000
 const MAX_HISTORIAL = 30 // últimos N mensajes que se envían como contexto
+
+/** Código HTTP de un error del SDK de Anthropic, si lo trae. */
+function estadoHttp(e: unknown): number | null {
+  if (e instanceof Anthropic.APIError && typeof e.status === "number") return e.status
+  return null
+}
+
+function detalleDe(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
+/**
+ * Traduce el fallo a algo accionable. El usuario necesita saber si debe
+ * reintentar, esperar, o avisar a alguien; "no se pudo procesar" no dice nada.
+ */
+function mensajeDeError(e: unknown): string {
+  const estado = estadoHttp(e)
+  switch (estado) {
+    case 529:
+    case 503:
+      return "El servicio de IA está saturado en este momento. Vuelve a intentarlo en unos segundos."
+    case 429:
+      return "Se alcanzó el límite de uso de la IA. Espera un momento antes de volver a preguntar."
+    case 401:
+    case 403:
+      return "La credencial del asistente no es válida. Avisa al administrador."
+    case 400:
+      return "La consulta no pudo procesarse. Intenta reformular la pregunta o acortarla."
+    default:
+      if (estado === 408 || /timeout|aborted/i.test(detalleDe(e)))
+        return "La consulta tardó demasiado. Intenta con una pregunta más acotada."
+      return "El asistente no pudo procesar la solicitud."
+  }
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 // Si existe el service_role se usa (más privilegio y aislado del navegador);
@@ -259,11 +295,15 @@ export async function POST(req: NextRequest) {
   ]
 
   // 4) Ejecutar el agente (tool-use loop) hasta la respuesta final.
-  const client = new Anthropic()
-  let respuesta: string
-  try {
+  //
+  // maxRetries: el SDK reintenta solo los errores transitorios (429, 5xx y el
+  // 529 "overloaded" de saturacion) con backoff exponencial. El default es 2,
+  // insuficiente cuando la API esta saturada varios segundos seguidos.
+  const client = new Anthropic({ maxRetries: 6 })
+
+  const ejecutar = async (modelo: string) => {
     const runner = client.beta.messages.toolRunner({
-      model: MODELO,
+      model: modelo,
       max_tokens: 16000,
       thinking: { type: "adaptive" },
       output_config: { effort: "medium" },
@@ -274,18 +314,39 @@ export async function POST(req: NextRequest) {
       messages: mensajesClaude,
     })
     const finalMessage = await runner
-    respuesta = finalMessage.content
+    const texto = finalMessage.content
       .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
       .map((b) => b.text)
       .join("\n")
       .trim()
-    if (!respuesta) respuesta = "(Sin respuesta)"
+    return texto || "(Sin respuesta)"
+  }
+
+  let respuesta: string
+  let modeloUsado = MODELO
+  try {
+    respuesta = await ejecutar(MODELO)
   } catch (e) {
-    const detalle = e instanceof Error ? e.message : String(e)
-    return NextResponse.json(
-      { error: "El asistente no pudo procesar la solicitud.", detalle },
-      { status: 502 }
-    )
+    const estado = estadoHttp(e)
+    // Saturacion persistente del modelo principal: se responde con el modelo
+    // alterno en vez de dejar al usuario sin respuesta. Se avisa cual contesto
+    // para que sepa que el analisis puede ser menos profundo.
+    if (estado === 529 || estado === 503) {
+      try {
+        respuesta = await ejecutar(MODELO_ALTERNO)
+        modeloUsado = MODELO_ALTERNO
+      } catch (e2) {
+        return NextResponse.json(
+          { error: mensajeDeError(e2), detalle: detalleDe(e2) },
+          { status: 503 }
+        )
+      }
+    } else {
+      return NextResponse.json(
+        { error: mensajeDeError(e), detalle: detalleDe(e) },
+        { status: estado && estado >= 400 && estado < 500 ? estado : 502 }
+      )
+    }
   }
 
   // 5) Persistir el turno (usuario + asistente) y refrescar la conversación.
@@ -307,5 +368,8 @@ export async function POST(req: NextRequest) {
     respuesta,
     consultas: consultasEjecutadas,
     aprendizajes,
+    // Solo se informa cuando NO contestó el modelo principal, para que el
+    // usuario sepa que hubo un respaldo por saturación.
+    modeloAlterno: modeloUsado === MODELO ? undefined : modeloUsado,
   })
 }
