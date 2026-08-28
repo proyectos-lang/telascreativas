@@ -54,6 +54,7 @@ import {
 import { cn } from "@/lib/utils"
 import { fetchAll } from "@/lib/fetch-all"
 import { pasaPorArea } from "@/lib/capacidad/motor"
+import { hoyUTC, parseYMD, semanaISO } from "@/lib/capacidad/fechas"
 import type { OrdenCapacidad } from "@/lib/capacidad/motor"
 
 const supabase = createClient(
@@ -164,25 +165,20 @@ const CAMPOS = [
 const CURRENT_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1]
 
-/** Semana ISO de una fecha. */
-function getISOWeek(date: Date): number {
-  const t = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = (t.getUTCDay() + 6) % 7
-  t.setUTCDate(t.getUTCDate() - dayNum + 3)
-  const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4))
-  const fDayNum = (firstThursday.getUTCDay() + 6) % 7
-  firstThursday.setUTCDate(firstThursday.getUTCDate() - fDayNum + 3)
-  return 1 + Math.round((t.getTime() - firstThursday.getTime()) / (7 * 86400000))
-}
-
+/**
+ * Año y semana ISO de una fecha "YYYY-MM-DD".
+ *
+ * Usa `semanaISO` de lib/capacidad/fechas: es la misma funcion que ya usan
+ * Capacidad e Indicadores, y opera SOLO con getters UTC. La copia local que
+ * habia aqui mezclaba getters locales sobre una fecha construida en UTC, lo
+ * que en zonas al oeste de Greenwich restaba un dia y mandaba cada LUNES a la
+ * semana anterior -- no coincidia con `semana_ano` de la vista, que si es ISO.
+ */
 function anoYSemanaDe(ymd: string): { ano: number; semana: number } | null {
-  const m = ymd.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!m) return null
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
-  const t = new Date(d.getTime())
-  const dayNum = (t.getUTCDay() + 6) % 7
-  t.setUTCDate(t.getUTCDate() - dayNum + 3)
-  return { ano: t.getUTCFullYear(), semana: getISOWeek(d) }
+  const d = parseYMD(ymd)
+  if (!d) return null
+  const { ano, numero } = semanaISO(d)
+  return { ano, semana: numero }
 }
 
 function toPcs(v: number | string | null): number {
@@ -223,7 +219,7 @@ export function PlanSemanalArea({ area }: { area: AreaPlan }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [week, setWeek] = useState(() => getISOWeek(new Date()))
+  const [week, setWeek] = useState(() => semanaISO(hoyUTC()).numero)
   const [ocultarTerminados, setOcultarTerminados] = useState(true)
 
   const cargar = useCallback(async () => {

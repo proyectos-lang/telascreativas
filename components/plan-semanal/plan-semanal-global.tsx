@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
+import { hoyUTC, semanaISO } from "@/lib/capacidad/fechas"
 import {
   Table,
   TableBody,
@@ -102,18 +103,7 @@ interface DayGroup {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Numero de semana ISO 8601 de una fecha (1-53). */
-function getISOWeek(date: Date): number {
-  const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
-  )
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil(
-    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-  )
-}
+
 
 /** Convierte un valor de pcs (numero o texto) a numero seguro. */
 function toPcs(value: PlanRow["pcs"]): number {
@@ -235,7 +225,9 @@ const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1]
 
 export function PlanSemanalGlobal() {
   const [year, setYear] = useState<number>(CURRENT_YEAR)
-  const [week, setWeek] = useState<number>(() => getISOWeek(new Date()))
+  // Semana por defecto: la de hoy. `semanaISO` es la misma funcion que usan
+  // las pestanas por area y Capacidad, para que las tres coincidan.
+  const [week, setWeek] = useState<number>(() => semanaISO(hoyUTC()).numero)
   // Seleccion multiple de estatus. Vacio = "Todos los estatus".
   const [estatusSel, setEstatusSel] = useState<string[]>([])
   // Oculta los pedidos ya entregados (estatus ENTREGADO). Activo por defecto
