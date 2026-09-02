@@ -31,7 +31,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Scissors, Ruler, Users, AlertCircle } from "lucide-react"
+import { ReprocesosSinReposicion } from "./reprocesos-sin-reposicion"
 import {
+  type IndicadoresFiltro,
   type KpiReprocesoRow,
   PALETA,
   SERIE_COLORS,
@@ -43,6 +45,7 @@ import {
 
 interface Props {
   rows: KpiReprocesoRow[]
+  filtro: IndicadoresFiltro
 }
 
 /** Devuelve el valor de texto mas frecuente (ignora nulos/vacios). */
@@ -105,7 +108,7 @@ const DIMENSIONES = [
 
 type DimKey = (typeof DIMENSIONES)[number]["key"]
 
-export function TabReprocesos({ rows }: Props) {
+export function TabReprocesos({ rows, filtro }: Props) {
   const porArea = useMemo(() => {
     const map = new Map<string, KpiReprocesoRow[]>()
     for (const r of rows) {
@@ -424,6 +427,9 @@ export function TabReprocesos({ rows }: Props) {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Reprocesos EVITADOS: lo que se detecto antes de tener que reponer. */}
+      <ReprocesosSinReposicion filtro={filtro} />
     </div>
   )
 }

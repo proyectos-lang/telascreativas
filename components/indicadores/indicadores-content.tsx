@@ -494,7 +494,7 @@ export function IndicadoresContent() {
               <TabLeadTimes rows={leadTimes} />
             </TabsContent>
             <TabsContent value="reprocesos" className="mt-4">
-              <TabReprocesos rows={reprocesos} />
+              <TabReprocesos rows={reprocesos} filtro={filtro} />
             </TabsContent>
             <TabsContent value="detalle" className="mt-4">
               <TabDetallePedidos />
