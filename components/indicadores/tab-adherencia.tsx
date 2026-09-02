@@ -1,11 +1,10 @@
 "use client"
 
-import { useMemo, useState, Fragment } from "react"
+import { useEffect, useMemo, useState, Fragment } from "react"
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Legend,
   ReferenceLine,
   ResponsiveContainer,
@@ -22,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Gauge, ChevronRight, ChevronDown, Eye } from "lucide-react"
+import { Gauge, ChevronRight, ChevronDown, Eye, Factory, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   type IndicadoresFiltro,
@@ -38,6 +37,13 @@ import {
   periodoLabel,
 } from "./shared"
 import { AdherenciaDetallePanel } from "./adherencia-detalle-panel"
+import {
+  cargarOrdenesEmpacadas,
+  mesDeEmpaque,
+  resumir,
+  semanaDeEmpaque,
+  type OrdenAdherencia,
+} from "@/lib/indicadores/adherencia"
 import { AdherenciaTiempos } from "./adherencia-tiempos"
 
 interface Props {
@@ -79,6 +85,29 @@ const colorAdh = (v: number) =>
   v >= 95 ? "text-emerald-600" : v >= 85 ? "text-amber-600" : "text-rose-600"
 
 export function TabAdherencia({ rows, filtro }: Props) {
+  // La vista solo trae la adherencia OPERATIVA. La FINAL (entrega real al
+  // cliente) se calcula aqui desde `cabecera`, sobre el mismo universo -- las
+  // ordenes empacadas en el periodo -- para que ambas sean comparables.
+  const [base, setBase] = useState<OrdenAdherencia[]>([])
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const { data } = await cargarOrdenesEmpacadas(filtro.ano)
+      if (!cancelado) setBase(data)
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [filtro.ano])
+
+  /** Solo las ordenes del recorte de meses/semanas que ve el usuario. */
+  const baseFiltrada = useMemo(() => {
+    if (filtro.mes === MES_TODOS) return base
+    return base.filter((o) => mesDeEmpaque(o) === filtro.mes)
+  }, [base, filtro.mes])
+
+  const resumenFinal = useMemo(() => resumir(baseFiltrada), [baseFiltrada])
+
   // Adherencia global ponderada del negocio (entregados a tiempo / entregados).
   const { totalOrdenes, totalCumplidos, adherenciaGlobal } = useMemo(() => {
     const ord = rows.reduce((a, r) => a + num(r.total_ordenes), 0)
@@ -124,6 +153,40 @@ export function TabAdherencia({ rows, filtro }: Props) {
         ),
       }))
   }, [rows, filtro])
+
+
+  // Adherencia FINAL por periodo, con las mismas etiquetas que la operativa
+  // para que las dos series compartan eje X.
+  const finalPorPeriodo = useMemo(() => {
+    const map = new Map<string, OrdenAdherencia[]>()
+    for (const o of baseFiltrada) {
+      const mes = mesDeEmpaque(o)
+      const semana = semanaDeEmpaque(o)
+      if (mes == null || semana == null) continue
+      const label = periodoLabel(filtro, { mes, semana } as KpiAdherenciaRow)
+      const arr = map.get(label) ?? []
+      arr.push(o)
+      map.set(label, arr)
+    }
+    const out = new Map<string, ReturnType<typeof resumir>>()
+    for (const [k, v] of map) out.set(k, resumir(v))
+    return out
+  }, [baseFiltrada, filtro])
+
+  /** Tendencia con las dos series superpuestas. */
+  const tendencia = useMemo(
+    () =>
+      tendenciaGlobal.map((d) => {
+        const f = finalPorPeriodo.get(d.periodo)
+        return {
+          ...d,
+          final: f ? Number(f.final.toFixed(1)) : 0,
+          finalATiempo: f?.finalATiempo ?? 0,
+          entregadas: f?.entregadas ?? 0,
+        }
+      }),
+    [tendenciaGlobal, finalPorPeriodo]
+  )
 
   // Datos del grafico de barras agrupadas por area.
   const dataGrafico = useMemo(() => {
@@ -198,30 +261,70 @@ export function TabAdherencia({ rows, filtro }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Seccion macro: adherencia global del negocio */}
-      <Card className="flex flex-col items-center justify-between gap-4 bg-slate-900 p-6 text-white sm:flex-row">
-        <div className="flex items-center gap-4">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-white/10">
-            <Gauge className="size-6 text-teal-300" />
+      {/* Las dos adherencias, sobre el mismo universo: las ordenes empacadas
+          en el periodo. La operativa mide a la planta (empaque vs compromiso);
+          la final mide al negocio (entrega al cliente vs compromiso). La
+          brecha entre ambas es el tiempo que se pierde despues de empacar. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="flex items-center justify-between gap-4 bg-slate-900 p-6 text-white">
+          <div className="flex items-center gap-4">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-white/10">
+              <Factory className="size-6 text-teal-300" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-white/60">
+                Adherencia Operativa
+              </p>
+              <p className="text-sm text-white/70">
+                Planta: empaque dentro del compromiso
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-white/60">
-              Adherencia Global del Negocio
+          <div className="text-right">
+            <p className={`text-4xl font-bold ${colorAdh(adherenciaGlobal)}`}>
+              {fmtPct(adherenciaGlobal)}
             </p>
-            <p className="text-sm text-white/70">
-              % de entregas a tiempo al cliente final
+            <p className="text-xs text-white/60">
+              {fmtInt(totalCumplidos)} de {fmtInt(totalOrdenes)} empacadas
             </p>
           </div>
-        </div>
-        <div className="text-right">
-          <p className={`text-5xl font-bold ${colorAdh(adherenciaGlobal)}`}>
-            {fmtPct(adherenciaGlobal)}
-          </p>
-          <p className="text-xs text-white/60">
-            {fmtInt(totalCumplidos)} a tiempo de {fmtInt(totalOrdenes)} entregadas
-          </p>
-        </div>
-      </Card>
+        </Card>
+
+        <Card className="flex items-center justify-between gap-4 bg-slate-900 p-6 text-white">
+          <div className="flex items-center gap-4">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-white/10">
+              <Truck className="size-6 text-amber-300" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-white/60">
+                Adherencia Final
+              </p>
+              <p className="text-sm text-white/70">
+                Negocio: el cliente recibio a tiempo
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className={`text-4xl font-bold ${colorAdh(resumenFinal.final)}`}>
+              {fmtPct(resumenFinal.final)}
+            </p>
+            <p className="text-xs text-white/60">
+              {fmtInt(resumenFinal.finalATiempo)} de{" "}
+              {fmtInt(resumenFinal.entregadas)} entregadas
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {resumenFinal.perdidasEnEntrega > 0 && (
+        <Card className="border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+          <strong>{fmtInt(resumenFinal.perdidasEnEntrega)}</strong> ordenes
+          salieron de planta dentro del compromiso pero llegaron tarde al
+          cliente. Esa brecha entre {fmtPct(adherenciaGlobal)} operativa y{" "}
+          {fmtPct(resumenFinal.final)} final no es de produccion: se pierde
+          despues de empacar.
+        </Card>
+      )}
 
       {/* Tiempos promedio de entrega: prometido vs real (telas.cabecera) */}
       <AdherenciaTiempos filtro={filtro} />
@@ -230,18 +333,18 @@ export function TabAdherencia({ rows, filtro }: Props) {
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="p-4 lg:col-span-3">
           <h3 className="mb-1 text-sm font-semibold text-slate-800">
-            Tendencia de adherencia global
+            Tendencia de adherencia
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            Evolucion {filtro.mes === MES_TODOS ? "por mes" : "por semana"} frente
-            al objetivo del 100%
+            Operativa vs final {filtro.mes === MES_TODOS ? "por mes" : "por semana"},
+            frente al objetivo del 100%
           </p>
-          {tendenciaGlobal.length === 0 ? (
+          {tendencia.length === 0 ? (
             <EmptyChart />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
-                data={tendenciaGlobal}
+                data={tendencia}
                 margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -255,15 +358,17 @@ export function TabAdherencia({ rows, filtro }: Props) {
                   unit="%"
                 />
                 <Tooltip
-                  formatter={(value: number, _name, item) => {
+                  formatter={(value: number, name, item) => {
                     const p = item?.payload as {
                       cumplidos: number
                       ordenes: number
+                      finalATiempo: number
+                      entregadas: number
                     }
-                    return [
-                      `${value}% (${fmtInt(p.cumplidos)}/${fmtInt(p.ordenes)})`,
-                      "Adherencia",
-                    ]
+                    const esFinal = name === "Final (cliente)"
+                    const ok = esFinal ? p.finalATiempo : p.cumplidos
+                    const tot = esFinal ? p.entregadas : p.ordenes
+                    return [`${value}% (${fmtInt(ok)}/${fmtInt(tot)})`, name]
                   }}
                   contentStyle={{
                     borderRadius: 8,
@@ -282,20 +387,25 @@ export function TabAdherencia({ rows, filtro }: Props) {
                     fill: PALETA.coral,
                   }}
                 />
-                <Bar dataKey="adherencia" name="Adherencia" radius={[3, 3, 0, 0]}>
-                  {tendenciaGlobal.map((d) => (
-                    <Cell
-                      key={d.periodo}
-                      fill={
-                        d.adherencia >= 95
-                          ? PALETA.teal
-                          : d.adherencia >= 85
-                            ? PALETA.amber
-                            : PALETA.coral
-                      }
-                    />
-                  ))}
-                </Bar>
+                {/* Dos series con color fijo: aqui lo que se compara es
+                    operativa vs final, no el semaforo de cada barra. */}
+                <Legend
+                  wrapperStyle={{ fontSize: 11 }}
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Bar
+                  dataKey="adherencia"
+                  name="Operativa (planta)"
+                  fill={PALETA.teal}
+                  radius={[3, 3, 0, 0]}
+                />
+                <Bar
+                  dataKey="final"
+                  name="Final (cliente)"
+                  fill={PALETA.amber}
+                  radius={[3, 3, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
