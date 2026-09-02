@@ -367,7 +367,7 @@ export function SublimationPartialDeliveryModal({
           95% del ancho del viewport en cualquier breakpoint, dejando
           espacio cómodo para nombre, chips y el input de cantidad en una
           sola fila. */}
-      <DialogContent className="w-[95vw] sm:max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent className="w-[95vw] sm:max-w-[95vw] max-h-[90dvh] flex flex-col overflow-hidden overflow-y-hidden p-0">
         <div className="px-6 pt-6 pb-4 shrink-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">

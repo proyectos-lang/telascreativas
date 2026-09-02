@@ -99,8 +99,16 @@ export function EntregasTable({
 
   return (
     <div className="rounded-md border">
-      <div className="max-h-[calc(100vh-22rem)] overflow-auto">
-        <Table>
+      {/* Scroll vertical y horizontal del listado.
+          - `dvh` en vez de `vh`: en tablet/movil `100vh` incluye la barra
+            del navegador, asi que el fondo de la tabla quedaba tapado.
+          - El tope de 70dvh aplica hasta `lg`: el calculo de -22rem asume
+            la altura del encabezado y los filtros en escritorio, y en
+            pantallas menores esos bloques se apilan y crecen.
+          - `min-w` en la tabla: sin el, 10-12 columnas se comprimen en vez
+            de habilitar el desplazamiento horizontal. */}
+      <div className="max-h-[70dvh] overflow-auto lg:max-h-[calc(100dvh-22rem)]">
+        <Table className="min-w-[60rem]">
       <TableHeader>
         <TableRow>
           <TableHead>Pedido</TableHead>
