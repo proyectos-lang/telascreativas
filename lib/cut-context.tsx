@@ -62,11 +62,18 @@ export function CutProvider({ children }: { children: ReactNode }) {
           (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
           "YARDAJE"
 
+        // MARKER DIGITAL: Corte necesita el trazo impreso, asi que espera a
+        // que Marker Digital entregue (mdentrega_marker). Solo aplica a las
+        // ordenes marcadas; el resto conserva su regla de siempre.
+        const esMarker = (o: Orden) => o.es_marker_digital_si_no === true
+
         // YARDAJE: Corte espera a que Sublimacion termine (seta_sublimacion).
         // El sort usa esta funcion para priorizar las listas.
         const isReadyForCut = (o: Orden) => {
+          if (!isApproved(o)) return false
+          if (esMarker(o) && !o.mdentrega_marker) return false
           if (isYardaje(o)) return Boolean(o.seta_sublimacion)
-          return isApproved(o)
+          return true
         }
 
         // Reglas de exclusión:

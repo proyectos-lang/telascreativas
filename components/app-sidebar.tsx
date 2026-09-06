@@ -26,6 +26,7 @@ import {
   Palette,
   Printer,
   Route,
+  Ruler,
   Scissors,
   Shirt,
   Truck,
@@ -52,6 +53,7 @@ export type ActiveView =
   | "programacion"
   | "diseno"
   | "gestion-disenos"
+  | "marker"
   | "corte"
   | "impresion"
   | "sublimacion"
@@ -156,6 +158,12 @@ const menuItems: {
     key: "gestion-disenos",
     icon: Brush,
     iconColor: "text-indigo-400",
+  },
+  {
+    title: "Marker Digital",
+    key: "marker",
+    icon: Ruler,
+    iconColor: "text-icon-cyan",
   },
   {
     title: "Corte",

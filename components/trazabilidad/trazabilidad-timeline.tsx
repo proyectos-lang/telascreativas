@@ -6,6 +6,7 @@ import {
   PackageCheck,
   Palette,
   Printer,
+  Ruler,
   Scissors,
   Shirt,
   Truck,
@@ -49,6 +50,18 @@ const STAGES: Stage[] = [
     doneText: "text-white",
     doneLabelText: "text-amber-700",
     doneConnector: "bg-amber-400",
+  },
+  {
+    key: "marker",
+    label: "Marker Digital",
+    icon: Ruler,
+    dateField: "mdentrega_marker",
+    recepcionField: "mdfecha_de_recepcion",
+    doneBg: "bg-cyan-500",
+    doneBorder: "border-cyan-500",
+    doneText: "text-white",
+    doneLabelText: "text-cyan-700",
+    doneConnector: "bg-cyan-500",
   },
   {
     key: "corte",
@@ -138,7 +151,13 @@ function formatDate(dateStr: string | undefined | null) {
 export function TrazabilidadTimeline({ orden }: TrazabilidadTimelineProps) {
   const deliveredToClient = orden.entregado_cliente_si_no === true
 
-  const stagesWithState = STAGES.map((s) => {
+  // Marker Digital solo existe para las ordenes marcadas: mostrar la etapa
+  // en las demas sugeriria un paso pendiente que nunca va a ocurrir.
+  const etapas = STAGES.filter(
+    (s) => s.key !== "marker" || orden.es_marker_digital_si_no === true
+  )
+
+  const stagesWithState = etapas.map((s) => {
     const raw = orden[s.dateField] as unknown
     // For the "entrega" stage, treat entregado_cliente_si_no true as completed
     const done =

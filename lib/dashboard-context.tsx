@@ -66,13 +66,16 @@ interface AdherenciaRow {
   solo_corte_costura: boolean | null
   costura_si_no: boolean | string | null
   accesorios_inventario: string | null
+  es_marker_digital_si_no: boolean | null
   dfecha_objetivo_d: string | null
+  mdfecha_objetivo_md: string | null
   cfecha_objetivo_c: string | null
   ifecha_objetivo_i: string | null
   sfecha_objetivo_s: string | null
   cosfecha_objetivo_cs: string | null
   efecha_objetivo_e: string | null
   dentrega_diseno: string | null
+  mdentrega_marker: string | null
   cfecha_de_corte: string | null
   ientrega_impresion: string | null
   seta_sublimacion: string | null
@@ -86,6 +89,7 @@ interface KpiAdhRow {
   semana: number | null
   total_ordenes: number | null
   adherencia_diseno: number | null
+  adherencia_marker: number | null
   adherencia_impresion: number | null
   adherencia_sublimacion: number | null
   adherencia_corte: number | null
@@ -108,6 +112,7 @@ const AREAS_ADH: {
   fin: keyof AdherenciaRow
 }[] = [
   { key: "diseno", label: "Diseño", motor: "Diseno", kpi: "adherencia_diseno", objetivo: "dfecha_objetivo_d", fin: "dentrega_diseno" },
+  { key: "marker", label: "Marker Digital", motor: "Marker", kpi: "adherencia_marker", objetivo: "mdfecha_objetivo_md", fin: "mdentrega_marker" },
   { key: "impresion", label: "Impresión", motor: "Impresion", kpi: "adherencia_impresion", objetivo: "ifecha_objetivo_i", fin: "ientrega_impresion" },
   { key: "corte", label: "Corte", motor: "Corte", kpi: "adherencia_corte", objetivo: "cfecha_objetivo_c", fin: "cfecha_de_corte" },
   { key: "sublimacion", label: "Sublimación", motor: "Sublimacion", kpi: "adherencia_sublimacion", objetivo: "sfecha_objetivo_s", fin: "seta_sublimacion" },
@@ -266,7 +271,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             .schema("telas")
             .from("cabecera")
             .select(
-              "pedido, estado_aprobado_rechazado, efecha_de_empaque, entregado_cliente_si_no, fecha_entrega_cliente, tipo_flujo_especial, solo_corte_costura, costura_si_no, accesorios_inventario, dfecha_objetivo_d, cfecha_objetivo_c, ifecha_objetivo_i, sfecha_objetivo_s, cosfecha_objetivo_cs, efecha_objetivo_e, dentrega_diseno, cfecha_de_corte, ientrega_impresion, seta_sublimacion, coseta_costura"
+              "pedido, estado_aprobado_rechazado, efecha_de_empaque, entregado_cliente_si_no, fecha_entrega_cliente, tipo_flujo_especial, solo_corte_costura, costura_si_no, accesorios_inventario, es_marker_digital_si_no, dfecha_objetivo_d, mdfecha_objetivo_md, cfecha_objetivo_c, ifecha_objetivo_i, sfecha_objetivo_s, cosfecha_objetivo_cs, efecha_objetivo_e, dentrega_diseno, mdentrega_marker, cfecha_de_corte, ientrega_impresion, seta_sublimacion, coseta_costura"
             )
             .eq("estado_aprobado_rechazado", "Aprobado")
             .range(from, to) as never

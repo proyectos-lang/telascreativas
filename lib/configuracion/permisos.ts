@@ -14,6 +14,7 @@ export const PERMISOS: PermisoDef[] = [
   { key: "mod_inicio", label: "Inicio", grupo: "Operaciones" },
   { key: "mod_programacion", label: "Programación", grupo: "Operaciones" },
   { key: "mod_diseno", label: "Diseño", grupo: "Operaciones" },
+  { key: "mod_marker", label: "Marker Digital", grupo: "Operaciones" },
   { key: "mod_corte", label: "Corte", grupo: "Operaciones" },
   { key: "mod_impresion", label: "Impresión", grupo: "Operaciones" },
   { key: "mod_sublimacion", label: "Sublimación", grupo: "Operaciones" },

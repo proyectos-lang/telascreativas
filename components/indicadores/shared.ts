@@ -30,6 +30,9 @@ export const SERIE_COLORS = [
   PALETA.amber,
   PALETA.coral,
   PALETA.indigo,
+  // 7o color: con 6 areas la lista se agotaba justo y Marker Digital
+  // reutilizaba el primero, haciendo indistinguibles dos series.
+  PALETA.blue,
 ]
 
 // ---------------------------------------------------------------------------
@@ -55,6 +58,7 @@ export interface KpiDisenoRow extends Periodo {
 export interface KpiAdherenciaRow extends Periodo {
   total_ordenes: number | null
   adherencia_diseno: number | null
+  adherencia_marker: number | null
   adherencia_impresion: number | null
   adherencia_sublimacion: number | null
   adherencia_corte: number | null
@@ -67,6 +71,7 @@ export interface KpiAdherenciaRow extends Periodo {
 export interface KpiLeadTimeRow extends Periodo {
   lead_time_global_promedio: number | null
   dias_en_diseno: number | null
+  dias_en_marker: number | null
   dias_en_impresion: number | null
   dias_en_sublimacion: number | null
   dias_en_corte: number | null

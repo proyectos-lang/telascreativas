@@ -44,6 +44,7 @@ const supabase =
 // Se usan como tipo para el prop `areaActual` de cada modulo.
 export const AREAS = [
   "Diseno",
+  "Marker",
   "Corte",
   "Impresion",
   "Sublimacion",
@@ -58,6 +59,7 @@ export type Area = (typeof AREAS)[number]
 export const AREAS_GENERA_ERROR = [
   "Ventas",
   "Diseno",
+  "Marker",
   "Corte",
   "Impresion",
   "Sublimacion",

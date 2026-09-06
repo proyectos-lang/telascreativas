@@ -15,6 +15,7 @@ import {
   PackageCheck,
   Palette,
   Printer,
+  Ruler,
   RefreshCw,
   Scissors,
   Shirt,
@@ -46,6 +47,7 @@ interface AreaConfig {
 const AREA_CONFIG: Record<ResumenAreaKey, AreaConfig> = {
   ventas: { title: "Ventas (Ingreso)", icon: Palette, iconColor: "text-icon-magenta" },
   diseno: { title: "Diseno", icon: Palette, iconColor: "text-icon-yellow" },
+  marker: { title: "Marker Digital", icon: Ruler, iconColor: "text-icon-cyan" },
   corte: { title: "Corte", icon: Scissors, iconColor: "text-icon-green" },
   impresion: { title: "Impresion", icon: Printer, iconColor: "text-icon-cyan" },
   sublimacion: { title: "Sublimacion", icon: Flame, iconColor: "text-icon-coral" },

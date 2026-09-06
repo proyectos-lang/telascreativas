@@ -9,6 +9,7 @@ import { LoginScreen } from "@/components/auth/login-screen"
 import { OrdersProvider } from "@/lib/orders-context"
 import { DesignProvider } from "@/lib/design-context"
 import { CutProvider } from "@/lib/cut-context"
+import { MarkerProvider } from "@/lib/marker-context"
 import { PrintProvider } from "@/lib/print-context"
 import { SublimationProvider } from "@/lib/sublimation-context"
 import { CosturaProvider } from "@/lib/costura-context"
@@ -19,6 +20,7 @@ import { AppNavigationProvider } from "@/lib/app-navigation"
 import { OrdersContent } from "@/components/orders/orders-content"
 import { DesignContent } from "@/components/design/design-content"
 import { CutContent } from "@/components/cut/cut-content"
+import { MarkerContent } from "@/components/marker/marker-content"
 import { PrintContent } from "@/components/print/print-content"
 import { SublimationContent } from "@/components/sublimation/sublimation-content"
 import { CosturaContent } from "@/components/costura/costura-content"
@@ -39,6 +41,7 @@ import { ComunicacionesProvider } from "@/lib/comunicaciones-context"
 import { ChatContent } from "@/components/comunicaciones/chat-content"
 import { ChatNotificationBanner } from "@/components/comunicaciones/chat-notification-banner"
 import { NotificacionesProvider } from "@/lib/notificaciones/notificaciones-context"
+import { PermisoNotificaciones } from "@/components/notificaciones/permiso-notificaciones"
 import { NotificationBell } from "@/components/notificaciones/notification-bell"
 import { TareasContent } from "@/components/comunicaciones/tareas-content"
 import { NoticiasContent } from "@/components/comunicaciones/noticias-content"
@@ -58,6 +61,7 @@ const viewTitles: Record<ActiveView, string> = {
   dashboard: "Dashboard",
   programacion: "Programacion de Ordenes",
   diseno: "Diseno",
+  marker: "Marker Digital",
   corte: "Corte",
   impresion: "Impresion",
   sublimacion: "Sublimacion",
@@ -93,6 +97,7 @@ const ORDERED_VIEWS: ActiveView[] = [
   "trazabilidad",
   "programacion",
   "diseno",
+  "marker",
   "corte",
   "impresion",
   "sublimacion",
@@ -144,6 +149,8 @@ function MainApp() {
         return <DesignContent />
       case "corte":
         return <CutContent />
+      case "marker":
+        return <MarkerContent />
       case "impresion":
         return <PrintContent />
       case "sublimacion":
@@ -196,7 +203,7 @@ function MainApp() {
     <OrdersProvider>
       <DesignProvider>
         <CutProvider>
-          <PrintProvider>
+          <MarkerProvider><PrintProvider>
             <SublimationProvider>
               <CosturaProvider>
                 <EmpaqueProvider>
@@ -236,6 +243,10 @@ function MainApp() {
             </header>
             <main className="flex-1 p-4 md:p-6">{renderContent()}</main>
             <ChatNotificationBanner />
+            {/* Aviso global de permiso: antes solo vivia dentro de Gestion de
+                Disenos, asi que quien no entraba a ese modulo no recibia
+                ninguna notificacion del sistema. */}
+            <PermisoNotificaciones />
                         </SidebarInset>
                         </SidebarProvider>
                         </NotificacionesProvider>
@@ -245,7 +256,7 @@ function MainApp() {
                 </EmpaqueProvider>
               </CosturaProvider>
             </SublimationProvider>
-          </PrintProvider>
+          </PrintProvider></MarkerProvider>
         </CutProvider>
       </DesignProvider>
     </OrdersProvider>

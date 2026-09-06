@@ -94,6 +94,12 @@ export interface MatrizTiempoRow {
   concepto: string | null
   rango: "menor_24" | "mayor_24"
   dias_diseno: number
+  /**
+   * Columna nueva (scripts/marker-digital.sql). Llega null hasta que
+   * producción defina los días del trazo, por eso es opcional/nullable:
+   * las 20 filas sembradas de la matriz son anteriores al área.
+   */
+  dias_marker: number | null
   dias_corte: number
   dias_aprobacion: number
   dias_impresion: number
@@ -128,8 +134,11 @@ export interface OrdenCapacidad {
   costura_si_no: boolean | string | null
   accesorios_inventario: string | null
   maquina_costura: string | null
+  /** Activa el paso por Marker Digital. null en órdenes históricas = false. */
+  es_marker_digital_si_no: boolean | null
   // fin por área
   dentrega_diseno: string | null
+  mdentrega_marker: string | null
   cfecha_de_corte: string | null
   ientrega_impresion: string | null
   seta_sublimacion: string | null
@@ -137,6 +146,7 @@ export interface OrdenCapacidad {
   efecha_de_empaque: string | null
   // objetivo por área
   dfecha_objetivo_d: string | null
+  mdfecha_objetivo_md: string | null
   cfecha_objetivo_c: string | null
   ifecha_objetivo_i: string | null
   sfecha_objetivo_s: string | null
@@ -159,6 +169,7 @@ export interface AreaMotorDef {
 
 export const AREAS_MOTOR: AreaMotorDef[] = [
   { key: "Diseno", label: "Diseño", campoFin: "dentrega_diseno", campoObjetivo: "dfecha_objetivo_d", campoMatriz: "dias_diseno" },
+  { key: "Marker", label: "Marker Digital", campoFin: "mdentrega_marker", campoObjetivo: "mdfecha_objetivo_md", campoMatriz: "dias_marker" },
   { key: "Corte", label: "Corte", campoFin: "cfecha_de_corte", campoObjetivo: "cfecha_objetivo_c", campoMatriz: "dias_corte" },
   { key: "Impresion", label: "Impresión", campoFin: "ientrega_impresion", campoObjetivo: "ifecha_objetivo_i", campoMatriz: "dias_impresion" },
   { key: "Sublimacion", label: "Sublimación", campoFin: "seta_sublimacion", campoObjetivo: "sfecha_objetivo_s", campoMatriz: "dias_sublimacion" },
@@ -194,6 +205,10 @@ export function pasaPorArea(areaKey: string, o: OrdenCapacidad): boolean {
   if (o.solo_corte_costura === true) {
     return areaKey === "Corte" || areaKey === "Costura" || areaKey === "Empaque"
   }
+  // Marker Digital SOLO aplica a las órdenes marcadas. Va antes del catch-all
+  // a propósito: sin esta rama, `return true` la daría por válida para TODAS
+  // las órdenes y duplicaría la carga del área en Capacidad y ATP.
+  if (areaKey === "Marker") return o.es_marker_digital_si_no === true
   if (areaKey === "Corte" || areaKey === "Costura") return !sinCostura(o)
   if (areaKey === "Empaque") return !(t === "YARDAJE" && sinCostura(o))
   return true // Diseno / Impresion / Sublimacion

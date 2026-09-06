@@ -72,6 +72,7 @@ maquina_costura, entregado_cliente_si_no (bool), fecha_entrega_cliente (date),
 motivo_rechazo, motivo_reversion.
 Reposición manual: pendiente_reposicion (bool), area_reposicion (text), fecha_pendiente_reposicion (timestamptz).
 Fechas/estado por módulo (prefijos): Diseño d* (dfecha_de_ingreso_diseno, dentrega_diseno, ddisenador),
+Marker Digital md* (mdfecha_de_recepcion, mdentrega_marker, mdfecha_objetivo_md, mdyardas_teoricas, mdcore_id -> telas.marker_cores),
 Corte c* (cfecha_de_recepcion, cfecha_de_corte, cpiezas_cortadas, cyardas),
 Impresión i* (ifecha_de_ingreso_imp, ientrega_impresion, iyardas_impresion),
 Sublimación s* (sfecha_de_ingreso_sub, seta_sublimacion, s_estado_entrega ["Pendiente"/"Parcial"/"Completado"], s_pcs_entregados_acumulado),

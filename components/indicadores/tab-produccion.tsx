@@ -62,6 +62,7 @@ const supabase = createClient(
  */
 const AREAS = [
   { key: "diseno", label: "Diseño", fin: "dentrega_diseno", capacidad: "Diseno" },
+  { key: "marker", label: "Marker Digital", fin: "mdentrega_marker", capacidad: "Marker" },
   { key: "impresion", label: "Impresión", fin: "ientrega_impresion", capacidad: "Impresion" },
   { key: "corte", label: "Corte", fin: "cfecha_de_corte", capacidad: "Corte" },
   { key: "sublimacion", label: "Sublimación", fin: "seta_sublimacion", capacidad: "Sublimacion" },
@@ -89,7 +90,7 @@ interface CapRow {
 }
 
 const CAMPOS =
-  "pcs, estado_aprobado_rechazado, dentrega_diseno, ientrega_impresion, cfecha_de_corte, seta_sublimacion, coseta_costura, efecha_de_empaque"
+  "pcs, estado_aprobado_rechazado, dentrega_diseno, mdentrega_marker, ientrega_impresion, cfecha_de_corte, seta_sublimacion, coseta_costura, efecha_de_empaque"
 
 const toPcs = (v: number | string | null): number => {
   const n = typeof v === "number" ? v : Number(v)

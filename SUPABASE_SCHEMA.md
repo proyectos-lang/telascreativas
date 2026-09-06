@@ -66,6 +66,17 @@ Columna central del sistema; cada fila es un pedido/orden de producción.
 | dmotivo_demora_terminado_d | text | |
 | dnota_terminado_d | text | |
 | dfecha_objetivo_d | date | |
+| **Modulo Marker Digital (prefijo `md`)** | | |
+| mdfecha_de_recepcion | date | Recepcion en Marker Digital |
+| mdentrega_marker | date | Trazo entregado. Prerequisito de Corte |
+| mdfecha_objetivo_md | date | Fecha objetivo del area |
+| mdresponsable | text | |
+| mdmotivo_demora_recibido_md | text | |
+| mdmotivo_demora_terminado_md | text | |
+| mdcomentario_marker | text | |
+| mdcomentario_entrega_md | text | |
+| mdyardas_teoricas | numeric | Yardas teoricas prorrateadas del core; se contrastan con cyardas. NO visibles para Corte |
+| mdcore_id | bigint | FK a telas.marker_cores. NULL = la orden se procesa suelta |
 | **Módulo Corte (prefijo `c`)** | | |
 | cfecha_de_recepcion | date | |
 | cfecha_de_corte | date | |
@@ -493,3 +504,38 @@ VENTA_INVENTARIO:   [Sublimación si accesorios_inventario != null] → Empaque 
 
 ## Nivel de riesgo (`nivel_riesgo`)
 - `"Vencido"` / `"Riesgo Crítico"` / `"Riesgo Medio"` / `"A Tiempo"`
+
+
+---
+
+### `telas.marker_cores`
+Agrupacion de pedidos que comparten tela para cortarlos juntos ("core").
+Creada por `scripts/marker-digital.sql`.
+
+| Campo | Tipo |
+|---|---|
+| id | bigint (identity, PK) |
+| nombre | text NOT NULL UNIQUE (lo escribe el marker) |
+| tela_principal | text NOT NULL |
+| total_pcs | numeric |
+| yardas_teoricas | numeric |
+| yardas_reales | numeric |
+| estado | text ('Abierto'/'Entregado'/'Recibido en Corte'/'Cortado') |
+| fecha_creacion | timestamptz |
+| fecha_entrega_marker | date |
+| fecha_recepcion_corte | date |
+| fecha_corte | date |
+| creado_por | text |
+| notas | text |
+
+---
+
+### `telas.marker_core_pedidos`
+Pedidos que integran cada core. `on delete cascade` desde `marker_cores`.
+
+| Campo | Tipo |
+|---|---|
+| core_id | bigint (FK marker_cores) |
+| pedido | text |
+| pcs | numeric |
+| telas_secundarias | text (observacion multi-tela) |

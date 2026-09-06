@@ -211,10 +211,16 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
     (orden.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
     "YARDAJE"
   const isSublimationFinished = Boolean(orden.seta_sublimacion)
+  // MARKER DIGITAL: la orden marcada espera el trazo del plotter. Corte deja
+  // de ir en paralelo con Diseño para estas: sin trazo no hay que cortar.
+  const esMarker = orden.es_marker_digital_si_no === true
+  const markerEntregado = Boolean(orden.mdentrega_marker)
+  const esperandoMarker = esMarker && !markerEntregado
   // Condicion para habilitar el "Recibir" en Corte segun el flujo.
-  const isReadyToReceive = isYardaje
-    ? isApprovedByPlanner && isSublimationFinished
-    : isApprovedByPlanner
+  const isReadyToReceive =
+    isApprovedByPlanner &&
+    !esperandoMarker &&
+    (isYardaje ? isSublimationFinished : true)
   const isDesignDelivered = Boolean(orden.dentrega_diseno)
   const isReceivedInCut = Boolean(orden.cfecha_de_recepcion)
   const isCutFinished = Boolean(orden.cfecha_de_corte)
@@ -271,17 +277,22 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
 
   // Dynamic button text and tooltip for Recibir.
   // Flujo normal: solo requiere aprobacion del Planner (Corte en paralelo
-  //   con Diseño). Flujo YARDAJE: ademas exige que Sublimacion haya terminado.
+  //   con Diseño). Con MARKER DIGITAL ademas espera el trazo. Flujo YARDAJE:
+  //   ademas exige que Sublimacion haya terminado.
   const recibirLabel = !isApprovedByPlanner
     ? "Esperando aprobación de Planner"
-    : isYardaje && !isSublimationFinished
-      ? "Esperando a Sublimación"
-      : "Recibir"
+    : esperandoMarker
+      ? "Esperando a Marker Digital"
+      : isYardaje && !isSublimationFinished
+        ? "Esperando a Sublimación"
+        : "Recibir"
   const recibirTooltip = !isApprovedByPlanner
     ? "El Planner aun no ha aprobado esta orden"
-    : isYardaje && !isSublimationFinished
-      ? "En Yardaje el Corte se realiza despues de Sublimacion: debe terminar Sublimacion primero"
-      : undefined
+    : esperandoMarker
+      ? "Esta orden se corta con trazo de Marker Digital: debe entregarse el trazo antes de recibirla en Corte"
+      : isYardaje && !isSublimationFinished
+        ? "En Yardaje el Corte se realiza despues de Sublimacion: debe terminar Sublimacion primero"
+        : undefined
 
   return (
     <div className="space-y-6">
@@ -380,15 +391,28 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
         <Alert className="border-amber-300 bg-amber-50 text-amber-900">
           <Lock className="size-4 text-amber-700" />
           <AlertDescription className="text-amber-900">
-            Esta orden aun no ha sido aprobada por el Planner. Corte trabaja en
-            paralelo con Diseno, pero requiere la aprobacion del Planner para
-            ser procesada.
+            Esta orden aun no ha sido aprobada por el Planner.
+            {esMarker
+              ? " Ademas se corta con trazo de Marker Digital, asi que tambien debera esperar la entrega del trazo."
+              : " Corte trabaja en paralelo con Diseno, pero requiere la aprobacion del Planner para ser procesada."}
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Informational note: design is in process but Corte can still advance */}
-      {isApprovedByPlanner && !isDesignDelivered && (
+      {/* Aviso cuando la orden espera el trazo del marker. */}
+      {isApprovedByPlanner && esperandoMarker && (
+        <Alert className="border-indigo-300 bg-indigo-50 text-indigo-900">
+          <Lock className="size-4 text-indigo-700" />
+          <AlertDescription className="text-indigo-900">
+            Esta orden se corta con trazo de Marker Digital. Corte podra
+            recibirla cuando el marker entregue el trazo.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Informational note: design is in process but Corte can still advance.
+          No aplica a las ordenes con marker: esas SI dependen del trazo. */}
+      {isApprovedByPlanner && !isDesignDelivered && !esMarker && (
         <Alert className="border-sky-300 bg-sky-50 text-sky-900">
           <Palette className="size-4 text-sky-700" />
           <AlertDescription className="text-sky-900">

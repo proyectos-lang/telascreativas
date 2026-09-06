@@ -5,7 +5,13 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IncidenciasTab } from "./incidencias-tab"
 import type { Area } from "./modal-reporte-incidencia"
-import { AlertOctagon, CalendarDays, CalendarRange, ClipboardList } from "lucide-react"
+import {
+  AlertOctagon,
+  CalendarDays,
+  CalendarRange,
+  ClipboardList,
+  type LucideIcon,
+} from "lucide-react"
 import { PlanSemanalArea, AREAS_PLAN } from "@/components/plan-semanal/plan-semanal-area"
 
 interface ModuleTabsProps {
@@ -23,6 +29,17 @@ interface ModuleTabsProps {
   resumenContent?: ReactNode
   /** Clase de acento para iconos del modulo */
   accentClass?: string
+  /**
+   * Pestana adicional propia del modulo, antes de Incidencias. La usa
+   * Marker Digital para la agrupacion de cores; el resto de los modulos no
+   * la pasa y el comportamiento no cambia.
+   */
+  extraTab?: {
+    value: string
+    label: string
+    icon: LucideIcon
+    content: ReactNode
+  }
 }
 
 /**
@@ -53,13 +70,15 @@ export function ModuleTabs({
   ordenesContent,
   resumenContent,
   accentClass,
+  extraTab,
 }: ModuleTabsProps) {
   const [pendingCount, setPendingCount] = useState(0)
 
   // Plan semanal propio del area (si aplica).
   const planArea = planDeArea(area)
 
-  const colCount = (resumenContent ? 3 : 2) + (planArea ? 1 : 0)
+  const colCount =
+    (resumenContent ? 3 : 2) + (planArea ? 1 : 0) + (extraTab ? 1 : 0)
 
   return (
     <Tabs defaultValue="ordenes" className="w-full">
@@ -67,7 +86,9 @@ export function ModuleTabs({
       <TabsList
         className={[
           "grid w-full sm:inline-flex sm:w-auto",
-          colCount === 4
+          colCount === 5
+            ? "grid-cols-5"
+            : colCount === 4
             ? "grid-cols-4"
             : colCount === 3
             ? "grid-cols-3"
@@ -88,6 +109,12 @@ export function ModuleTabs({
           <TabsTrigger value="plan" className="gap-2">
             <CalendarRange className="size-4" />
             Plan Semanal
+          </TabsTrigger>
+        )}
+        {extraTab && (
+          <TabsTrigger value={extraTab.value} className="gap-2">
+            <extraTab.icon className="size-4" />
+            {extraTab.label}
           </TabsTrigger>
         )}
         <TabsTrigger value="incidencias" className="gap-2">
@@ -114,6 +141,12 @@ export function ModuleTabs({
       {planArea && (
         <TabsContent value="plan" className="mt-4">
           <PlanSemanalArea area={planArea} />
+        </TabsContent>
+      )}
+
+      {extraTab && (
+        <TabsContent value={extraTab.value} className="mt-4">
+          {extraTab.content}
         </TabsContent>
       )}
 

@@ -83,6 +83,14 @@ export const AREAS_PLAN: AreaPlan[] = [
     recepcion: "dfecha_de_ingreso_diseno",
   },
   {
+    key: "marker",
+    label: "Marker Digital",
+    motor: "Marker",
+    objetivo: "mdfecha_objetivo_md",
+    fin: "mdentrega_marker",
+    recepcion: "mdfecha_de_recepcion",
+  },
+  {
     key: "impresion",
     label: "Impresión",
     motor: "Impresion",
@@ -132,17 +140,22 @@ export interface PlanAreaRow {
   omite_corte_costura: boolean | null
   costura_si_no: boolean | string | null
   accesorios_inventario: string | null
+  /** Lo exige pasaPorArea("Marker"); el cast a OrdenCapacidad no lo valida. */
+  es_marker_digital_si_no: boolean | null
   dfecha_objetivo_d: string | null
+  mdfecha_objetivo_md: string | null
   cfecha_objetivo_c: string | null
   ifecha_objetivo_i: string | null
   sfecha_objetivo_s: string | null
   cosfecha_objetivo_cs: string | null
   dentrega_diseno: string | null
+  mdentrega_marker: string | null
   cfecha_de_corte: string | null
   ientrega_impresion: string | null
   seta_sublimacion: string | null
   coseta_costura: string | null
   dfecha_de_ingreso_diseno: string | null
+  mdfecha_de_recepcion: string | null
   cfecha_de_recepcion: string | null
   ifecha_de_ingreso_imp: string | null
   sfecha_de_ingreso_sub: string | null
@@ -154,12 +167,13 @@ const CAMPOS = [
   "pcs", "es_urgente", "fecha_de_entrega", "estado_aprobado_rechazado",
   "entregado_cliente_si_no", "tipo_flujo_especial", "solo_corte_costura",
   "omite_corte_costura", "costura_si_no", "accesorios_inventario",
-  "dfecha_objetivo_d", "cfecha_objetivo_c", "ifecha_objetivo_i",
-  "sfecha_objetivo_s", "cosfecha_objetivo_cs",
-  "dentrega_diseno", "cfecha_de_corte", "ientrega_impresion",
-  "seta_sublimacion", "coseta_costura",
-  "dfecha_de_ingreso_diseno", "cfecha_de_recepcion", "ifecha_de_ingreso_imp",
-  "sfecha_de_ingreso_sub", "cosfecha_conteo",
+  "es_marker_digital_si_no",
+  "dfecha_objetivo_d", "mdfecha_objetivo_md", "cfecha_objetivo_c",
+  "ifecha_objetivo_i", "sfecha_objetivo_s", "cosfecha_objetivo_cs",
+  "dentrega_diseno", "mdentrega_marker", "cfecha_de_corte",
+  "ientrega_impresion", "seta_sublimacion", "coseta_costura",
+  "dfecha_de_ingreso_diseno", "mdfecha_de_recepcion", "cfecha_de_recepcion",
+  "ifecha_de_ingreso_imp", "sfecha_de_ingreso_sub", "cosfecha_conteo",
 ].join(", ")
 
 const CURRENT_YEAR = new Date().getFullYear()

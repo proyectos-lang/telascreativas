@@ -38,6 +38,8 @@ const RESUMEN_DATE_COLS = [
   "fecha_de_ingreso",
   "dfecha_de_ingreso_diseno",
   "dentrega_diseno",
+  "mdfecha_de_recepcion",
+  "mdentrega_marker",
   "cfecha_de_recepcion",
   "cfecha_de_corte",
   "ifecha_de_ingreso_imp",
@@ -62,6 +64,7 @@ const RESUMEN_DATE_COLS = [
 export type ResumenAreaKey =
   | "ventas"
   | "diseno"
+  | "marker"
   | "corte"
   | "impresion"
   | "sublimacion"
@@ -272,6 +275,7 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
    * Mapeo de fechas usadas (campos de telas.cabecera):
    *   - Ventas        -> recibida: fecha_de_ingreso
    *   - Diseno        -> recibida: dfecha_de_ingreso_diseno / entregada: dentrega_diseno
+   *   - Marker        -> recibida: mdfecha_de_recepcion      / entregada: mdentrega_marker
    *   - Corte         -> recibida: cfecha_de_recepcion       / entregada: cfecha_de_corte
    *   - Impresion     -> recibida: ifecha_de_ingreso_imp     / entregada: ientrega_impresion
    *   - Sublimacion   -> recibida: sfecha_de_ingreso_sub     / entregada: seta_sublimacion
@@ -296,6 +300,11 @@ export function ResumenDiaProvider({ children }: { children: ReactNode }) {
         key: "diseno",
         recibidas: buildBucket(ordenes, "dfecha_de_ingreso_diseno", from, until),
         entregadas: buildBucket(ordenes, "dentrega_diseno", from, until),
+      },
+      marker: {
+        key: "marker",
+        recibidas: buildBucket(ordenes, "mdfecha_de_recepcion", from, until),
+        entregadas: buildBucket(ordenes, "mdentrega_marker", from, until),
       },
       corte: {
         key: "corte",

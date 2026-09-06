@@ -27,6 +27,7 @@ export interface UsuarioActual {
   mod_inicio?: boolean | null
   mod_programacion?: boolean | null
   mod_diseno?: boolean | null
+  mod_marker?: boolean | null
   mod_corte?: boolean | null
   mod_impresion?: boolean | null
   mod_sublimacion?: boolean | null
@@ -74,6 +75,7 @@ export interface UsuarioActual {
 export const VIEW_PERMISSION_MAP: Record<string, keyof UsuarioActual> = {
   programacion: "mod_programacion",
   diseno: "mod_diseno",
+  marker: "mod_marker",
   corte: "mod_corte",
   impresion: "mod_impresion",
   sublimacion: "mod_sublimacion",

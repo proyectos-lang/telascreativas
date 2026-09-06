@@ -45,6 +45,7 @@ import {
   PackageCheck,
   Paintbrush,
   Printer,
+  Ruler,
   Scissors,
   Shirt,
   Truck,
@@ -64,6 +65,7 @@ const supabase =
 
 export type ModuloArea =
   | "diseno"
+  | "marker"
   | "corte"
   | "impresion"
   | "sublimacion"
@@ -86,6 +88,7 @@ interface InstructionsAndCommentsProps {
  */
 const FLOW_ORDER: ModuloArea[] = [
   "diseno",
+  "marker",
   "corte",
   "impresion",
   "sublimacion",
@@ -132,6 +135,15 @@ const AREA_CONFIGS: Record<
     borderColor: "border-l-icon-magenta",
     getComment: (o) => o.dnota_terminado_d || o.dcomentario_diseno,
     getDate: (o) => o.dfecha_cambio_3 || o.dfecha_cambio_2 || o.dfecha_cambio_1,
+  },
+  marker: {
+    key: "marker",
+    label: "MARKER DIGITAL",
+    icon: Ruler,
+    iconColor: "text-icon-cyan",
+    borderColor: "border-l-icon-cyan",
+    getComment: (o) => o.mdcomentario_entrega_md || o.mdcomentario_marker,
+    getDate: (o) => o.mdentrega_marker || o.mdfecha_de_recepcion,
   },
   corte: {
     key: "corte",
@@ -453,6 +465,7 @@ export const AREA_ICONS: Record<
   LucideIcon
 > = {
   diseno: Paintbrush,
+  marker: Ruler,
   corte: Scissors,
   impresion: Printer,
   sublimacion: Flame,

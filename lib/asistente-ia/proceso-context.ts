@@ -21,6 +21,7 @@ Eres experto en la operación de Telas Creativas. Estas son las reglas reales de
 El flujo exacto depende de \`tipo_flujo_especial\` (4 valores) y de dos banderas booleanas:
 
 - **PRODUCCION_NORMAL** (default): Diseño → (Corte e Impresión en paralelo) → Sublimación → Costura → Empaque → Entregas. Sublimación requiere que **Corte Y Impresión** estén terminados.
+- **MARKER DIGITAL** (\`es_marker_digital_si_no = true\`, ortogonal al tipo de flujo): la orden pasa además por **Marker Digital**, que imprime en plotter los trazos de corte. Va en paralelo con Impresión y es **prerequisito de Corte**: Diseño → (Marker ‖ Impresión) → Corte → … Corte NO puede recibir hasta que \`mdentrega_marker\` no sea NULL. Las órdenes sin la bandera conservan el flujo normal (Corte en paralelo con Diseño). Varias órdenes que comparten tela se agrupan en un **core** (tablas \`telas.marker_cores\` y \`telas.marker_core_pedidos\`): se reciben, entregan y cortan juntas, con las mismas fechas. Fin de etapa: \`mdentrega_marker\`.
 - **YARDAJE**: Diseño → Impresión → Sublimación → **Corte** → Costura → Empaque → Entregas (aquí el Corte va DESPUÉS de Sublimación). Si \`costura_si_no = false\` (yardaje sin costura): Diseño → Impresión → Sublimación → Entregas (salta Costura y Empaque).
 - **COMPRA_EXTERNA**: no pasa por producción; solo Entregas (producto comprado ya terminado).
 - **VENTA_INVENTARIO**: producto de bodega. Si tiene \`accesorios_inventario\` → pasa por Sublimación (para aplicar el accesorio) → Empaque → Entregas; si no tiene accesorios → directo a Empaque → Entregas.
@@ -29,17 +30,20 @@ Banderas (ortogonales al tipo de flujo):
 - **\`solo_corte_costura = true\`**: Corte → Costura → Empaque → Entregas (omite Diseño, Impresión y Sublimación).
 - **\`omite_corte_costura = true\`**: Diseño → Impresión → Sublimación → Empaque → Entregas (omite Corte y Costura). Es mutuamente excluyente con solo_corte_costura.
 
-Una etapa está "terminada" cuando su fecha de fin no es NULL: Diseño=\`dentrega_diseno\`, Corte=\`cfecha_de_corte\`, Impresión=\`ientrega_impresion\`, Sublimación=\`seta_sublimacion\`, Costura=\`coseta_costura\`, Empaque=\`efecha_de_empaque\`.
+Una etapa está "terminada" cuando su fecha de fin no es NULL: Diseño=\`dentrega_diseno\`, Marker=\`mdentrega_marker\`, Corte=\`cfecha_de_corte\`, Impresión=\`ientrega_impresion\`, Sublimación=\`seta_sublimacion\`, Costura=\`coseta_costura\`, Empaque=\`efecha_de_empaque\`.
 
 ## 2. Tiempos objetivo por área (SLA)
 Al aprobar la orden, el Planner guarda las fechas objetivo por área = \`fecha_programacion\` + N días hábiles:
 - Diseño (\`dfecha_objetivo_d\`): +3
-- Corte (\`cfecha_objetivo_c\`): +3 · **en YARDAJE +6** (el corte va después de sublimación)
+- Marker Digital (\`mdfecha_objetivo_md\`): +4 · solo si \`es_marker_digital_si_no = true\`
+- Corte (\`cfecha_objetivo_c\`): +3 · **+4 con marker** · **en YARDAJE +6** (el corte va después de sublimación)
 - Impresión (\`ifecha_objetivo_i\`): +4
 - Sublimación (\`sfecha_objetivo_s\`): +5
 - Costura (\`cosfecha_objetivo_cs\`): +6 · **en YARDAJE +7**
 - Empaque (\`efecha_objetivo_e\`): +8
 Además se garantiza que cada etapa quede al menos un día hábil DESPUÉS de la etapa anterior del flujo, así que las fechas nunca salen desordenadas (Corte e Impresión son paralelas en producción normal).
+Con Marker Digital hay un recálculo adicional: cuando el marker entrega el trazo, el objetivo de Corte se vuelve a calcular como **+4 días hábiles (Lun–Vie) desde esa entrega real**, no desde la programación. Corte no podía empezar sin el trazo, así que su plazo arranca ahí. Solo cambia \`cfecha_objetivo_c\`; el resto de los objetivos y el compromiso con el cliente no se mueven.
+
 Si la orden es **urgente** (\`es_urgente\` con fecha de entrega), TODOS los objetivos se igualan a \`fecha_de_entrega\` (se ignoran los SLA estándar); en las áreas Lun–Vie, si esa fecha cae en fin de semana se retrocede al viernes. Las banderas de flujo anulan los objetivos de las áreas que se saltan; en YARDAJE sin costura no se asignan objetivos de Corte, Costura ni Empaque.
 
 ## 3. Reloj / lead time

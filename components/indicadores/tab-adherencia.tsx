@@ -53,6 +53,7 @@ interface Props {
 
 const AREAS = [
   { key: "adherencia_diseno", label: "Diseno" },
+  { key: "adherencia_marker", label: "Marker" },
   { key: "adherencia_impresion", label: "Impresion" },
   { key: "adherencia_sublimacion", label: "Sublimacion" },
   { key: "adherencia_corte", label: "Corte" },

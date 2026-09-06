@@ -19,6 +19,7 @@ import {
   PackageCheck,
   Palette,
   Printer,
+  Ruler,
   RefreshCw,
   Scissors,
   ShoppingCart,
@@ -58,6 +59,7 @@ const AREA_CONFIG: {
 }[] = [
   { key: "ventas", title: "Ventas (Ingreso)", icon: ShoppingCart, iconColor: "text-icon-magenta" },
   { key: "diseno", title: "Diseno", icon: Palette, iconColor: "text-icon-yellow" },
+  { key: "marker", title: "Marker Digital", icon: Ruler, iconColor: "text-icon-cyan" },
   { key: "corte", title: "Corte", icon: Scissors, iconColor: "text-icon-green" },
   { key: "impresion", title: "Impresion", icon: Printer, iconColor: "text-icon-cyan" },
   { key: "sublimacion", title: "Sublimacion", icon: Flame, iconColor: "text-icon-coral" },

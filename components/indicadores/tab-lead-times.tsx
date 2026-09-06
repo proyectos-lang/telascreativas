@@ -48,8 +48,15 @@ function avgNoNeg(values: (number | null | undefined)[]): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length
 }
 
+// La vista vista_kpi_lead_times encadena las colas entre areas
+// (cola_diseno_a_impresion, etc.). Marker Digital se muestra con su tiempo
+// ACTIVO pero con `cola: null`: la vista todavia no expone
+// cola_diseno_a_marker ni cola_marker_a_corte, y fabricar aqui una cola que
+// la BD no calcula daria un numero inventado. Cuando esas columnas existan,
+// basta con enlazarlas aqui.
 const ETAPAS = [
   { label: "Diseno", activo: "dias_en_diseno", cola: "cola_diseno_a_impresion" },
+  { label: "Marker", activo: "dias_en_marker", cola: null },
   {
     label: "Impresion",
     activo: "dias_en_impresion",
@@ -70,6 +77,14 @@ const ETAPAS = [
 ] as const
 
 const TODOS_PROCESOS = ETAPAS.map((e) => e.label)
+
+/** "cola_diseno_a_impresion" -> "Diseno → Impresion". */
+function etiquetaCola(cola: string): string {
+  const m = cola.replace(/^cola_/, "").split("_a_")
+  if (m.length !== 2) return ""
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
+  return `${cap(m[0])} → ${cap(m[1])}`
+}
 
 export function TabLeadTimes({ rows }: Props) {
   const [procesosActivos, setProcesosActivos] = useState<string[]>([])
@@ -105,9 +120,12 @@ export function TabLeadTimes({ rows }: Props) {
           : 0
         return {
           proceso: e.label,
-          colaLabel: e.cola
-            ? `${e.label} → ${ETAPAS[ETAPAS.findIndex((x) => x.label === e.label) + 1]?.label ?? ""}`
-            : null,
+          // La etiqueta se deriva del NOMBRE de la columna de cola, no del
+          // orden del array: al insertar Marker entre Diseno e Impresion, el
+          // "siguiente elemento" dejo de coincidir con el destino real de la
+          // cola y Diseno se habria rotulado "Diseno -> Marker" mostrando el
+          // dato de "Diseno -> Impresion".
+          colaLabel: e.cola ? etiquetaCola(e.cola) : null,
           activo: Number(activo.toFixed(1)),
           cola: Number(cola.toFixed(1)),
         }
