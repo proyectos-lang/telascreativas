@@ -22,6 +22,12 @@ export function getDisenoStatus(orden: Orden): ProductionStatus {
   return "Pendiente"
 }
 
+export function getMarkerStatus(orden: Orden): ProductionStatus {
+  if (orden.mdentrega_marker) return "Terminado"
+  if (orden.mdfecha_de_recepcion) return "Recibido"
+  return "Pendiente"
+}
+
 export function getCorteStatus(orden: Orden): ProductionStatus {
   if (orden.cfecha_de_corte) return "Terminado"
   if (orden.cfecha_de_recepcion) return "Recibido"

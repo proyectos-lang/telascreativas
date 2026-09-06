@@ -9,18 +9,26 @@
  *
  * 1. Jornada por área:
  *      - Diseño, Costura, Empaque  → Lun a SÁB (solo domingo no laboral).
- *      - Corte, Impresión, Sublimación → Lun a VIE (no trabajan sábado), así
- *        que sus fechas objetivo nunca caen en fin de semana.
+ *      - Corte, Impresión, Sublimación, Marker Digital → Lun a VIE (no
+ *        trabajan sábado), así que sus fechas objetivo nunca caen en fin de
+ *        semana.
  *
  * 2. Orden del flujo:
  *      - PRODUCCIÓN NORMAL: Diseño +3 · Corte +3 · Impresión +4 ·
  *        Sublimación +5 · Costura +6 · Empaque +8.
+ *      - Con MARKER DIGITAL: Diseño +3 · Marker/Impresión +4 · Corte +4 ·
+ *        Sublimación +5 · Costura +6 · Empaque +8. El marker imprime los
+ *        trazos y es PREREQUISITO de Corte, así que Corte sale del grupo
+ *        paralelo de Impresión. Su SLA sigue siendo de 4 días: al programar
+ *        se cuenta desde la fecha de programación y, cuando el marker
+ *        entrega, se recuenta desde la entrega real del trazo (ver
+ *        `objetivoCorteDesdeMarker`).
  *      - YARDAJE: el Corte va DESPUÉS de Sublimación, por lo que se recorre a
  *        Diseño +3 · Impresión +4 · Sublimación +5 · Corte +6 · Costura +7 ·
  *        Empaque +8 (se conserva el compromiso total con el cliente).
  *
  * 3. Flujos reducidos:
- *      - `solo_corte_costura`  → sin Diseño, Impresión ni Sublimación.
+ *      - `solo_corte_costura`  → sin Diseño, Marker, Impresión ni Sublimación.
  *      - `omite_corte_costura` → sin Corte ni Costura.
  *      - YARDAJE sin costura (`costura_si_no === false`) → la orden no pasa por
  *        Corte, Costura ni Empaque (va Sublimación → Entregas), así que esas
@@ -38,11 +46,19 @@ import {
   retrocederAViernes,
 } from "@/lib/date-utils"
 
-type Area = "diseno" | "corte" | "impresion" | "sublimacion" | "costura" | "empaque"
+type Area =
+  | "diseno"
+  | "marker"
+  | "corte"
+  | "impresion"
+  | "sublimacion"
+  | "costura"
+  | "empaque"
 
 /** Offsets en días hábiles desde la fecha de programación. */
 const OFFSETS_NORMAL: Record<Area, number> = {
   diseno: 3,
+  marker: 4,
   corte: 3,
   impresion: 4,
   sublimacion: 5,
@@ -50,9 +66,27 @@ const OFFSETS_NORMAL: Record<Area, number> = {
   empaque: 8,
 } as const
 
+/**
+ * Con Marker Digital, Corte deja de ir en paralelo con Impresión: necesita
+ * el trazo impreso. El SLA de Corte NO cambia (sigue siendo de 4 días
+ * hábiles); lo que cambia es desde cuándo se cuenta:
+ *
+ *   - Al programar la orden se fija +4 desde la fecha de programación, igual
+ *     que cualquier otra orden.
+ *   - Cuando Marker Digital entrega el trazo, `objetivoCorteDesdeMarker`
+ *     recalcula el objetivo a +4 días hábiles DESDE ESA ENTREGA REAL.
+ *
+ * Por eso aquí no hay override de `corte`: el offset base es el mismo.
+ */
+const OFFSETS_NORMAL_MARKER: Record<Area, number> = {
+  ...OFFSETS_NORMAL,
+  corte: 4,
+} as const
+
 /** En YARDAJE el Corte se ejecuta después de Sublimación. */
 const OFFSETS_YARDAJE: Record<Area, number> = {
   diseno: 3,
+  marker: 4,
   corte: 6,
   impresion: 4,
   sublimacion: 5,
@@ -70,15 +104,51 @@ export interface FechasObjetivoInput {
   omiteCorteCostura?: boolean | null
   tipoFlujo?: string | null
   costuraSiNo?: boolean | string | null
+  /**
+   * `cabecera.es_marker_digital_si_no`. Activa el paso por Marker Digital y
+   * mueve el objetivo de Corte. Puede venir null en órdenes históricas: se
+   * trata como false.
+   */
+  esMarkerDigital?: boolean | null
 }
 
 export interface FechasObjetivo {
   dfecha_objetivo_d?: string
+  mdfecha_objetivo_md?: string
   cfecha_objetivo_c?: string
   ifecha_objetivo_i?: string
   sfecha_objetivo_s?: string
   cosfecha_objetivo_cs?: string
   efecha_objetivo_e?: string
+}
+
+/**
+ * Días hábiles que Corte tiene para trabajar una orden. Es el mismo SLA con
+ * o sin marker; lo único que cambia es la fecha desde la que se cuenta.
+ */
+export const DIAS_OBJETIVO_CORTE = 4
+
+/**
+ * Nuevo objetivo de Corte cuando Marker Digital entrega el trazo.
+ *
+ * Al programar la orden, el objetivo de Corte se calcula desde la fecha de
+ * programación como el de cualquier área. Pero Corte no puede empezar hasta
+ * tener el trazo, así que cuando el marker entrega se le vuelven a dar sus
+ * DIAS_OBJETIVO_CORTE días hábiles contados DESDE ESA ENTREGA.
+ *
+ * Corte trabaja Lun–Vie, así que el resultado nunca cae en fin de semana.
+ *
+ * Solo se toca `cfecha_objetivo_c`: las fechas de Sublimación, Costura y
+ * Empaque, y el compromiso con el cliente, no se mueven.
+ *
+ * @param fechaEntregaMarker fecha real de entrega del trazo (YYYY-MM-DD)
+ */
+export function objetivoCorteDesdeMarker(
+  fechaEntregaMarker: string
+): string | undefined {
+  const ymd = String(fechaEntregaMarker ?? "").slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return undefined
+  return addDaysSkippingWeekends(ymd, DIAS_OBJETIVO_CORTE)
 }
 
 export function esYardajeFlujo(tipoFlujo: string | null | undefined): boolean {
@@ -99,12 +169,19 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
     omiteCorteCostura,
     tipoFlujo,
     costuraSiNo,
+    esMarkerDigital,
   } = input
 
   if (!fechaBase) return {}
 
   const esYardaje = esYardajeFlujo(tipoFlujo)
-  const offsets = esYardaje ? OFFSETS_YARDAJE : OFFSETS_NORMAL
+  // null (órdenes históricas) cuenta como "no marker".
+  const usaMarker = esMarkerDigital === true
+  const offsets = esYardaje
+    ? OFFSETS_YARDAJE
+    : usaMarker
+      ? OFFSETS_NORMAL_MARKER
+      : OFFSETS_NORMAL
 
   const entregaYMD = fechaEntrega ? String(fechaEntrega).slice(0, 10) : ""
   const usarFechaEntrega = Boolean(esUrgente) && Boolean(entregaYMD)
@@ -112,6 +189,7 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
   // Calendario de cada área.
   const CAL: Record<Area, "lunSab" | "lunVie"> = {
     diseno: "lunSab",
+    marker: "lunVie",
     impresion: "lunVie",
     sublimacion: "lunVie",
     corte: "lunVie",
@@ -132,6 +210,9 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
 
   const aplica: Record<Area, boolean> = {
     diseno: !saltaDisenoImpresion,
+    // Marker Digital solo entra si la orden está marcada. Sin marcar, la
+    // orden ni siquiera recibe fecha objetivo del área.
+    marker: usaMarker && !saltaDisenoImpresion && !saltaCorteCostura,
     impresion: !saltaDisenoImpresion,
     sublimacion: !saltaDisenoImpresion,
     corte: !saltaCorteCostura,
@@ -150,6 +231,7 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
         : entregaYMD
     return {
       dfecha_objetivo_d: val("diseno"),
+      mdfecha_objetivo_md: val("marker"),
       ifecha_objetivo_i: val("impresion"),
       sfecha_objetivo_s: val("sublimacion"),
       cfecha_objetivo_c: val("corte"),
@@ -161,9 +243,27 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
   // Secuencia real del flujo. Cada grupo se ejecuta después del anterior; las
   // áreas dentro de un grupo van en paralelo (Corte e Impresión en producción
   // normal). En YARDAJE el Corte va después de Sublimación.
+  // Con marker, Corte sale del grupo paralelo de Impresión y pasa a depender
+  // del trazo: Diseño → (Marker ‖ Impresión) → Corte → …
   const secuencia: Area[][] = esYardaje
-    ? [["diseno"], ["impresion"], ["sublimacion"], ["corte"], ["costura"], ["empaque"]]
-    : [["diseno"], ["corte", "impresion"], ["sublimacion"], ["costura"], ["empaque"]]
+    ? [
+        ["diseno"],
+        ["marker", "impresion"],
+        ["sublimacion"],
+        ["corte"],
+        ["costura"],
+        ["empaque"],
+      ]
+    : usaMarker
+      ? [
+          ["diseno"],
+          ["marker", "impresion"],
+          ["corte"],
+          ["sublimacion"],
+          ["costura"],
+          ["empaque"],
+        ]
+      : [["diseno"], ["corte", "impresion"], ["sublimacion"], ["costura"], ["empaque"]]
 
   // Mezclar dos calendarios (Lun–Vie y Lun–Sáb) puede romper el orden: p. ej.
   // con base viernes, Costura (+7 Lun–Sáb) caía ANTES que Corte (+6 Lun–Vie).
@@ -188,6 +288,7 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
 
   return {
     dfecha_objetivo_d: fechas.diseno,
+    mdfecha_objetivo_md: fechas.marker,
     ifecha_objetivo_i: fechas.impresion,
     sfecha_objetivo_s: fechas.sublimacion,
     cfecha_objetivo_c: fechas.corte,

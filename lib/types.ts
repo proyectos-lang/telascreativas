@@ -75,6 +75,20 @@ export interface Orden {
   // Campos para terminar diseno
   dmotivo_demora_terminado_d?: string
   dnota_terminado_d?: string
+  // Campos del modulo de Marker Digital (trazos de corte en plotter).
+  // Solo aplican cuando es_marker_digital_si_no = true.
+  mdfecha_objetivo_md?: string
+  mdfecha_de_recepcion?: string
+  mdentrega_marker?: string
+  mdresponsable?: string
+  mdmotivo_demora_recibido_md?: string
+  mdmotivo_demora_terminado_md?: string
+  mdcomentario_marker?: string
+  mdcomentario_entrega_md?: string
+  /** Yardas teoricas prorrateadas del core. NO se muestran al cortador. */
+  mdyardas_teoricas?: number
+  /** Core al que pertenece. null/undefined = se procesa suelta. */
+  mdcore_id?: number | null
   // Campos del modulo de Corte
   cfecha_objetivo_c?: string
   cfecha_de_recepcion?: string
