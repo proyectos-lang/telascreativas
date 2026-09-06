@@ -25,6 +25,9 @@ import {
   Ruler,
   Save,
   Scissors,
+  Sparkles,
+  Wand2,
+  X,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -46,11 +49,13 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { useMarker } from "@/lib/marker-context"
 import {
+  armarCoreManual,
   sugerirCores,
   telasPorPedido,
   type CoreSugerido,
   type OrdenEnCore,
 } from "@/lib/marker/cores"
+import { MarkerReferencias } from "./marker-referencias"
 
 function fmtFecha(v: string | null | undefined): string {
   if (!v) return "—"
@@ -79,6 +84,12 @@ export function MarkerCoresSugeridos() {
   /** Órdenes desmarcadas por el usuario, por core. */
   const [excluidas, setExcluidas] = useState<Record<string, Set<string>>>({})
   const [dialogo, setDialogo] = useState<CoreSugerido | null>(null)
+  /** Modo manual: el usuario arma el marker eligiendo orden por orden. */
+  const [manual, setManual] = useState(false)
+  const [enManual, setEnManual] = useState<Set<string>>(new Set())
+  const [dialogoManual, setDialogoManual] = useState(false)
+  /** Pedidos con sus referencias (líneas de detalle) desplegadas. */
+  const [refsAbiertas, setRefsAbiertas] = useState<Set<string>>(new Set())
   const [nombre, setNombre] = useState("")
   const [yardas, setYardas] = useState("")
   const [guardando, setGuardando] = useState(false)
@@ -133,6 +144,85 @@ export function MarkerCoresSugeridos() {
       toast.success(`Tope actualizado a ${n} piezas`)
     } else {
       toast.error("No se pudo guardar el tope", { description: r.error })
+    }
+  }
+
+  /** Todas las órdenes en cola, con su tela resuelta (para el modo manual). */
+  const todasConTela = useMemo<OrdenEnCore[]>(
+    () => [...sugerencia.cores.flatMap((c) => c.ordenes), ...sugerencia.sueltas],
+    [sugerencia]
+  )
+
+  /** Referencias (líneas de detalle) por pedido. */
+  const refsPorPedido = useMemo(() => {
+    const m = new Map<string, typeof lineas>()
+    for (const l of lineas) {
+      const arr = m.get(l.pedido) ?? []
+      arr.push(l)
+      m.set(l.pedido, arr)
+    }
+    return m
+  }, [lineas])
+
+  const alternarRefs = (pedido: string) =>
+    setRefsAbiertas((prev) => {
+      const n = new Set(prev)
+      if (n.has(pedido)) n.delete(pedido)
+      else n.add(pedido)
+      return n
+    })
+
+  const seleccionManual = useMemo(
+    () => todasConTela.filter((o) => enManual.has(o.pedido)),
+    [todasConTela, enManual]
+  )
+  const resumenManual = useMemo(
+    () => armarCoreManual(seleccionManual, topeEfectivo),
+    [seleccionManual, topeEfectivo]
+  )
+
+  const alternarManual = (pedido: string) =>
+    setEnManual((prev) => {
+      const n = new Set(prev)
+      if (n.has(pedido)) n.delete(pedido)
+      else n.add(pedido)
+      return n
+    })
+
+  const confirmarManual = async () => {
+    const yd = Number(yardas)
+    if (!nombre.trim()) {
+      toast.error("El nombre del marker es obligatorio")
+      return
+    }
+    if (!Number.isFinite(yd) || yd <= 0) {
+      toast.error("Yardas teóricas obligatorias", {
+        description: "Se comparan luego contra el consumo real de Corte.",
+      })
+      return
+    }
+    setGuardando(true)
+    const r = await crearCore({
+      nombre: nombre.trim(),
+      telaPrincipal: resumenManual.telaPrincipal || "MIXTO",
+      yardasTeoricas: yd,
+      ordenes: seleccionManual,
+      creadoPor: usuarioActual?.nombre ?? null,
+      notas:
+        resumenManual.telas.length > 1
+          ? `Marker manual con varias telas: ${resumenManual.telas.join(", ")}`
+          : "Marker armado manualmente",
+    })
+    setGuardando(false)
+    if (r.success) {
+      toast.success(`Marker "${nombre.trim()}" creado`, {
+        description: `${seleccionManual.length} órdenes agrupadas a mano.`,
+      })
+      setDialogoManual(false)
+      setEnManual(new Set())
+      setManual(false)
+    } else {
+      toast.error("No se pudo crear el marker", { description: r.error })
     }
   }
 
@@ -224,8 +314,136 @@ export function MarkerCoresSugeridos() {
             <Save className="mr-1.5 size-3.5" />
             Guardar
           </Button>
+          <Button
+            size="sm"
+            variant={manual ? "default" : "outline"}
+            onClick={() => {
+              setManual((v) => !v)
+              setEnManual(new Set())
+            }}
+            className={cn("h-9", manual && "bg-indigo-600 hover:bg-indigo-700")}
+          >
+            <Wand2 className="mr-1.5 size-3.5" />
+            {manual ? "Salir del modo manual" : "Armar marker manual"}
+          </Button>
         </div>
       </Card>
+
+      {/* MODO MANUAL: el usuario arma el marker orden por orden. */}
+      {manual && (
+        <Card className="overflow-hidden border-indigo-200">
+          <div className="flex flex-wrap items-center gap-3 border-b border-indigo-100 bg-indigo-50/70 px-4 py-3">
+            <Wand2 className="size-4 text-indigo-600" />
+            <span className="font-semibold text-indigo-900">Marker manual</span>
+            <Badge variant="outline" className="border-indigo-300 text-[11px]">
+              {seleccionManual.length} órdenes · {resumenManual.totalPcs} pcs
+            </Badge>
+            {resumenManual.telas.length > 0 && (
+              <Badge variant="outline" className="text-[11px]">
+                {resumenManual.telas.length === 1
+                  ? resumenManual.telas[0]
+                  : `${resumenManual.telas.length} telas`}
+              </Badge>
+            )}
+            <span className="text-xs text-indigo-800/80">
+              Entregas: <Ventana desde={resumenManual.entregaDesde} hasta={resumenManual.entregaHasta} />
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {seleccionManual.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEnManual(new Set())}
+                  className="h-8 text-slate-500"
+                >
+                  <X className="mr-1 size-3.5" />
+                  Limpiar
+                </Button>
+              )}
+              <Button
+                size="sm"
+                disabled={seleccionManual.length === 0}
+                onClick={() => {
+                  setDialogoManual(true)
+                  setNombre("")
+                  setYardas("")
+                }}
+                className="h-8 bg-indigo-600 hover:bg-indigo-700"
+              >
+                <Check className="mr-1.5 size-3.5" />
+                Crear marker
+              </Button>
+            </div>
+          </div>
+
+          {/* Avisos: no bloquean, informan para que la decision sea consciente. */}
+          {resumenManual.avisos.length > 0 && (
+            <div className="space-y-1 border-b border-amber-100 bg-amber-50 px-4 py-2">
+              {resumenManual.avisos.map((a) => (
+                <p key={a} className="flex gap-1.5 text-[11px] text-amber-900">
+                  <Info className="mt-0.5 size-3 shrink-0" />
+                  {a}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="max-h-[26rem] divide-y divide-slate-100 overflow-auto">
+            {todasConTela.map((o) => {
+              const dentro = enManual.has(o.pedido)
+              const refs = refsPorPedido.get(o.pedido) ?? []
+              const abiertas = refsAbiertas.has(`m-${o.pedido}`)
+              return (
+                <div key={o.pedido} className={cn(dentro && "bg-indigo-50/40")}>
+                  <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm">
+                    <Checkbox
+                      checked={dentro}
+                      onCheckedChange={() => alternarManual(o.pedido)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => alternarRefs(`m-${o.pedido}`)}
+                      className="flex items-center gap-1 text-slate-400 hover:text-slate-700"
+                      title="Ver referencias"
+                    >
+                      {abiertas ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronRight className="size-3.5" />
+                      )}
+                    </button>
+                    <span className="min-w-[5.5rem] font-medium text-slate-800">
+                      {o.pedido}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-slate-600">
+                      {o.cliente ?? "—"}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {o.telaPrincipal || "sin tela"}
+                    </Badge>
+                    {o.es_urgente && (
+                      <Badge className="bg-rose-500 text-[10px] text-white hover:bg-rose-600">
+                        Urgente
+                      </Badge>
+                    )}
+                    <span className="w-16 text-right tabular-nums text-slate-700">
+                      {o.piezas} pcs
+                    </span>
+                    <span className="w-24 text-right text-xs tabular-nums text-slate-500">
+                      {fmtFecha(o.fecha_de_entrega)}
+                    </span>
+                  </div>
+                  {abiertas && (
+                    <div className="border-t border-slate-100 bg-slate-50/60 pb-1">
+                      <MarkerReferencias lineas={refs} compacto />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Resumen */}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -326,11 +544,13 @@ export function MarkerCoresSugeridos() {
               <div className="divide-y divide-slate-100">
                 {core.ordenes.map((o) => {
                   const fuera = (excluidas[core.id] ?? new Set()).has(o.pedido)
+                  const refs = refsPorPedido.get(o.pedido) ?? []
+                  const refsOpen = refsAbiertas.has(`${core.id}-${o.pedido}`)
                   return (
-                    <label
-                      key={o.pedido}
+                    <div key={o.pedido}>
+                    <div
                       className={cn(
-                        "flex cursor-pointer flex-wrap items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50",
+                        "flex flex-wrap items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50",
                         fuera && "opacity-45"
                       )}
                     >
@@ -338,6 +558,18 @@ export function MarkerCoresSugeridos() {
                         checked={!fuera}
                         onCheckedChange={() => alternar(core.id, o.pedido)}
                       />
+                      <button
+                        type="button"
+                        onClick={() => alternarRefs(`${core.id}-${o.pedido}`)}
+                        className="flex items-center gap-1 text-slate-400 hover:text-slate-700"
+                        title="Ver referencias de la orden"
+                      >
+                        {refsOpen ? (
+                          <ChevronDown className="size-3.5" />
+                        ) : (
+                          <ChevronRight className="size-3.5" />
+                        )}
+                      </button>
                       <span className="min-w-[5.5rem] font-medium text-slate-800">
                         {o.pedido}
                       </span>
@@ -367,7 +599,17 @@ export function MarkerCoresSugeridos() {
                       >
                         {fmtFecha(o.fecha_de_entrega)}
                       </span>
-                    </label>
+                    </div>
+                    {refsOpen && (
+                      <div className="border-t border-slate-100 bg-slate-50/60 pb-1">
+                        <MarkerReferencias
+                          lineas={refs}
+                          telaPrincipal={core.telaPrincipal}
+                          compacto
+                        />
+                      </div>
+                    )}
+                    </div>
                   )
                 })}
               </div>
@@ -415,6 +657,111 @@ export function MarkerCoresSugeridos() {
           </div>
         </Card>
       )}
+
+      {/* Confirmación del marker MANUAL */}
+      <Dialog open={dialogoManual} onOpenChange={(v) => !v && setDialogoManual(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="size-4 text-indigo-600" />
+              Crear marker manual
+            </DialogTitle>
+            <DialogDescription>
+              {seleccionManual.length} órdenes · {resumenManual.totalPcs} pcs ·{" "}
+              {resumenManual.telas.length === 1
+                ? resumenManual.telas[0]
+                : `${resumenManual.telas.length} telas`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {resumenManual.avisos.length > 0 && (
+              <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                {resumenManual.avisos.map((a) => (
+                  <p key={a} className="flex gap-1.5 text-[11px] text-amber-900">
+                    <Info className="mt-0.5 size-3 shrink-0" />
+                    {a}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mkm-nombre" className="text-sm">
+                Nombre del marker <span className="text-rose-600">*</span>
+              </Label>
+              <Input
+                id="mkm-nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej. MIXTO-URGENTES-37"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mkm-yardas" className="text-sm">
+                Yardas teóricas del trazo <span className="text-rose-600">*</span>
+              </Label>
+              <div className="relative">
+                <Ruler className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="mkm-yardas"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={yardas}
+                  onChange={(e) => setYardas(e.target.value)}
+                  className="pl-8"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-40 overflow-auto rounded-lg border border-slate-200">
+              {seleccionManual.map((o) => (
+                <div
+                  key={o.pedido}
+                  className="flex items-center gap-2 border-b border-slate-100 px-2.5 py-1 text-xs last:border-0"
+                >
+                  <span className="min-w-[5rem] font-medium text-slate-800">
+                    {o.pedido}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-slate-500">
+                    {o.cliente ?? "—"}
+                  </span>
+                  <Badge variant="outline" className="px-1 py-0 text-[9px]">
+                    {o.telaPrincipal || "—"}
+                  </Badge>
+                  <span className="tabular-nums text-slate-600">{o.piezas}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoManual(false)}
+              disabled={guardando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarManual}
+              disabled={guardando}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {guardando ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Check className="mr-1.5 size-3.5" />
+              )}
+              Crear marker
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmación */}
       <Dialog open={!!dialogo} onOpenChange={(v) => !v && setDialogo(null)}>

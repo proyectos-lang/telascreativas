@@ -51,11 +51,19 @@ export interface MarkerCore {
   notas: string | null
 }
 
-/** Línea de detalle que alimenta el algoritmo de agrupación. */
+/**
+ * Línea de `detalleorden`: alimenta el algoritmo de agrupación (por `tela`)
+ * y además es la REFERENCIA que el marker necesita para trazar — qué prenda,
+ * en qué género, talla y estilo.
+ */
 export interface LineaTela {
   pedido: string
   tela: string | null
   pcs: number | string | null
+  nombre: string | null
+  genero: string | null
+  talla: string | null
+  estilo: string | null
 }
 
 interface Resultado {
@@ -165,16 +173,15 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
 
       setOrdenes(propias)
 
-      // Detalle solo de las órdenes en cola (las que aún no tienen trazo).
-      const enCola = propias
-        .filter((o) => !o.mdentrega_marker && !o.mdcore_id)
-        .map((o) => o.pedido)
+      // Detalle de todas las órdenes del área: se usa tanto para agrupar
+      // como para desplegar las referencias de un marker ya armado.
+      const enCola = propias.map((o) => o.pedido)
       if (enCola.length > 0) {
         const { data: det } = await fetchAll<LineaTela>((from, to) =>
           supabase
             .schema("telas")
             .from("detalleorden")
-            .select("pedido, tela, pcs")
+            .select("pedido, tela, pcs, nombre, genero, talla, estilo")
             .in("pedido", enCola)
             .range(from, to) as unknown as PromiseLike<{
             data: LineaTela[] | null

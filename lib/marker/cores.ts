@@ -266,6 +266,79 @@ function construirCore(
 }
 
 /**
+ * Construye un core MANUAL con las órdenes que el usuario eligió.
+ *
+ * La sugerencia automática agrupa por tela y corta al llegar al tope; esto
+ * es la vía de escape para cuando el marker sabe algo que el algoritmo no
+ * (una urgencia, un cliente que pidió salir junto, un retazo aprovechable).
+ *
+ * No impone la regla de tela ni el tope: los devuelve como AVISOS para que
+ * el usuario decida con la información delante. Mezclar telas en un mismo
+ * trazo es posible —se sacan trazos aparte— pero debe ser una decisión
+ * consciente, no un accidente.
+ */
+export function armarCoreManual(
+  seleccion: OrdenEnCore[],
+  topePcs: number
+): {
+  telaPrincipal: string
+  totalPcs: number
+  entregaDesde: string | null
+  entregaHasta: string | null
+  /** Telas distintas presentes en la selección. */
+  telas: string[]
+  avisos: string[]
+} {
+  const totalPcs = seleccion.reduce((s, o) => s + o.piezas, 0)
+
+  // Tela mayoritaria EN PIEZAS: el mismo criterio que usa la sugerencia.
+  const porTela = new Map<string, number>()
+  for (const o of seleccion) {
+    if (!o.telaPrincipal) continue
+    porTela.set(o.telaPrincipal, (porTela.get(o.telaPrincipal) ?? 0) + o.piezas)
+  }
+  const orden = [...porTela.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  )
+  const telaPrincipal = orden[0]?.[0] ?? ""
+
+  const fechas = seleccion
+    .map((o) => String(o.fecha_de_entrega ?? "").slice(0, 10))
+    .filter(Boolean)
+    .sort()
+
+  const avisos: string[] = []
+  if (orden.length > 1)
+    avisos.push(
+      `La selección mezcla ${orden.length} telas (${orden
+        .map(([t]) => t)
+        .join(", ")}). Habrá que sacar un trazo por cada una.`
+    )
+  if (totalPcs > topePcs)
+    avisos.push(
+      `${totalPcs} piezas superan el tope de ${topePcs} de la mesa de corte.`
+    )
+  if (fechas.length > 1) {
+    const dias = Math.round(
+      (Date.parse(fechas[fechas.length - 1]) - Date.parse(fechas[0])) / 86400000
+    )
+    if (dias > 14)
+      avisos.push(
+        `Las entregas se reparten en ${dias} días: el corte agrupado puede adelantar unas y atrasar otras.`
+      )
+  }
+
+  return {
+    telaPrincipal,
+    totalPcs,
+    entregaDesde: fechas[0] ?? null,
+    entregaHasta: fechas[fechas.length - 1] ?? null,
+    telas: orden.map(([t]) => t),
+    avisos,
+  }
+}
+
+/**
  * Reparte una cantidad total entre las órdenes de un core, en proporción a
  * sus piezas. Se usa dos veces:
  *   - yardas TEÓRICAS del marker → `cabecera.mdyardas_teoricas`

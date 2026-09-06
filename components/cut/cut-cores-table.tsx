@@ -15,7 +15,8 @@
  * que se le compara, mostrarlas sesgaría el registro.
  */
 
-import { useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,8 +39,14 @@ import {
   Scissors,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { MarkerCore } from "@/lib/marker-context"
+import type { LineaTela, MarkerCore } from "@/lib/marker-context"
+import { MarkerReferencias } from "@/components/marker/marker-referencias"
 import { CutCoreFinishModal } from "./cut-core-finish-modal"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export interface CoreEnCorte {
   core: MarkerCore
@@ -69,6 +76,9 @@ function fmt(v: string | null | undefined) {
 
 export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
   const [abierto, setAbierto] = useState<Record<number, boolean>>({})
+  /** Referencias (lineas de detalleorden) de las ordenes desplegadas. */
+  const [refs, setRefs] = useState<Map<string, LineaTela[]>>(new Map())
+  const [refsAbiertas, setRefsAbiertas] = useState<Set<string>>(new Set())
   const [cerrando, setCerrando] = useState<CoreEnCorte | null>(null)
   const [recibiendo, setRecibiendo] = useState<number | null>(null)
 
@@ -76,6 +86,44 @@ export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
     () => cores.filter((c) => !c.cortado).length,
     [cores]
   )
+
+  // Las referencias se cargan una sola vez para todas las ordenes de los
+  // cores visibles: el cortador necesita ver que prendas contiene cada
+  // marker sin salir de la pantalla.
+  const pedidos = useMemo(
+    () => cores.flatMap((c) => c.ordenes.map((o) => o.pedido)),
+    [cores]
+  )
+  useEffect(() => {
+    if (pedidos.length === 0) return
+    let cancelado = false
+    void (async () => {
+      const { data } = await supabase
+        .schema("telas")
+        .from("detalleorden")
+        .select("pedido, tela, pcs, nombre, genero, talla, estilo")
+        .in("pedido", pedidos)
+      if (cancelado) return
+      const m = new Map<string, LineaTela[]>()
+      for (const l of (data as LineaTela[]) ?? []) {
+        const arr = m.get(l.pedido) ?? []
+        arr.push(l)
+        m.set(l.pedido, arr)
+      }
+      setRefs(m)
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [pedidos.join(",")])
+
+  const alternarRefs = (pedido: string) =>
+    setRefsAbiertas((prev) => {
+      const n = new Set(prev)
+      if (n.has(pedido)) n.delete(pedido)
+      else n.add(pedido)
+      return n
+    })
 
   if (cores.length === 0) return null
 
@@ -189,9 +237,26 @@ export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {c.ordenes.map((o) => (
-                      <TableRow key={o.pedido}>
-                        <TableCell className="font-medium">{o.pedido}</TableCell>
+                    {c.ordenes.map((o) => {
+                      const abiertaRef = refsAbiertas.has(o.pedido)
+                      return (
+                      <Fragment key={o.pedido}>
+                      <TableRow>
+                        <TableCell className="font-medium">
+                          <button
+                            type="button"
+                            onClick={() => alternarRefs(o.pedido)}
+                            className="mr-1.5 align-middle text-slate-400 hover:text-slate-700"
+                            title="Ver referencias de la orden"
+                          >
+                            {abiertaRef ? (
+                              <ChevronDown className="inline size-3.5" />
+                            ) : (
+                              <ChevronRight className="inline size-3.5" />
+                            )}
+                          </button>
+                          {o.pedido}
+                        </TableCell>
                         <TableCell className="max-w-[16rem] truncate">
                           {o.cliente || "-"}
                         </TableCell>
@@ -223,7 +288,20 @@ export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      {abiertaRef && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="bg-slate-50/70 p-0">
+                            <MarkerReferencias
+                              lineas={refs.get(o.pedido) ?? []}
+                              telaPrincipal={c.core.tela_principal}
+                              compacto
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
