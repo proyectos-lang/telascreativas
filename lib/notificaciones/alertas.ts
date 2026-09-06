@@ -86,6 +86,11 @@ export function reproducirTono(tipo: TonoTipo = "mensaje") {
   if (estaSilenciado()) return
   const ctx = getCtx()
   if (!ctx) return
+  // En segundo plano el navegador suspende el AudioContext, asi que este tono
+  // no suena: ahi el sonido lo pone la notificacion del sistema (ver
+  // `notificarEscritorio`, que la emite sin `silent`). No se fuerza el resume
+  // para no pelear con la politica de autoplay.
+  if (ctx.state === "suspended") return
   try {
     const t = ctx.currentTime + 0.01
     const vol = 0.09
@@ -136,10 +141,27 @@ export async function pedirPermisoNotificaciones(): Promise<
   }
 }
 
+/** True si la app corre instalada (ventana propia, sin barra del navegador). */
+export function estaInstalada(): boolean {
+  if (typeof window === "undefined") return false
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
 /**
- * Muestra una notificación del sistema SOLO si la pestaña no está visible
- * (si el usuario está viendo la app, ya tiene el banner y la campana).
- * Al hacer clic, enfoca la ventana y ejecuta `onClick`.
+ * Muestra una notificación del sistema.
+ *
+ * Se emite por el Service Worker cuando hay uno: `new Notification()` lanza
+ * "Illegal constructor" en Android y no aparece de forma fiable en una PWA
+ * instalada, que es justo el caso en el que más se necesita. El constructor
+ * directo queda solo como respaldo para escritorio sin SW.
+ *
+ * Por defecto solo avisa si la pestaña NO está visible (si el usuario está
+ * mirando la app ya tiene el banner y la campana). Con la app instalada eso
+ * no basta: la ventana puede estar detrás de otra y seguir reportándose
+ * "visible", así que ahí sí se emite siempre.
  */
 export function notificarEscritorio(
   titulo: string,
@@ -148,22 +170,49 @@ export function notificarEscritorio(
 ) {
   if (!soportaNotificaciones()) return
   if (Notification.permission !== "granted") return
-  if (!opts?.forzar && document.visibilityState === "visible") return
+
+  const enPrimerPlano =
+    document.visibilityState === "visible" && document.hasFocus()
+  if (!opts?.forzar && enPrimerPlano) return
+
+  const cuerpo: NotificationOptions & { renotify?: boolean } = {
+    body: texto,
+    icon: "/images/telas-creativas-logo.png",
+    badge: "/icon-light-32x32.png",
+    tag: opts?.tag,
+    // `renotify` obliga a volver a sonar/vibrar cuando llega otro aviso con
+    // el mismo tag; sin el, el segundo cambio de una misma orden es mudo.
+    renotify: !!opts?.tag,
+    silent: estaSilenciado(),
+    vibrate: estaSilenciado() ? undefined : [80, 40, 80],
+    data: { url: "/" },
+  } as NotificationOptions & { renotify?: boolean }
+
+  // Ruta principal: Service Worker.
+  if ("serviceWorker" in navigator) {
+    void navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification(titulo, cuerpo))
+      .catch(() => notificacionDirecta(titulo, cuerpo, opts?.onClick))
+    return
+  }
+  notificacionDirecta(titulo, cuerpo, opts?.onClick)
+}
+
+/** Respaldo para escritorio sin Service Worker. */
+function notificacionDirecta(
+  titulo: string,
+  cuerpo: NotificationOptions,
+  onClick?: () => void
+) {
   try {
-    const n = new Notification(titulo, {
-      body: texto,
-      // Reutiliza el logo de la app como icono.
-      icon: "/images/telas-creativas-logo.png",
-      tag: opts?.tag,
-      silent: estaSilenciado(),
-    })
+    const n = new Notification(titulo, cuerpo)
     n.onclick = () => {
       try {
         window.focus()
       } catch {
         /* ignore */
       }
-      opts?.onClick?.()
+      onClick?.()
       n.close()
     }
   } catch {
@@ -171,12 +220,22 @@ export function notificarEscritorio(
   }
 }
 
-/** Sonido + notificación de escritorio en una sola llamada. */
+/**
+ * Sonido + notificación del sistema en una sola llamada.
+ *
+ * `forzar` emite la notificación aunque el usuario tenga la app al frente;
+ * se usa para lo que no se puede perder (cambios de estado de Gestión de
+ * Diseños). Sin él, solo avisa cuando la app está en segundo plano.
+ */
 export function alertar(
   titulo: string,
   texto: string,
-  opts?: { tono?: TonoTipo; tag?: string; onClick?: () => void }
+  opts?: { tono?: TonoTipo; tag?: string; forzar?: boolean; onClick?: () => void }
 ) {
   reproducirTono(opts?.tono ?? "mensaje")
-  notificarEscritorio(titulo, texto, { tag: opts?.tag, onClick: opts?.onClick })
+  notificarEscritorio(titulo, texto, {
+    tag: opts?.tag,
+    forzar: opts?.forzar,
+    onClick: opts?.onClick,
+  })
 }

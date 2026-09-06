@@ -461,11 +461,16 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       const detalle = n.esNueva
         ? `Nueva solicitud · ${n.nuevoEstado}`
         : `${n.estadoAnterior ?? "—"} → ${n.nuevoEstado} · ${n.nuevoTurno}`
-      alertar(`${n.numero} — ${n.cliente}`, detalle, {
+      alertar(`Gestión ${n.numero} — ${n.cliente}`, detalle, {
         tono: "tarea",
         // Tag por solicitud: si cambia dos veces seguidas, el segundo aviso
-        // reemplaza al primero en vez de apilarse.
+        // reemplaza al primero en vez de apilarse (con `renotify`, el nuevo
+        // vuelve a sonar igual).
         tag: `gd-${n.numero}`,
+        // Los cambios de estado de Gestión de Diseños se avisan SIEMPRE, este
+        // el usuario en la app o no: son el disparador del trabajo del turno
+        // siguiente y perderlos frena el flujo.
+        forzar: true,
         onClick: () => navigateRef.current("gestion-disenos"),
       })
     }

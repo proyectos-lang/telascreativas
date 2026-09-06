@@ -16,7 +16,10 @@ declare global {
 }
 
 const DISMISS_KEY = "pwa-install-dismissed"
-const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
+// "Ahora no" solo silencia el aviso por un rato, no para siempre: la app debe
+// volver a ofrecer la instalacion en la siguiente sesion. Sin instalar, las
+// notificaciones del sistema son mucho menos fiables (en iOS ni existen).
+const DISMISS_TTL = 12 * 60 * 60 * 1000 // 12 horas
 
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
