@@ -112,6 +112,22 @@ select
   (c.sfecha_de_ingreso_sub is not null and c.seta_sublimacion is null
      and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as sublimacion_en_curso,
   (c.cosfecha_conteo is not null and c.coseta_costura is null
-     and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as costura_en_curso
+     and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as costura_en_curso,
+
+  -- Marker Digital. Tambien AL FINAL, por la misma restriccion de
+  -- CREATE OR REPLACE VIEW. Solo tiene valor en las ordenes con
+  -- es_marker_digital_si_no; en el resto queda NULL/false y no entra en
+  -- ningun promedio.
+  c.mdfecha_de_recepcion,
+  c.mdentrega_marker,
+  case
+    when c.mdentrega_marker is not null and c.mdfecha_de_recepcion is not null
+    then (c.mdentrega_marker - c.mdfecha_de_recepcion)
+    when c.mdfecha_de_recepcion is not null
+         and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null
+    then (current_date - c.mdfecha_de_recepcion)
+  end as dias_en_marker,
+  (c.mdfecha_de_recepcion is not null and c.mdentrega_marker is null
+     and c.estado_aprobado_rechazado = 'Aprobado' and c.efecha_de_empaque is null) as marker_en_curso
 
 from telas.cabecera c;

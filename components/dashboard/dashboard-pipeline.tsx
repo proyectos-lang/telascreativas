@@ -15,6 +15,7 @@ import {
   Palette,
   PackageCheck,
   Printer,
+  Ruler,
   Scissors,
   Shirt,
   Workflow,
@@ -42,6 +43,15 @@ const STAGES: StageMeta[] = [
     accent: "text-amber-600",
     ring: "ring-amber-300",
     bg: "bg-amber-50",
+  },
+  {
+    key: "marker",
+    label: "Marker Digital",
+    short: "MKR",
+    icon: Ruler,
+    accent: "text-cyan-600",
+    ring: "ring-cyan-300",
+    bg: "bg-cyan-50",
   },
   {
     key: "corte",

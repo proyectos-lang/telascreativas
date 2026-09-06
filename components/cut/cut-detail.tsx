@@ -215,7 +215,10 @@ export function CutDetail({ orden, onBack }: CutDetailProps) {
   // de ir en paralelo con Diseño para estas: sin trazo no hay que cortar.
   const esMarker = orden.es_marker_digital_si_no === true
   const markerEntregado = Boolean(orden.mdentrega_marker)
-  const esperandoMarker = esMarker && !markerEntregado
+  // Las órdenes anteriores al área ya se cortaron sin trazo: no tiene
+  // sentido decirles que esperan un marker que nunca va a llegar.
+  const esperandoMarker =
+    esMarker && !markerEntregado && !orden.cfecha_de_corte
   // Condicion para habilitar el "Recibir" en Corte segun el flujo.
   const isReadyToReceive =
     isApprovedByPlanner &&

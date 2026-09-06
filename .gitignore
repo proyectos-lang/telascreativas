@@ -43,3 +43,6 @@ __v0_jsx-dev-runtime.ts
 .snowflake/
 .v0-trash/
 next.user-config.*
+
+# Snapshots temporales de verificacion de vistas (no versionar)
+.snapshot-*.json

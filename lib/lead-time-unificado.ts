@@ -11,9 +11,12 @@
  */
 
 // Orden de presentacion = flujo real de planta:
-// Diseno -> Impresion -> Corte -> Sublimacion -> Costura
+// Diseno -> (Marker || Impresion) -> Corte -> Sublimacion -> Costura
+// Marker Digital solo aplica a las ordenes con es_marker_digital_si_no; en
+// el resto sus columnas llegan NULL y el area no suma al promedio.
 export const AREAS_LT = [
   "diseno",
+  "marker",
   "impresion",
   "corte",
   "sublimacion",
@@ -24,6 +27,7 @@ export type AreaLT = (typeof AREAS_LT)[number]
 
 export const AREA_LABEL_LT: Record<AreaLT, string> = {
   diseno: "Diseño",
+  marker: "Marker Digital",
   corte: "Corte",
   impresion: "Impresión",
   sublimacion: "Sublimación",
@@ -33,6 +37,7 @@ export const AREA_LABEL_LT: Record<AreaLT, string> = {
 /** Columna de días por área en la vista unificada. */
 export const DIAS_FIELD: Record<AreaLT, keyof LeadTimeUnificadoRow> = {
   diseno: "dias_en_diseno",
+  marker: "dias_en_marker",
   corte: "dias_en_corte",
   impresion: "dias_en_impresion",
   sublimacion: "dias_en_sublimacion",
@@ -45,6 +50,7 @@ export const FECHA_FIELDS: Record<
   { recep: keyof LeadTimeUnificadoRow; fin: keyof LeadTimeUnificadoRow }
 > = {
   diseno: { recep: "dfecha_de_ingreso_diseno", fin: "dentrega_diseno" },
+  marker: { recep: "mdfecha_de_recepcion", fin: "mdentrega_marker" },
   corte: { recep: "cfecha_de_recepcion", fin: "cfecha_de_corte" },
   impresion: { recep: "ifecha_de_ingreso_imp", fin: "ientrega_impresion" },
   sublimacion: { recep: "sfecha_de_ingreso_sub", fin: "seta_sublimacion" },
@@ -54,6 +60,7 @@ export const FECHA_FIELDS: Record<
 /** Flag "en curso" por área: la orden vigente sigue en el proceso (tiempo actual). */
 export const EN_CURSO_FIELD: Record<AreaLT, keyof LeadTimeUnificadoRow> = {
   diseno: "diseno_en_curso",
+  marker: "marker_en_curso",
   corte: "corte_en_curso",
   impresion: "impresion_en_curso",
   sublimacion: "sublimacion_en_curso",
@@ -77,6 +84,8 @@ export interface LeadTimeUnificadoRow {
 
   dfecha_de_ingreso_diseno: string | null
   dentrega_diseno: string | null
+  mdfecha_de_recepcion: string | null
+  mdentrega_marker: string | null
   cfecha_de_recepcion: string | null
   cfecha_de_corte: string | null
   ifecha_de_ingreso_imp: string | null
@@ -88,6 +97,7 @@ export interface LeadTimeUnificadoRow {
   efecha_de_empaque: string | null
 
   dias_en_diseno: number | null
+  dias_en_marker: number | null
   dias_en_corte: number | null
   dias_en_impresion: number | null
   dias_en_sublimacion: number | null
@@ -96,6 +106,7 @@ export interface LeadTimeUnificadoRow {
   // Flags "en curso": el dias_en_<area> correspondiente es el tiempo ACTUAL
   // (hoy − recepción) porque la etapa aún no termina en una orden vigente.
   diseno_en_curso: boolean | null
+  marker_en_curso: boolean | null
   corte_en_curso: boolean | null
   impresion_en_curso: boolean | null
   sublimacion_en_curso: boolean | null

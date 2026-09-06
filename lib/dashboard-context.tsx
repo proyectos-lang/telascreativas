@@ -170,6 +170,7 @@ export interface AreaAverage {
 
 export type AreaKey =
   | "diseno"
+  | "marker"
   | "corte"
   | "impresion"
   | "sublimacion"
@@ -178,6 +179,7 @@ export type AreaKey =
 
 const AREA_LABEL: Record<AreaKey, string> = {
   diseno: "Diseno",
+  marker: "Marker Digital",
   corte: "Corte",
   impresion: "Impresion",
   sublimacion: "Sublimacion",
@@ -192,6 +194,8 @@ const statusFor = (
   switch (key) {
     case "diseno":
       return (row.status_diseno as StatusArea) ?? null
+    case "marker":
+      return (row.status_marker as StatusArea) ?? null
     case "corte":
       return (row.status_corte as StatusArea) ?? null
     case "impresion":
@@ -212,6 +216,8 @@ const daysFor = (
   switch (key) {
     case "diseno":
       return row.dias_en_diseno ?? null
+    case "marker":
+      return row.dias_en_marker ?? null
     case "corte":
       return row.dias_en_corte ?? null
     case "impresion":

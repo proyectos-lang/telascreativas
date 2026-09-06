@@ -48,15 +48,13 @@ function avgNoNeg(values: (number | null | undefined)[]): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length
 }
 
-// La vista vista_kpi_lead_times encadena las colas entre areas
-// (cola_diseno_a_impresion, etc.). Marker Digital se muestra con su tiempo
-// ACTIVO pero con `cola: null`: la vista todavia no expone
-// cola_diseno_a_marker ni cola_marker_a_corte, y fabricar aqui una cola que
-// la BD no calcula daria un numero inventado. Cuando esas columnas existan,
-// basta con enlazarlas aqui.
+// La vista vista_kpi_lead_times encadena las colas entre areas. Con Marker
+// Digital el flujo se bifurca despues de Diseno —Marker e Impresion van en
+// paralelo— asi que Diseno tiene DOS colas de salida; aqui se muestra la de
+// Impresion (la del marker se ve en su propia fila, como cola de entrada).
 const ETAPAS = [
   { label: "Diseno", activo: "dias_en_diseno", cola: "cola_diseno_a_impresion" },
-  { label: "Marker", activo: "dias_en_marker", cola: null },
+  { label: "Marker", activo: "dias_en_marker", cola: "cola_marker_a_corte" },
   {
     label: "Impresion",
     activo: "dias_en_impresion",

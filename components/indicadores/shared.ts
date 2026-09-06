@@ -78,6 +78,8 @@ export interface KpiLeadTimeRow extends Periodo {
   dias_en_costura: number | null
   dias_en_empaque: number | null
   cola_diseno_a_impresion: number | null
+  cola_diseno_a_marker: number | null
+  cola_marker_a_corte: number | null
   cola_impresion_a_sublimacion: number | null
   cola_sublimacion_a_corte: number | null
   cola_corte_a_costura: number | null

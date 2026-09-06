@@ -136,6 +136,10 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
         if (o.solo_corte_costura === true) return false
         // Si no pasa por Corte, el trazo no tiene destino.
         if (o.omite_corte_costura === true) return false
+        // Órdenes anteriores al área: ya se cortaron sin trazo, así que
+        // pedirlo ahora no tiene sentido. Sin este filtro, 45 órdenes ya
+        // cortadas aparecían en la cola pidiendo un marker inútil.
+        if (o.cfecha_de_corte) return false
         return true
       })
 

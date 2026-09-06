@@ -356,6 +356,7 @@ export interface VistaControlProduccion {
 
   // Estados por area
   status_diseno?: StatusArea | null
+  status_marker?: StatusArea | null
   status_corte?: StatusArea | null
   status_impresion?: StatusArea | null
   status_sublimacion?: StatusArea | null
@@ -364,6 +365,7 @@ export interface VistaControlProduccion {
 
   // Fechas de fin por area
   fecha_fin_diseno?: string | null
+  fecha_fin_marker?: string | null
   fecha_fin_corte?: string | null
   fecha_fin_impresion?: string | null
   fecha_fin_sublimacion?: string | null
@@ -372,6 +374,7 @@ export interface VistaControlProduccion {
 
   // Lead times por area (dias)
   dias_en_diseno?: number | null
+  dias_en_marker?: number | null
   dias_en_corte?: number | null
   dias_en_impresion?: number | null
   dias_en_sublimacion?: number | null

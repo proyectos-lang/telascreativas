@@ -45,6 +45,11 @@ import { fetchAll } from "@/lib/fetch-all"
 
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
+// NOTA: aqui NO esta Marker Digital. Esta tabla lee
+// telas.vista_lead_times_historico, que no expone dias_en_marker y cuyo DDL
+// no esta en el repositorio. Agregar la fila mostraria una columna siempre
+// vacia. Cuando esa vista incluya la columna, se agrega aqui igual que las
+// demas.
 const AREAS = [
   { key: "diseno",      label: "Diseño",      field: "dias_en_diseno"      as keyof LtHistoricoRow, color: PALETA.navy,    accentClass: "bg-blue-100 text-blue-700"     },
   { key: "corte",       label: "Corte",       field: "dias_en_corte"       as keyof LtHistoricoRow, color: PALETA.teal,    accentClass: "bg-teal-100 text-teal-700"     },
