@@ -28,6 +28,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { getTodayISO } from "@/lib/date-utils"
 import { calcularFechasObjetivo } from "@/lib/fechas-objetivo"
+import { useAuth } from "@/lib/auth-context"
+import { marcarRechazoVisto } from "@/lib/ventas/rechazos-pendientes"
 import { EnviarPorChatButton } from "@/components/shared/enviar-por-chat-button"
 import {
   ArrowLeft,
@@ -38,6 +40,7 @@ import {
   Loader2,
   RotateCcw,
   Ban,
+  CheckCircle2,
   User,
   MapPin,
   Calendar,
@@ -130,6 +133,8 @@ export function OrderDetail({
   onUpdateOrden,
   isLoading,
 }: OrderDetailProps) {
+  const { usuarioActual } = useAuth()
+  const [marcandoVisto, setMarcandoVisto] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showReprogramModal, setShowReprogramModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -398,6 +403,10 @@ export function OrderDetail({
     const result = await onUpdateOrden(orden.pedido, {
       estado_aprobado_rechazado: "Rechazado",
       motivo_rechazo: motivo,
+      // Un rechazo nuevo vuelve a estar pendiente para Ventas: si la orden
+      // ya se habia rechazado y visto antes, el acuse anterior no aplica.
+      rechazo_visto_por: null,
+      rechazo_visto_en: null,
     })
     setActionLoading(null)
 
@@ -725,6 +734,67 @@ export function OrderDetail({
           )}
         </div>
       </div>
+
+      {/* Rechazo: el motivo y el acuse de Ventas. Antes el motivo se
+          guardaba pero no se mostraba en ninguna parte, asi que Ventas
+          tenia que preguntarlo. */}
+      {orden.estado_aprobado_rechazado === "Rechazado" && (
+        <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3">
+          <div className="flex flex-wrap items-start gap-3">
+            <Ban className="mt-0.5 size-4 shrink-0 text-rose-600" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-rose-900">
+                Orden rechazada por Programación
+              </p>
+              <p className="mt-0.5 text-sm text-rose-800">
+                {orden.motivo_rechazo?.trim()
+                  ? orden.motivo_rechazo
+                  : "Sin motivo registrado."}
+              </p>
+              {orden.vendedora && (
+                <p className="mt-1 text-[11px] text-rose-700/80">
+                  Vendedora: {orden.vendedora}
+                </p>
+              )}
+            </div>
+            {orden.rechazo_visto_en ? (
+              <span className="flex items-center gap-1 whitespace-nowrap text-[11px] text-rose-700">
+                <CheckCircle2 className="size-3.5" />
+                Visto{orden.rechazo_visto_por ? ` por ${orden.rechazo_visto_por}` : ""}
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={marcandoVisto}
+                onClick={async () => {
+                  if (!usuarioActual?.email) return
+                  setMarcandoVisto(true)
+                  const r = await marcarRechazoVisto(
+                    orden.pedido,
+                    usuarioActual.email
+                  )
+                  setMarcandoVisto(false)
+                  if (r.success) {
+                    toast.success("Rechazo marcado como visto")
+                    await onUpdateOrden(orden.pedido, {})
+                  } else {
+                    toast.error("No se pudo marcar", { description: r.error })
+                  }
+                }}
+                className="border-rose-300 bg-white text-rose-700 hover:bg-rose-100"
+              >
+                {marcandoVisto ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 size-3.5" />
+                )}
+                Marcar como visto
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main content grid - 1/3 info panel + 2/3 products table */}
       <div className="grid gap-6 lg:grid-cols-3">

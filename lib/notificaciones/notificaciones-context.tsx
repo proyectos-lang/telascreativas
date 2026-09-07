@@ -40,6 +40,11 @@ import type { GDNotification } from "@/lib/gestion-disenos-context"
 import { useAppNavigation } from "@/lib/app-navigation"
 import { useReposicionesPendientes } from "@/lib/reposiciones-pendientes"
 import {
+  cargarRechazosPendientes,
+  rechazosDe,
+  type RechazoPendiente,
+} from "@/lib/ventas/rechazos-pendientes"
+import {
   alertar,
   desbloquearAudio,
   estaSilenciado,
@@ -49,7 +54,13 @@ import {
   reproducirTono,
 } from "./alertas"
 
-export type AlertaTipo = "chat" | "tarea" | "noticia" | "diseno" | "operativo"
+export type AlertaTipo =
+  | "chat"
+  | "tarea"
+  | "noticia"
+  | "diseno"
+  | "rechazo"
+  | "operativo"
 
 export interface AlertaItem {
   id: string
@@ -120,6 +131,8 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
   // `gdNotifications` para que descartar el banner del módulo no los borre
   // de la campana.
   const [cambiosGD, setCambiosGD] = useState<GDNotification[]>([])
+  /** Rechazos de Programación que Ventas aún no ha revisado. */
+  const [rechazos, setRechazos] = useState<RechazoPendiente[]>([])
   const [cargandoTareas, setCargandoTareas] = useState(false)
   const [silenciado, setSilenciadoState] = useState(false)
   const [permisoEscritorio, setPermisoEscritorio] = useState<
@@ -172,6 +185,9 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     try {
       const r = await cargarTareasRef.current(false)
       setTareas(r?.rows ?? [])
+      // Los rechazos viajan en el mismo ciclo: tampoco tienen realtime y
+      // el usuario espera verlos apenas abre o vuelve a la app.
+      setRechazos(await cargarRechazosPendientes())
     } finally {
       setCargandoTareas(false)
     }
@@ -269,7 +285,24 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // 4) Operativos: reposiciones pendientes.
+    // 4) Rechazos de Programación sin revisar. Solo los ve quien
+    //    corresponde: la vendedora de la orden y la Jefa de Ventas.
+    for (const r of rechazosDe(rechazos, email)) {
+      out.push({
+        id: `rechazo-${r.pedido}`,
+        tipo: "rechazo",
+        titulo: `${r.pedido} — ${r.cliente ?? "sin cliente"}`,
+        texto: r.motivo
+          ? `Rechazada: ${r.motivo}`
+          : "Rechazada por Programación (sin motivo registrado)",
+        urgente: true,
+        // `focusPedido` hace que Programación abra el detalle directamente.
+        onClick: () =>
+          navigateRef.current("programacion", { focusPedido: r.pedido }),
+      })
+    }
+
+    // 5) Operativos: reposiciones pendientes.
     const repos = reposMapa.size
     if (repos > 0) {
       out.push({
@@ -282,7 +315,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // 5) Gestión de Diseños.
+    // 6) Gestión de Diseños.
     //    (a) Pendientes por rol, derivados del estado real: sobreviven al
     //        refresco y desaparecen cuando la solicitud cambia de turno.
     //    (b) Cambios de estado recientes, uno por evento (ver `cambiosGD`).
@@ -397,6 +430,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     reposMapa,
     solicitudes,
     cambiosGD,
+    rechazos,
     verGD,
     esVentas,
     esDiseno,
@@ -410,6 +444,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       tarea: 0,
       noticia: 0,
       diseno: 0,
+      rechazo: 0,
       operativo: 0,
     }
     for (const i of items) acc[i.tipo]++
@@ -477,6 +512,36 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     // Los más recientes primero, con tope para no crecer sin límite.
     setCambiosGD((prev) => [...nuevos.reverse(), ...prev].slice(0, 25))
   }, [gdNotifications])
+
+  // Rechazos: suena y salta aviso de escritorio cuando aparece uno nuevo
+  // para este usuario. Es informacion que frena una venta, asi que se
+  // fuerza aunque tenga la app al frente.
+  const vistosRechazo = useRef<Set<string>>(new Set())
+  const primeraCargaRechazo = useRef(true)
+  useEffect(() => {
+    const mios = rechazosDe(rechazos, email)
+    if (primeraCargaRechazo.current) {
+      if (rechazos.length === 0) return // aun sin cargar
+      for (const r of mios) vistosRechazo.current.add(r.pedido)
+      primeraCargaRechazo.current = false
+      return
+    }
+    for (const r of mios) {
+      if (vistosRechazo.current.has(r.pedido)) continue
+      vistosRechazo.current.add(r.pedido)
+      alertar(
+        `Orden ${r.pedido} rechazada`,
+        r.motivo ? `${r.cliente ?? ""} — ${r.motivo}` : (r.cliente ?? ""),
+        {
+          tono: "urgente",
+          tag: `rechazo-${r.pedido}`,
+          forzar: true,
+          onClick: () =>
+            navigateRef.current("programacion", { focusPedido: r.pedido }),
+        }
+      )
+    }
+  }, [rechazos, email])
 
   // Tareas: al refrescar, avisa de las nuevas urgentes (vencidas / vencen hoy /
   // devueltas) que no se habían visto antes.

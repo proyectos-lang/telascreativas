@@ -13,6 +13,9 @@ export interface Orden {
   estado_aprobado_rechazado: "Pendiente" | "Aprobado" | "Rechazado" | "cancelado"
   // Motivo cuando el planner rechaza la orden
   motivo_rechazo?: string
+  /** Acuse de Ventas sobre el rechazo. null = pendiente de revisar. */
+  rechazo_visto_por?: string | null
+  rechazo_visto_en?: string | null
   // Motivo cuando el planner revierte una orden rechazada a "Aprobado"
   motivo_reversion?: string
   // Si es true, la orden salta Diseno / Impresion / Sublimacion

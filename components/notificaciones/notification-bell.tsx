@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Newspaper,
   AlertTriangle,
+  Ban,
   Palette,
   Volume2,
   VolumeX,
@@ -43,6 +44,7 @@ const ICONO: Record<AlertaTipo, typeof Bell> = {
   tarea: ClipboardList,
   noticia: Newspaper,
   diseno: Palette,
+  rechazo: Ban,
   operativo: AlertTriangle,
 }
 
@@ -51,6 +53,7 @@ const COLOR: Record<AlertaTipo, string> = {
   tarea: "text-icon-green",
   noticia: "text-icon-magenta",
   diseno: "text-indigo-500",
+  rechazo: "text-rose-600",
   operativo: "text-rose-500",
 }
 
@@ -59,6 +62,7 @@ const GRUPOS: { tipo: AlertaTipo; label: string }[] = [
   { tipo: "tarea", label: "Tareas" },
   { tipo: "noticia", label: "Noticias" },
   { tipo: "diseno", label: "Gestión de Diseños" },
+  { tipo: "rechazo", label: "Órdenes rechazadas" },
   { tipo: "operativo", label: "Pendientes operativos" },
 ]
 
