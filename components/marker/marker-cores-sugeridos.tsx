@@ -75,8 +75,16 @@ function Ventana({ desde, hasta }: { desde: string | null; hasta: string | null 
 }
 
 export function MarkerCoresSugeridos() {
-  const { ordenes, lineas, topePcs, isLoading, crearCore, guardarTopePcs } =
-    useMarker()
+  const {
+    ordenes,
+    lineas,
+    cores,
+    topePcs,
+    isLoading,
+    crearCore,
+    entregarCore,
+    guardarTopePcs,
+  } = useMarker()
   const { usuarioActual } = useAuth()
 
   const [tope, setTope] = useState<string>("")
@@ -90,6 +98,7 @@ export function MarkerCoresSugeridos() {
   const [dialogoManual, setDialogoManual] = useState(false)
   /** Pedidos con sus referencias (líneas de detalle) desplegadas. */
   const [refsAbiertas, setRefsAbiertas] = useState<Set<string>>(new Set())
+  const [entregando, setEntregando] = useState<number | null>(null)
   const [nombre, setNombre] = useState("")
   const [yardas, setYardas] = useState("")
   const [guardando, setGuardando] = useState(false)
@@ -116,6 +125,12 @@ export function MarkerCoresSugeridos() {
       { topePcs: topeEfectivo }
     )
   }, [enCola, lineas, topeEfectivo])
+
+  /** Markers ya armados que aún no han entregado el trazo. */
+  const coresAbiertos = useMemo(
+    () => cores.filter((c) => c.estado === "Abierto"),
+    [cores]
+  )
 
   const seleccionadas = (core: CoreSugerido): OrdenEnCore[] => {
     const fuera = excluidas[core.id] ?? new Set<string>()
@@ -328,6 +343,76 @@ export function MarkerCoresSugeridos() {
           </Button>
         </div>
       </Card>
+
+      {/* MARKERS ARMADOS pendientes de entregar.
+          Crear el core y entregarlo son dos pasos: al crearlo se agrupan
+          las ordenes y se reparten las yardas, pero el trazo todavia no
+          esta impreso. Sin este panel no habia forma de dar el segundo
+          paso, y los markers se quedaban en 'Abierto' para siempre. */}
+      {coresAbiertos.length > 0 && (
+        <Card className="overflow-hidden border-amber-200">
+          <div className="flex flex-wrap items-center gap-2 border-b border-amber-100 bg-amber-50/70 px-4 py-3">
+            <Boxes className="size-4 text-amber-700" />
+            <span className="font-semibold text-amber-900">
+              Markers armados, pendientes de entregar
+            </span>
+            <Badge variant="outline" className="border-amber-300 text-[11px]">
+              {coresAbiertos.length}
+            </Badge>
+            <span className="text-xs text-amber-800/80">
+              Al entregar, las órdenes pasan a Corte con la misma fecha.
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {coresAbiertos.map((c) => {
+              const suyas = ordenes.filter((o) => o.mdcore_id === c.id)
+              return (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm"
+                >
+                  <Boxes className="size-4 text-icon-cyan" />
+                  <span className="font-semibold text-slate-800">{c.nombre}</span>
+                  <Badge variant="outline" className="text-[11px]">
+                    {c.tela_principal}
+                  </Badge>
+                  <Badge variant="outline" className="text-[11px] tabular-nums">
+                    {suyas.length} órdenes · {c.total_pcs ?? 0} pcs
+                  </Badge>
+                  <span className="text-xs text-slate-500">
+                    {c.yardas_teoricas ?? 0} yd teóricas
+                  </span>
+                  <Button
+                    size="sm"
+                    disabled={entregando === c.id}
+                    onClick={async () => {
+                      setEntregando(c.id)
+                      const r = await entregarCore(c.id)
+                      setEntregando(null)
+                      if (r.success)
+                        toast.success(`Marker ${c.nombre} entregado`, {
+                          description: `${suyas.length} órdenes liberadas a Corte.`,
+                        })
+                      else
+                        toast.error("No se pudo entregar", {
+                          description: r.error,
+                        })
+                    }}
+                    className="ml-auto h-8 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {entregando === c.id ? (
+                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="mr-1.5 size-3.5" />
+                    )}
+                    Entregar trazo
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* MODO MANUAL: el usuario arma el marker orden por orden. */}
       {manual && (

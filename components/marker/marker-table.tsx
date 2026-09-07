@@ -110,9 +110,9 @@ export function MarkerTable({ ordenes, cores, onSelectOrder, isLoading }: Props)
   const [page, setPage] = useState(0)
   const pageSize = DEFAULT_PAGE_SIZE
 
-  const nombreCore = useMemo(() => {
-    const m = new Map<number, string>()
-    for (const c of cores) m.set(c.id, c.nombre)
+  const porCore = useMemo(() => {
+    const m = new Map<number, MarkerCore>()
+    for (const c of cores) m.set(c.id, c)
     return m
   }, [cores])
 
@@ -152,8 +152,12 @@ export function MarkerTable({ ordenes, cores, onSelectOrder, isLoading }: Props)
             {paged.map((orden) => {
               const repo = reposicionDePedido(orden.pedido, reposFull)
               const core = orden.mdcore_id
-                ? nombreCore.get(orden.mdcore_id)
+                ? porCore.get(orden.mdcore_id) ?? null
                 : null
+              // Un marker "Abierto" esta armado pero sin trazo entregado:
+              // distinguirlo evita la duda de por que la orden sigue en
+              // proceso pese a tener marker asignado.
+              const coreSinEntregar = core?.estado === "Abierto"
               // Lista para trazar = aún sin entregar. No se exige Diseño:
               // Marker Digital no depende de esa área.
               const listaParaTrazo = !orden.mdentrega_marker
@@ -175,10 +179,20 @@ export function MarkerTable({ ordenes, cores, onSelectOrder, isLoading }: Props)
                     {core ? (
                       <Badge
                         variant="outline"
-                        className="gap-1 border-indigo-300 bg-indigo-50 text-[11px] text-indigo-800"
+                        className={
+                          coreSinEntregar
+                            ? "gap-1 border-amber-300 bg-amber-50 text-[11px] text-amber-800"
+                            : "gap-1 border-indigo-300 bg-indigo-50 text-[11px] text-indigo-800"
+                        }
+                        title={
+                          coreSinEntregar
+                            ? "Marker armado, pendiente de entregar el trazo"
+                            : "Trazo entregado"
+                        }
                       >
                         <Boxes className="size-3" />
-                        {core}
+                        {core.nombre}
+                        {coreSinEntregar ? " · sin entregar" : ""}
                       </Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">Suelta</span>

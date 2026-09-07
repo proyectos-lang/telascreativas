@@ -201,6 +201,13 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
               La recepción y la entrega se registran para todo el marker a la
               vez, desde la pestaña Agrupación de cores.
             </p>
+            {/* Sin esto no se entendía por qué una orden agrupada seguía
+                "En proceso": el marker está armado pero aún sin entregar. */}
+            <p className="mt-1 text-xs font-medium text-indigo-900">
+              {core?.estado === "Abierto"
+                ? "El marker está armado pero el trazo aún no se ha entregado; por eso la orden sigue en proceso."
+                : `Trazo entregado el ${fmt(core?.fecha_entrega_marker)}.`}
+            </p>
           </div>
         </div>
       )}
