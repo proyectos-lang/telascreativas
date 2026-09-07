@@ -71,6 +71,10 @@ export function CutProvider({ children }: { children: ReactNode }) {
         // El sort usa esta funcion para priorizar las listas.
         const isReadyForCut = (o: Orden) => {
           if (!isApproved(o)) return false
+          // Ya cortada: no espera nada, sea marker o no. Sin esta guarda las
+          // ordenes anteriores al area caian al fondo del listado como si
+          // estuvieran esperando un trazo que nunca van a necesitar.
+          if (o.cfecha_de_corte) return true
           if (esMarker(o) && !o.mdentrega_marker) return false
           if (isYardaje(o)) return Boolean(o.seta_sublimacion)
           return true

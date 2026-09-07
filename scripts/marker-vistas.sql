@@ -346,8 +346,13 @@ select
         when dentrega_diseno is null then 'DISEÑO'::text
         when ientrega_impresion is null then 'IMPRESION'::text
         when seta_sublimacion is null then 'SUBLIMACION'::text
-        -- El trazo va antes del corte cuando la orden es marker.
-        when es_marker_digital_si_no is true and mdentrega_marker is null then 'MARKER'::text
+        -- El trazo va antes del corte cuando la orden es marker. Se exige
+        -- que el corte NO haya ocurrido: las órdenes anteriores al área ya
+        -- se cortaron sin trazo y estaban apareciendo en MARKER cuando en
+        -- realidad ya iban en Costura.
+        when es_marker_digital_si_no is true
+         and mdentrega_marker is null
+         and cfecha_de_corte is null then 'MARKER'::text
         when cfecha_de_corte is null then 'CORTE'::text
         else 'COSTURA'::text
       end
@@ -372,7 +377,9 @@ select
         when dentrega_diseno is null then 'DISEÑO'::text
         when ientrega_impresion is null then 'IMPRESION'::text
         when seta_sublimacion is null then 'SUBLIMACION'::text
-        when es_marker_digital_si_no is true and mdentrega_marker is null then 'MARKER'::text
+        when es_marker_digital_si_no is true
+         and mdentrega_marker is null
+         and cfecha_de_corte is null then 'MARKER'::text
         when cfecha_de_corte is null then 'CORTE'::text
         else 'COSTURA'::text
       end
