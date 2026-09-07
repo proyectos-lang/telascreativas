@@ -154,9 +154,9 @@ export function MarkerTable({ ordenes, cores, onSelectOrder, isLoading }: Props)
               const core = orden.mdcore_id
                 ? nombreCore.get(orden.mdcore_id)
                 : null
-              // El trazo se hace con el arte ya entregado por Diseño.
-              const listaParaTrazo =
-                !!orden.dentrega_diseno && !orden.mdentrega_marker
+              // Lista para trazar = aún sin entregar. No se exige Diseño:
+              // Marker Digital no depende de esa área.
+              const listaParaTrazo = !orden.mdentrega_marker
               return (
                 <TableRow
                   key={orden.pedido}

@@ -154,9 +154,13 @@ grant select on telas.vista_kpi_lead_times to anon, authenticated, service_role;
 -- área nueva.
 --
 -- status_marker sigue el mismo patrón que las demás áreas: 'N/A' cuando
--- la orden no pasa por ahí, y Terminado / Recibido / Pendiente / En
--- espera según sus fechas. Para las órdenes sin marcar es siempre 'N/A',
--- de modo que el pipeline no muestra un paso que nunca va a ocurrir.
+-- la orden no pasa por ahí, y Terminado / Recibido / Pendiente según sus
+-- fechas. Para las órdenes sin marcar es siempre 'N/A', de modo que el
+-- pipeline no muestra un paso que nunca va a ocurrir.
+--
+-- A diferencia del resto, NO tiene estado 'En espera': Marker Digital no
+-- depende de Diseño ni de ninguna área previa, así que puede procesarse
+-- desde que la orden se aprueba.
 -- ---------------------------------------------------------------------
 drop view if exists telas.vista_control_produccion;
 
@@ -192,8 +196,10 @@ select
     -- "Pendiente" anunciaría un paso que nunca va a ocurrir.
     when cfecha_de_corte is not null then 'N/A'::text
     when mdfecha_de_recepcion is not null then 'Recibido'::text
-    when dentrega_diseno is not null then 'Pendiente'::text
-    else 'En espera'::text
+    -- Marker Digital NO depende de Diseño: el trazo se hace con las medidas
+    -- y la tela, que ya vienen en la orden. Por eso queda 'Pendiente' desde
+    -- que la orden se aprueba, sin esperar a que Diseño entregue.
+    else 'Pendiente'::text
   end as status_marker,
 
   case

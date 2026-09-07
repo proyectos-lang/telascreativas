@@ -31,6 +31,7 @@ import {
   Calendar,
   CheckCircle2,
   Inbox,
+  Info,
   Lock,
   Package,
   PenLine,
@@ -152,13 +153,11 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
           <Button
             size="sm"
             onClick={() => setModal("recibir")}
-            disabled={!disenoEntregado || recibido || entregado || enCore}
+            disabled={recibido || entregado || enCore}
             title={
               enCore
                 ? "La orden pertenece a un marker: se gestiona desde Agrupación de cores"
-                : !disenoEntregado
-                  ? "Diseño aún no ha entregado los artes"
-                  : undefined
+                : undefined
             }
           >
             <Inbox className="mr-1 size-3.5" />
@@ -206,11 +205,15 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
         </div>
       )}
 
+      {/* Marker Digital NO depende de Diseño: el trazo se hace con las
+          medidas y la tela, que ya vienen en la orden. Se informa el estado
+          de Diseño como referencia, pero no bloquea el proceso. */}
       {!disenoEntregado && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-          <p className="text-sm text-amber-900">
-            Diseño aún no ha entregado los artes: sin ellos no se puede trazar.
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-slate-500" />
+          <p className="text-sm text-slate-700">
+            Diseño aún no ha entregado los artes. El trazo se puede hacer
+            igual: Marker Digital no depende de Diseño.
           </p>
         </div>
       )}

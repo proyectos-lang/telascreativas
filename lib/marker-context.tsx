@@ -151,14 +151,11 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
         return true
       })
 
-      // El trazo se hace con el arte de Diseño ya entregado.
-      const lista = (o: Orden) =>
-        o.dentrega_diseno != null && String(o.dentrega_diseno).trim() !== ""
-
+      // Marker Digital NO depende de Diseño: el trazo se hace con las
+      // medidas y la tela, que ya vienen en la orden. Por eso la cola se
+      // ordena solo por urgencia y fecha objetivo; antes las órdenes sin
+      // arte entregado caían al fondo como si estuvieran bloqueadas.
       propias.sort((a, b) => {
-        const ra = lista(a) ? 0 : 1
-        const rb = lista(b) ? 0 : 1
-        if (ra !== rb) return ra - rb
         const ua = a.es_urgente === true ? 0 : 1
         const ub = b.es_urgente === true ? 0 : 1
         if (ua !== ub) return ua - ub
