@@ -62,6 +62,35 @@ interface Props {
   onSelectOrder: (orden: Orden) => void
 }
 
+/**
+ * Fecha objetivo común de las órdenes de un marker.
+ *
+ * Todas las órdenes de un core comparten fecha —se programan y entregan
+ * juntas— pero si por edición quedara alguna distinta se devuelve la más
+ * temprana, que es la que manda: es la primera que se vence.
+ */
+function objetivoComun(
+  ordenes: Orden[],
+  campo: "mdfecha_objetivo_md" | "cfecha_objetivo_c"
+): { fecha: string | null; dispares: boolean } {
+  const fechas = ordenes
+    .map((o) => o[campo])
+    .filter((v): v is string => !!v)
+    .map((v) => String(v).slice(0, 10))
+    .sort()
+  if (fechas.length === 0) return { fecha: null, dispares: false }
+  return { fecha: fechas[0], dispares: fechas[0] !== fechas[fechas.length - 1] }
+}
+
+/** Días desde hoy hasta la fecha; negativo = vencida. */
+function diasHasta(ymd: string | null): number | null {
+  if (!ymd) return null
+  const hoy = new Date()
+  const h = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  const [y, m, d] = ymd.split("-").map(Number)
+  return Math.round((Date.UTC(y, m - 1, d) - h) / 86400000)
+}
+
 function fmt(v: string | null | undefined) {
   if (!v) return "-"
   const d = new Date(v)
@@ -181,6 +210,57 @@ export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
               <span className="text-xs text-slate-500">
                 Trazo entregado: {fmt(c.core.fecha_entrega_marker)}
               </span>
+              {(() => {
+                const mk = objetivoComun(c.ordenes, "mdfecha_objetivo_md")
+                const co = objetivoComun(c.ordenes, "cfecha_objetivo_c")
+                const dias = diasHasta(co.fecha)
+                // Solo se muestra el objetivo del marker si existe: las
+                // órdenes anteriores al área no lo tienen y una etiqueta
+                // vacía solo estorbaría.
+                return (
+                  <>
+                    {mk.fecha && (
+                      <span
+                        className="text-xs text-slate-500"
+                        title={
+                          mk.dispares
+                            ? "Las órdenes del marker tienen fechas distintas; se muestra la más próxima"
+                            : "Fecha objetivo del marker"
+                        }
+                      >
+                        Objetivo marker: {fmt(mk.fecha)}
+                        {mk.dispares && " *"}
+                      </span>
+                    )}
+                    {co.fecha && !c.cortado && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[11px]",
+                          dias != null && dias < 0
+                            ? "border-rose-300 bg-rose-50 text-rose-700"
+                            : dias != null && dias <= 1
+                              ? "border-amber-300 bg-amber-50 text-amber-800"
+                              : "border-slate-200 text-slate-600"
+                        )}
+                        title={
+                          co.dispares
+                            ? "Las órdenes tienen fechas distintas; se muestra la más próxima"
+                            : "Fecha objetivo de Corte"
+                        }
+                      >
+                        Objetivo corte: {fmt(co.fecha)}
+                        {dias != null &&
+                          (dias < 0
+                            ? ` · vencido ${Math.abs(dias)}d`
+                            : dias === 0
+                              ? " · hoy"
+                              : ` · ${dias}d`)}
+                      </Badge>
+                    )}
+                  </>
+                )
+              })()}
 
               {c.cortado ? (
                 <Badge className="bg-emerald-500 text-xs text-white hover:bg-emerald-600">
