@@ -140,8 +140,10 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
         const flujo = (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase()
         if (flujo && flujo !== "PRODUCCION_NORMAL" && flujo !== "YARDAJE")
           return false
-        // Sin Diseño/Impresión la orden va directo a Corte: no hay trazo.
-        if (o.solo_corte_costura === true) return false
+        // `solo_corte_costura` NO excluye: esas órdenes saltan Diseño,
+        // Impresión y Sublimación, pero SÍ pasan por Corte, así que
+        // necesitan trazo igual. Se excluían por asumir que el trazo salía
+        // del arte de Diseño, y no es así: sale de las medidas y la tela.
         // Si no pasa por Corte, el trazo no tiene destino.
         if (o.omite_corte_costura === true) return false
         // Órdenes anteriores al área: ya se cortaron sin trazo, así que

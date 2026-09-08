@@ -189,7 +189,9 @@ select
   case
     when es_marker_digital_si_no is not true then 'N/A'::text
     when tipo_flujo_especial = any (array['COMPRA_EXTERNA'::text, 'VENTA_INVENTARIO'::text]) then 'N/A'::text
-    when solo_corte_costura = true then 'N/A'::text
+    -- Ojo: solo_corte_costura NO excluye. Esas órdenes saltan Diseño,
+    -- Impresión y Sublimación, pero SÍ pasan por Corte, así que necesitan
+    -- trazo igual.
     when omite_corte_costura = true then 'N/A'::text
     when mdentrega_marker is not null then 'Terminado'::text
     -- Órdenes anteriores al área: ya se cortaron sin trazo. Mostrarlas como

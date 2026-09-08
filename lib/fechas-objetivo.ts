@@ -212,7 +212,10 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
     diseno: !saltaDisenoImpresion,
     // Marker Digital solo entra si la orden está marcada. Sin marcar, la
     // orden ni siquiera recibe fecha objetivo del área.
-    marker: usaMarker && !saltaDisenoImpresion && !saltaCorteCostura,
+    // `solo_corte_costura` salta Diseño/Impresión/Sublimación pero SÍ pasa
+    // por Corte, así que necesita trazo y por tanto fecha objetivo. Solo se
+    // excluye cuando la orden no pasa por Corte.
+    marker: usaMarker && !saltaCorteCostura,
     impresion: !saltaDisenoImpresion,
     sublimacion: !saltaDisenoImpresion,
     corte: !saltaCorteCostura,
