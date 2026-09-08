@@ -313,12 +313,15 @@ export function armarCoreManual(
     .filter(Boolean)
     .sort()
 
+  // Mezclar telas está PERMITIDO y no tiene tope: el marker puede agrupar
+  // las que necesite. El aviso solo recuerda que cada tela lleva su propio
+  // trazo, para que la cifra de yardas se calcule contando todos.
   const avisos: string[] = []
   if (orden.length > 1)
     avisos.push(
-      `La selección mezcla ${orden.length} telas (${orden
+      `El marker agrupa ${orden.length} telas (${orden
         .map(([t]) => t)
-        .join(", ")}). Habrá que sacar un trazo por cada una.`
+        .join(", ")}): son ${orden.length} trazos, uno por tela.`
     )
   if (totalPcs > topePcs)
     avisos.push(

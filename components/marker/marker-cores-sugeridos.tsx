@@ -25,6 +25,7 @@ import {
   Ruler,
   Save,
   Scissors,
+  Search,
   Sparkles,
   Wand2,
   X,
@@ -99,6 +100,10 @@ export function MarkerCoresSugeridos() {
   const [dialogoManual, setDialogoManual] = useState(false)
   /** Orden suelta para la que se está creando su marker individual. */
   const [dialogoSuelta, setDialogoSuelta] = useState<OrdenEnCore | null>(null)
+  /** Filtros del modo manual: pedido, cliente y tela. */
+  const [fPedido, setFPedido] = useState("")
+  const [fCliente, setFCliente] = useState("")
+  const [fTela, setFTela] = useState("")
   /** Pedidos con sus referencias (líneas de detalle) desplegadas. */
   const [refsAbiertas, setRefsAbiertas] = useState<Set<string>>(new Set())
   const [entregando, setEntregando] = useState<number | null>(null)
@@ -191,6 +196,31 @@ export function MarkerCoresSugeridos() {
       else n.add(pedido)
       return n
     })
+
+  /** Telas presentes en la cola, para el desplegable del filtro. */
+  const telasDisponibles = useMemo(() => {
+    const set = new Set<string>()
+    for (const o of todasConTela) if (o.telaPrincipal) set.add(o.telaPrincipal)
+    return [...set].sort()
+  }, [todasConTela])
+
+  /**
+   * Lista visible en modo manual. Los filtros solo afectan lo que se VE:
+   * una orden ya marcada sigue en la selección aunque deje de coincidir,
+   * para no perderla al cambiar la búsqueda a mitad del armado.
+   */
+  const visiblesManual = useMemo(() => {
+    const p = fPedido.trim().toLowerCase()
+    const c = fCliente.trim().toLowerCase()
+    return todasConTela.filter((o) => {
+      if (p && !o.pedido.toLowerCase().includes(p)) return false
+      if (c && !(o.cliente ?? "").toLowerCase().includes(c)) return false
+      if (fTela && o.telaPrincipal !== fTela) return false
+      return true
+    })
+  }, [todasConTela, fPedido, fCliente, fTela])
+
+  const hayFiltros = Boolean(fPedido.trim() || fCliente.trim() || fTela)
 
   const seleccionManual = useMemo(
     () => todasConTela.filter((o) => enManual.has(o.pedido)),
@@ -533,6 +563,63 @@ export function MarkerCoresSugeridos() {
             </div>
           </div>
 
+          {/* Filtros: la cola puede tener decenas de ordenes y el marker
+              necesita encontrar las suyas sin recorrerlas a mano. */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white px-4 py-2.5">
+            <Search className="size-4 text-slate-400" />
+            <Input
+              value={fPedido}
+              onChange={(e) => setFPedido(e.target.value)}
+              placeholder="Pedido…"
+              className="h-8 w-36 text-xs"
+            />
+            <Input
+              value={fCliente}
+              onChange={(e) => setFCliente(e.target.value)}
+              placeholder="Cliente…"
+              className="h-8 w-52 text-xs"
+            />
+            <select
+              value={fTela}
+              onChange={(e) => setFTela(e.target.value)}
+              className="h-8 rounded-md border border-slate-200 px-2 text-xs"
+            >
+              <option value="">Todas las telas</option>
+              {telasDisponibles.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            {hayFiltros && (
+              <>
+                <Badge variant="outline" className="text-[11px]">
+                  {visiblesManual.length} de {todasConTela.length}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setFPedido("")
+                    setFCliente("")
+                    setFTela("")
+                  }}
+                  className="h-7 text-xs text-slate-500"
+                >
+                  <X className="mr-1 size-3.5" />
+                  Limpiar filtros
+                </Button>
+              </>
+            )}
+            {/* Las marcadas no se pierden al filtrar; se avisa para que no
+                sorprenda que el contador de arriba no baje. */}
+            {hayFiltros && seleccionManual.length > 0 && (
+              <span className="text-[11px] text-slate-500">
+                {seleccionManual.length} seleccionadas se conservan
+              </span>
+            )}
+          </div>
+
           {/* Avisos: no bloquean, informan para que la decision sea consciente. */}
           {resumenManual.avisos.length > 0 && (
             <div className="space-y-1 border-b border-amber-100 bg-amber-50 px-4 py-2">
@@ -546,7 +633,14 @@ export function MarkerCoresSugeridos() {
           )}
 
           <div className="max-h-[26rem] divide-y divide-slate-100 overflow-auto">
-            {todasConTela.map((o) => {
+            {visiblesManual.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {todasConTela.length === 0
+                  ? "No hay órdenes pendientes de trazo."
+                  : "Ninguna orden coincide con los filtros."}
+              </p>
+            )}
+            {visiblesManual.map((o) => {
               const dentro = enManual.has(o.pedido)
               const refs = refsPorPedido.get(o.pedido) ?? []
               const abiertas = refsAbiertas.has(`m-${o.pedido}`)
