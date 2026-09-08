@@ -404,7 +404,7 @@ export function MarkerCoresSugeridos() {
         <div>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
             <Layers className="size-4 text-icon-cyan" />
-            Agrupación de cores
+            Creación de Marker
           </h3>
           <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
             Las órdenes se agrupan por su tela mayoritaria y se ordenan por

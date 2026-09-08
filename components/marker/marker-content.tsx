@@ -4,7 +4,7 @@
  * Módulo Marker Digital.
  *
  * Mismas vistas que el resto de las áreas de producción, más una pestaña
- * propia de "Agrupación de cores" donde el sistema sugiere qué órdenes se
+ * propia de "Creación de Marker" donde el sistema sugiere qué órdenes se
  * pueden cortar juntas por compartir tela.
  */
 
@@ -129,7 +129,7 @@ export function MarkerContent() {
           resumenContent={<ModuleResumenCard areaKey="marker" />}
           extraTab={{
             value: "cores",
-            label: "Agrupación de cores",
+            label: "Creación de Marker",
             icon: Layers,
             content: <MarkerCoresSugeridos />,
           }}

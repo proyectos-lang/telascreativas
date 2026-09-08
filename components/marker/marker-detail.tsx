@@ -156,7 +156,7 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
             disabled={recibido || entregado || enCore}
             title={
               enCore
-                ? "La orden pertenece a un marker: se gestiona desde Agrupación de cores"
+                ? "La orden pertenece a un marker: se gestiona desde Creación de Marker"
                 : undefined
             }
           >
@@ -165,15 +165,17 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
           </Button>
           {/* La entrega SIEMPRE la hace el marker, aunque sea de una sola
               orden: Corte lista markers, no órdenes sueltas, así que un
-              trazo entregado sin marker dejaría la orden invisible. */}
+              trazo entregado sin marker dejaría la orden invisible. Si la
+              orden aún no tiene marker, el cuadro de entrega pide el nombre
+              y lo crea; ya no hace falta pasar por Creación de Marker. */}
           <Button
             size="sm"
             onClick={() => setModal("terminar")}
-            disabled={!recibido || entregado || enCore || !core}
+            disabled={!recibido || entregado || enCore}
             title={
               enCore
-                ? "La entrega la hace el marker completo, desde Agrupación de cores"
-                : "Primero hay que crear su marker en Agrupación de cores"
+                ? "La entrega la hace el marker completo, desde Creación de Marker"
+                : "Se pedirá el nombre del marker al entregar"
             }
             className="bg-emerald-600 text-white hover:bg-emerald-700"
           >
@@ -202,7 +204,7 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
             </p>
             <p className="mt-0.5 text-xs text-indigo-800/80">
               La recepción y la entrega se registran para todo el marker a la
-              vez, desde la pestaña Agrupación de cores.
+              vez, desde la pestaña Creación de Marker.
             </p>
             {/* Sin esto no se entendía por qué una orden agrupada seguía
                 "En proceso": el marker está armado pero aún sin entregar. */}
@@ -226,8 +228,10 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
             </p>
             <p className="mt-0.5 text-xs text-amber-800/80">
               Toda orden necesita un marker para pasar a Corte, aunque se
-              corte sola. Créalo desde la pestaña Agrupación de cores: la
-              orden aparece en la lista &quot;Sin agrupar&quot;.
+              corte sola. Al pulsar <strong>Entregar trazo</strong> se pide
+              el nombre y se crea con esta sola orden; también puede armarse
+              antes desde la pestaña Creación de Marker, en la lista
+              &quot;Sin agrupar&quot;.
             </p>
           </div>
         </div>
