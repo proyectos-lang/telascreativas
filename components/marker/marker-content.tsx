@@ -33,6 +33,7 @@ import { MarkerTable } from "./marker-table"
 import { MarkerDetail } from "./marker-detail"
 import { MarkerCoresSugeridos } from "./marker-cores-sugeridos"
 import { MarkerPiezasExtraTab } from "./marker-piezas-extra-tab"
+import { MarkerListaTab } from "./marker-lista-tab"
 
 const MARKER_ESTADOS = ["Pendiente", "Recibido", "Terminado"] as const
 
@@ -134,9 +135,15 @@ export function MarkerContent() {
           }}
           extraTabs={[
             {
+              value: "markers",
+              label: "Markers creados",
+              icon: Boxes,
+              content: <MarkerListaTab />,
+            },
+            {
               value: "piezas-extra",
               label: "Piezas extra",
-              icon: Boxes,
+              icon: Layers,
               content: <MarkerPiezasExtraTab />,
             },
           ]}

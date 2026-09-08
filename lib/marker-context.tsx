@@ -85,6 +85,15 @@ interface MarkerContextType {
   guardarTopePcs: (valor: number) => Promise<Resultado>
   crearCore: (input: CrearCoreInput) => Promise<Resultado & { id?: number }>
   entregarCore: (coreId: number, fecha?: string) => Promise<Resultado>
+  editarCore: (input: EditarCoreInput) => Promise<Resultado>
+}
+
+export interface EditarCoreInput {
+  coreId: number
+  /** Ordenes que quedan en el marker tras la edicion. */
+  ordenes: OrdenEnCore[]
+  /** Yardas teoricas del trazo nuevo: el anterior ya no aplica. */
+  yardasTeoricas: number
 }
 
 export interface CrearCoreInput {
@@ -382,6 +391,133 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
     [fetchOrdenes]
   )
 
+  /**
+   * Cambia la composicion de un marker.
+   *
+   * Se puede editar mientras Corte no lo haya RECIBIDO. Despues no: sus
+   * ordenes ya estarian en la mesa y quitar una cambiaria por detras lo
+   * que el cortador tiene delante.
+   *
+   * Las ordenes que salen quedan como si nunca hubieran pasado por el
+   * marker: se les borra el vinculo, las yardas y —si el marker ya estaba
+   * entregado— tambien el trazo, para que vuelvan a la cola en vez de
+   * quedar con una entrega que ya no existe.
+   */
+  const editarCore = useCallback(
+    async (input: EditarCoreInput): Promise<Resultado> => {
+      if (input.ordenes.length === 0)
+        return { success: false, error: "El marker debe conservar al menos una orden." }
+      if (!Number.isFinite(input.yardasTeoricas) || input.yardasTeoricas <= 0)
+        return { success: false, error: "Las yardas teóricas son obligatorias." }
+
+      const { data: coreData, error: coreErr } = await supabase
+        .schema("telas")
+        .from("marker_cores")
+        .select("*")
+        .eq("id", input.coreId)
+        .maybeSingle()
+      if (coreErr) return { success: false, error: coreErr.message }
+      const core = coreData as MarkerCore | null
+      if (!core) return { success: false, error: "El marker ya no existe." }
+      if (core.estado === "Recibido en Corte" || core.estado === "Cortado")
+        return {
+          success: false,
+          error: "Corte ya recibió este marker: no se puede modificar.",
+        }
+
+      const { data: previos } = await supabase
+        .schema("telas")
+        .from("marker_core_pedidos")
+        .select("pedido")
+        .eq("core_id", input.coreId)
+      const antes = ((previos as { pedido: string }[]) ?? []).map((p) => p.pedido)
+      const ahora = input.ordenes.map((o) => o.pedido)
+      const salen = antes.filter((p) => !ahora.includes(p))
+
+      // Las que salen vuelven a la cola, sin rastro del marker.
+      if (salen.length > 0) {
+        const { error } = await supabase
+          .schema("telas")
+          .from("cabecera")
+          .update({
+            mdcore_id: null,
+            mdyardas_teoricas: null,
+            mdentrega_marker: null,
+          })
+          .in("pedido", salen)
+        if (error) return { success: false, error: error.message }
+      }
+
+      // Se rehace la composicion completa: mas simple y sin estados a medias.
+      await supabase
+        .schema("telas")
+        .from("marker_core_pedidos")
+        .delete()
+        .eq("core_id", input.coreId)
+
+      const { error: hijosErr } = await supabase
+        .schema("telas")
+        .from("marker_core_pedidos")
+        .insert(
+          input.ordenes.map((o) => ({
+            core_id: input.coreId,
+            pedido: o.pedido,
+            pcs: o.piezas,
+            telas_secundarias: o.telasSecundarias.length
+              ? o.telasSecundarias.join(", ")
+              : null,
+          }))
+        )
+      if (hijosErr) return { success: false, error: hijosErr.message }
+
+      // Reparto de las yardas NUEVAS entre las ordenes que quedan.
+      const reparto = prorratearPorPiezas(
+        input.yardasTeoricas,
+        input.ordenes.map((o) => ({ pedido: o.pedido, piezas: o.piezas }))
+      )
+      const entregado = core.estado === "Entregado"
+      for (const o of input.ordenes) {
+        await supabase
+          .schema("telas")
+          .from("cabecera")
+          .update({
+            mdcore_id: input.coreId,
+            mdyardas_teoricas: reparto.get(o.pedido) ?? null,
+            mdfecha_de_recepcion: hoyISO(),
+            // Si el marker ya estaba entregado, las que entran heredan la
+            // entrega para no quedar a medio camino.
+            ...(entregado && core.fecha_entrega_marker
+              ? {
+                  mdentrega_marker: core.fecha_entrega_marker,
+                  ...(objetivoCorteDesdeMarker(core.fecha_entrega_marker)
+                    ? {
+                        cfecha_objetivo_c: objetivoCorteDesdeMarker(
+                          core.fecha_entrega_marker
+                        ),
+                      }
+                    : {}),
+                }
+              : {}),
+          })
+          .eq("pedido", o.pedido)
+      }
+
+      const { error: updErr } = await supabase
+        .schema("telas")
+        .from("marker_cores")
+        .update({
+          total_pcs: input.ordenes.reduce((s, o) => s + o.piezas, 0),
+          yardas_teoricas: input.yardasTeoricas,
+        })
+        .eq("id", input.coreId)
+      if (updErr) return { success: false, error: updErr.message }
+
+      await fetchOrdenes()
+      return { success: true }
+    },
+    [fetchOrdenes]
+  )
+
   useEffect(() => {
     void fetchOrdenes()
   }, [fetchOrdenes])
@@ -400,6 +536,7 @@ export function MarkerProvider({ children }: { children: ReactNode }) {
         guardarTopePcs,
         crearCore,
         entregarCore,
+        editarCore,
       }}
     >
       {children}
