@@ -40,6 +40,13 @@ interface ModuleTabsProps {
     icon: LucideIcon
     content: ReactNode
   }
+  /** Pestanas adicionales, ademas de `extraTab`. */
+  extraTabs?: {
+    value: string
+    label: string
+    icon: LucideIcon
+    content: ReactNode
+  }[]
 }
 
 /**
@@ -71,14 +78,18 @@ export function ModuleTabs({
   resumenContent,
   accentClass,
   extraTab,
+  extraTabs,
 }: ModuleTabsProps) {
   const [pendingCount, setPendingCount] = useState(0)
 
   // Plan semanal propio del area (si aplica).
   const planArea = planDeArea(area)
 
+  // Todas las pestanas adicionales en una sola lista, para no duplicar el
+  // renderizado ni el conteo de columnas.
+  const extras = [...(extraTab ? [extraTab] : []), ...(extraTabs ?? [])]
   const colCount =
-    (resumenContent ? 3 : 2) + (planArea ? 1 : 0) + (extraTab ? 1 : 0)
+    (resumenContent ? 3 : 2) + (planArea ? 1 : 0) + extras.length
 
   return (
     <Tabs defaultValue="ordenes" className="w-full">
@@ -86,7 +97,9 @@ export function ModuleTabs({
       <TabsList
         className={[
           "grid w-full sm:inline-flex sm:w-auto",
-          colCount === 5
+          colCount >= 6
+            ? "grid-cols-6"
+            : colCount === 5
             ? "grid-cols-5"
             : colCount === 4
             ? "grid-cols-4"
@@ -111,12 +124,12 @@ export function ModuleTabs({
             Plan Semanal
           </TabsTrigger>
         )}
-        {extraTab && (
-          <TabsTrigger value={extraTab.value} className="gap-2">
-            <extraTab.icon className="size-4" />
-            {extraTab.label}
+        {extras.map((t) => (
+          <TabsTrigger key={t.value} value={t.value} className="gap-2">
+            <t.icon className="size-4" />
+            {t.label}
           </TabsTrigger>
-        )}
+        ))}
         <TabsTrigger value="incidencias" className="gap-2">
           <AlertOctagon className="size-4" />
           <span>Reposiciones e Incidencias</span>
@@ -144,11 +157,11 @@ export function ModuleTabs({
         </TabsContent>
       )}
 
-      {extraTab && (
-        <TabsContent value={extraTab.value} className="mt-4">
-          {extraTab.content}
+      {extras.map((t) => (
+        <TabsContent key={t.value} value={t.value} className="mt-4">
+          {t.content}
         </TabsContent>
-      )}
+      ))}
 
       <TabsContent value="incidencias" className="mt-4">
         <IncidenciasTab

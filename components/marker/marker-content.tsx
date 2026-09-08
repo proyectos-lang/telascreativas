@@ -13,7 +13,7 @@ import { Orden } from "@/lib/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, Layers, RefreshCw, Ruler } from "lucide-react"
+import { AlertTriangle, Boxes, Layers, RefreshCw, Ruler } from "lucide-react"
 import { useMarker } from "@/lib/marker-context"
 import { getMarkerStatus } from "@/lib/production-status"
 import { ModuleTabs } from "@/components/incidencias/module-tabs"
@@ -32,6 +32,7 @@ import {
 import { MarkerTable } from "./marker-table"
 import { MarkerDetail } from "./marker-detail"
 import { MarkerCoresSugeridos } from "./marker-cores-sugeridos"
+import { MarkerPiezasExtraTab } from "./marker-piezas-extra-tab"
 
 const MARKER_ESTADOS = ["Pendiente", "Recibido", "Terminado"] as const
 
@@ -131,6 +132,14 @@ export function MarkerContent() {
             icon: Layers,
             content: <MarkerCoresSugeridos />,
           }}
+          extraTabs={[
+            {
+              value: "piezas-extra",
+              label: "Piezas extra",
+              icon: Boxes,
+              content: <MarkerPiezasExtraTab />,
+            },
+          ]}
           ordenesContent={
             <>
               {error && (

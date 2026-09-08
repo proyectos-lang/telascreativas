@@ -30,6 +30,9 @@ import { Info, Loader2, Ruler, Scissors } from "lucide-react"
 import { toast } from "sonner"
 import { useCut } from "@/lib/cut-context"
 import { prorratearPorPiezas } from "@/lib/marker/cores"
+import { registrarPiezasCorte } from "@/lib/marker/piezas-extra"
+import { useAuth } from "@/lib/auth-context"
+import { CutPiezasExtra, aAltas, type FilaExtra } from "./cut-piezas-extra"
 import type { CoreEnCorte } from "./cut-cores-table"
 
 const supabase = createClient(
@@ -59,6 +62,8 @@ function semanaISO(ymd: string): number {
 
 export function CutCoreFinishModal({ core, open, onClose }: Props) {
   const { refreshOrdenes } = useCut()
+  const { usuarioActual } = useAuth()
+  const [piezasExtra, setPiezasExtra] = useState<FilaExtra[]>([])
   const [yardas, setYardas] = useState("")
   const [piezas, setPiezas] = useState<Record<string, string>>(() =>
     Object.fromEntries(core.ordenes.map((o) => [o.pedido, String(o.pcs ?? "")]))
@@ -129,6 +134,24 @@ export function CutCoreFinishModal({ core, open, onClose }: Props) {
         .update({ estado: "Cortado", fecha_corte: fecha, yardas_reales: yd })
         .eq("id", core.core.id)
       if (coreError) throw new Error(coreError.message)
+
+      // Piezas extra del core, con su talla y referencia.
+      const altas = aAltas(piezasExtra, {
+        coreId: core.core.id,
+        tela: core.core.tela_principal,
+        registradoPor: usuarioActual?.nombre ?? null,
+      })
+      if (altas.length > 0) {
+        const rp = await registrarPiezasCorte(altas)
+        if (rp.success) {
+          const n = altas.reduce((s, a) => s + a.cantidad, 0)
+          toast.success(`${n} piezas extra registradas`)
+        } else {
+          toast.error("No se pudieron registrar las piezas extra", {
+            description: rp.error,
+          })
+        }
+      }
 
       await refreshOrdenes()
       toast.success(`Marker ${core.core.nombre} cortado`, {
@@ -214,6 +237,12 @@ export function CutCoreFinishModal({ core, open, onClose }: Props) {
               ))}
             </div>
           </div>
+
+          <CutPiezasExtra
+            pedidos={core.ordenes.map((o) => o.pedido)}
+            filas={piezasExtra}
+            onChange={setPiezasExtra}
+          />
 
           <div className="space-y-1.5">
             <Label htmlFor="cc-cm" className="text-sm">

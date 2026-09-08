@@ -56,6 +56,7 @@ import {
   type OrdenEnCore,
 } from "@/lib/marker/cores"
 import { MarkerReferencias } from "./marker-referencias"
+import { registrarPiezasMarker } from "@/lib/marker/piezas-extra"
 
 function fmtFecha(v: string | null | undefined): string {
   if (!v) return "—"
@@ -101,6 +102,8 @@ export function MarkerCoresSugeridos() {
   const [entregando, setEntregando] = useState<number | null>(null)
   const [nombre, setNombre] = useState("")
   const [yardas, setYardas] = useState("")
+  /** Piezas de mas que deja el trazo. Van al inventario de piezas extra. */
+  const [piezasExtra, setPiezasExtra] = useState("")
   const [guardando, setGuardando] = useState(false)
 
   const topeEfectivo = topePcs
@@ -230,6 +233,7 @@ export function MarkerCoresSugeridos() {
     })
     setGuardando(false)
     if (r.success) {
+      await guardarPiezasExtra(r.id ?? null, resumenManual.telaPrincipal)
       toast.success(`Marker "${nombre.trim()}" creado`, {
         description: `${seleccionManual.length} órdenes agrupadas a mano.`,
       })
@@ -241,6 +245,30 @@ export function MarkerCoresSugeridos() {
     }
   }
 
+  /**
+   * Registra las piezas extra del trazo, si el marker las declaró. Un
+   * fallo aquí NO tumba la creación del marker: el core ya existe y sería
+   * peor perderlo por un dato accesorio.
+   */
+  const guardarPiezasExtra = async (coreId: number | null, tela: string) => {
+    const n = Number(piezasExtra)
+    if (!Number.isFinite(n) || n <= 0) return
+    const r = await registrarPiezasMarker({
+      coreId,
+      cantidad: n,
+      tela: tela || null,
+      registradoPor: usuarioActual?.nombre ?? null,
+    })
+    if (r.success)
+      toast.success(`${n} piezas extra registradas`, {
+        description: "Quedan en el inventario a la espera del detalle de Corte.",
+      })
+    else
+      toast.error("El marker se creó, pero no se registraron las piezas extra", {
+        description: r.error,
+      })
+  }
+
   const abrirDialogo = (core: CoreSugerido) => {
     if (seleccionadas(core).length === 0) {
       toast.error("Selecciona al menos una orden")
@@ -249,6 +277,7 @@ export function MarkerCoresSugeridos() {
     setDialogo(core)
     setNombre("")
     setYardas("")
+    setPiezasExtra("")
   }
 
   const confirmar = async () => {
@@ -275,6 +304,7 @@ export function MarkerCoresSugeridos() {
     })
     setGuardando(false)
     if (r.success) {
+      await guardarPiezasExtra(r.id ?? null, dialogo.telaPrincipal)
       toast.success(`Marker "${nombre.trim()}" creado`, {
         description: `${sel.length} órdenes agrupadas.`,
       })
@@ -452,6 +482,7 @@ export function MarkerCoresSugeridos() {
                   setDialogoManual(true)
                   setNombre("")
                   setYardas("")
+                  setPiezasExtra("")
                 }}
                 className="h-8 bg-indigo-600 hover:bg-indigo-700"
               >
@@ -803,6 +834,28 @@ export function MarkerCoresSugeridos() {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="mkm-extra" className="text-sm">
+                Piezas extra <span className="text-slate-400">(opcional)</span>
+              </Label>
+              <div className="relative">
+                <Layers className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="mkm-extra"
+                  type="number"
+                  min={0}
+                  value={piezasExtra}
+                  onChange={(e) => setPiezasExtra(e.target.value)}
+                  className="pl-8"
+                  placeholder="0"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Piezas de más que deja el trazo. Entran al inventario de
+                piezas extra; Corte registrará luego su talla y referencia.
+              </p>
+            </div>
+
             <div className="max-h-40 overflow-auto rounded-lg border border-slate-200">
               {seleccionManual.map((o) => (
                 <div
@@ -901,6 +954,28 @@ export function MarkerCoresSugeridos() {
                   placeholder="0.00"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mk-extra" className="text-sm">
+                Piezas extra <span className="text-slate-400">(opcional)</span>
+              </Label>
+              <div className="relative">
+                <Layers className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="mk-extra"
+                  type="number"
+                  min={0}
+                  value={piezasExtra}
+                  onChange={(e) => setPiezasExtra(e.target.value)}
+                  className="pl-8"
+                  placeholder="0"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Piezas de más que deja el trazo. Entran al inventario de
+                piezas extra; Corte registrará luego su talla y referencia.
+              </p>
             </div>
 
             <p className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">

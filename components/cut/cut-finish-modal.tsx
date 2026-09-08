@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { CutPiezasExtra, aAltas, type FilaExtra } from "./cut-piezas-extra"
+import { registrarPiezasCorte } from "@/lib/marker/piezas-extra"
 import { createClient } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Orden } from "@/lib/types"
@@ -84,6 +87,8 @@ export function CutFinishModal({
   onClose,
   onFinish,
 }: CutFinishModalProps) {
+    const { usuarioActual } = useAuth()
+  const [piezasExtra, setPiezasExtra] = useState<FilaExtra[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [motivosDemora, setMotivosDemora] = useState<string[]>([])
   const [loadingMotivos, setLoadingMotivos] = useState(false)
@@ -287,6 +292,24 @@ export function CutFinishModal({
 
     console.log("[v0] CutFinish - Updates a enviar:", updates)
 
+    // Piezas extra al inventario. Se registran ANTES de cerrar el corte
+    // para no perderlas si el modal se desmonta; un fallo aqui se avisa
+    // pero no impide cerrar, porque el corte ya se hizo.
+    const altas = aAltas(piezasExtra, {
+      registradoPor: usuarioActual?.nombre ?? null,
+    })
+    if (altas.length > 0) {
+      const r = await registrarPiezasCorte(altas)
+      if (r.success) {
+        const n = altas.reduce((s, a) => s + a.cantidad, 0)
+        toast.success(`${n} piezas extra registradas`)
+      } else {
+        toast.error("No se pudieron registrar las piezas extra", {
+          description: r.error,
+        })
+      }
+    }
+
     await onFinish(updates)
     setIsSubmitting(false)
   }
@@ -379,6 +402,14 @@ export function CutFinishModal({
                 />
               </div>
             </div>
+
+            {/* Piezas que sobraron del corte. Van al inventario de piezas
+                extra con su talla y referencia. */}
+            <CutPiezasExtra
+              pedidos={[orden.pedido]}
+              filas={piezasExtra}
+              onChange={setPiezasExtra}
+            />
 
             <Separator />
 
@@ -510,6 +541,7 @@ export function CutFinishModal({
                   </div>
                 </div>
               </div>
+
               {!recepcionDate && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
                   Sin fecha de recepcion: no se calculara el tiempo en corte.
