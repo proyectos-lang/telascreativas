@@ -46,12 +46,27 @@ export interface OrdenMarker {
   es_urgente?: boolean | null
 }
 
+/** Una tela del detalle de la orden, con las piezas que le corresponden. */
+export interface TelaConPiezas {
+  tela: string
+  pcs: number
+}
+
 /** Tela de una orden, ya resuelta. */
 export interface TelaDeOrden {
   /** Tela mayoritaria en piezas, normalizada. */
   principal: string
   /** Otras telas de la orden, normalizadas (observación multi-tela). */
   secundarias: string[]
+  /**
+   * TODAS las telas del detalle con sus piezas, de mayor a menor.
+   *
+   * `principal` y `secundarias` deciden la agrupación; este desglose es lo
+   * que necesita ver quien traza, porque el marker saca una impresión
+   * aparte por cada tela y le hace falta saber cuántas piezas van en cada
+   * una. En la cola real hay órdenes de hasta 8 telas distintas.
+   */
+  desglose: TelaConPiezas[]
   /** Piezas totales sumadas desde el detalle. */
   pcs: number
 }
@@ -60,6 +75,8 @@ export interface TelaDeOrden {
 export interface OrdenEnCore extends OrdenMarker {
   telaPrincipal: string
   telasSecundarias: string[]
+  /** Todas las telas de la orden con sus piezas, de mayor a menor. */
+  desgloseTelas: TelaConPiezas[]
   /** Piezas del detalle; si el detalle no trae, cae a `cabecera.pcs`. */
   piezas: number
 }
@@ -140,6 +157,7 @@ export function telasPorPedido(
     salida.set(pedido, {
       principal: orden[0][0],
       secundarias: orden.slice(1).map(([t]) => t),
+      desglose: orden.map(([tela, pcs]) => ({ tela, pcs })),
       pcs: orden.reduce((s, [, n]) => s + n, 0),
     })
   }
@@ -180,6 +198,7 @@ export function sugerirCores(
         ...o,
         telaPrincipal: "",
         telasSecundarias: [],
+        desgloseTelas: [],
         piezas: toPcs(o.pcs),
       })
       continue
@@ -188,6 +207,7 @@ export function sugerirCores(
       ...o,
       telaPrincipal: t.principal,
       telasSecundarias: t.secundarias,
+      desgloseTelas: t.desglose,
       // El detalle es la fuente fiable de piezas por tela; si viniera en
       // cero, se cae a la cabecera para no perder la orden.
       piezas: t.pcs > 0 ? t.pcs : toPcs(o.pcs),

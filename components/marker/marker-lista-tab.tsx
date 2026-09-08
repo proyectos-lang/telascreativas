@@ -47,6 +47,7 @@ import {
   telasPorPedido,
   type OrdenEnCore,
 } from "@/lib/marker/cores"
+import { MarkerTelasOrden } from "@/components/marker/marker-telas-orden"
 
 function fmt(v: string | null | undefined): string {
   if (!v) return "—"
@@ -357,9 +358,11 @@ export function MarkerListaTab() {
                         de la cola
                       </Badge>
                     )}
-                    <Badge variant="outline" className="text-[10px]">
-                      {o.telaPrincipal || "sin tela"}
-                    </Badge>
+                    <MarkerTelasOrden
+                      desglose={o.desgloseTelas}
+                      principal={o.telaPrincipal}
+                      max={3}
+                    />
                     <span className="w-14 text-right tabular-nums text-slate-700">
                       {o.piezas} pcs
                     </span>

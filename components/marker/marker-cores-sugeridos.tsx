@@ -57,6 +57,7 @@ import {
   type OrdenEnCore,
 } from "@/lib/marker/cores"
 import { MarkerReferencias } from "./marker-referencias"
+import { MarkerTelasOrden } from "./marker-telas-orden"
 import { registrarPiezasMarker } from "@/lib/marker/piezas-extra"
 
 function fmtFecha(v: string | null | undefined): string {
@@ -669,9 +670,10 @@ export function MarkerCoresSugeridos() {
                     <span className="min-w-0 flex-1 truncate text-slate-600">
                       {o.cliente ?? "—"}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {o.telaPrincipal || "sin tela"}
-                    </Badge>
+                    <MarkerTelasOrden
+                      desglose={o.desgloseTelas}
+                      principal={o.telaPrincipal}
+                    />
                     {o.es_urgente && (
                       <Badge className="bg-rose-500 text-[10px] text-white hover:bg-rose-600">
                         Urgente
@@ -832,15 +834,10 @@ export function MarkerCoresSugeridos() {
                           Urgente
                         </Badge>
                       )}
-                      {o.telasSecundarias.length > 0 && (
-                        <Badge
-                          variant="outline"
-                          className="border-amber-300 bg-amber-50 text-[10px] text-amber-800"
-                          title="Piezas de otra tela: sacar un trazo aparte para estas."
-                        >
-                          + {o.telasSecundarias.join(", ")}
-                        </Badge>
-                      )}
+                      <MarkerTelasOrden
+                        desglose={o.desgloseTelas}
+                        principal={o.telaPrincipal}
+                      />
                       <span className="w-16 text-right tabular-nums text-slate-700">
                         {o.piezas} pcs
                       </span>
@@ -895,9 +892,10 @@ export function MarkerCoresSugeridos() {
                 <span className="min-w-0 flex-1 truncate text-slate-600">
                   {o.cliente ?? "—"}
                 </span>
-                <Badge variant="outline" className="text-[10px]">
-                  {o.telaPrincipal || "sin tela"}
-                </Badge>
+                <MarkerTelasOrden
+                  desglose={o.desgloseTelas}
+                  principal={o.telaPrincipal}
+                />
                 <span className="w-16 text-right tabular-nums text-slate-700">
                   {o.piezas} pcs
                 </span>
@@ -1123,9 +1121,11 @@ export function MarkerCoresSugeridos() {
                   <span className="min-w-0 flex-1 truncate text-slate-500">
                     {o.cliente ?? "—"}
                   </span>
-                  <Badge variant="outline" className="px-1 py-0 text-[9px]">
-                    {o.telaPrincipal || "—"}
-                  </Badge>
+                  <MarkerTelasOrden
+                    desglose={o.desgloseTelas}
+                    principal={o.telaPrincipal}
+                    max={2}
+                  />
                   <span className="tabular-nums text-slate-600">{o.piezas}</span>
                 </div>
               ))}
