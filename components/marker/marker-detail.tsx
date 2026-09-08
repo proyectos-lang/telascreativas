@@ -163,14 +163,17 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
             <Inbox className="mr-1 size-3.5" />
             Recibir
           </Button>
+          {/* La entrega SIEMPRE la hace el marker, aunque sea de una sola
+              orden: Corte lista markers, no órdenes sueltas, así que un
+              trazo entregado sin marker dejaría la orden invisible. */}
           <Button
             size="sm"
             onClick={() => setModal("terminar")}
-            disabled={!recibido || entregado || enCore}
+            disabled={!recibido || entregado || enCore || !core}
             title={
               enCore
-                ? "La entrega la hace el marker completo, no la orden suelta"
-                : undefined
+                ? "La entrega la hace el marker completo, desde Agrupación de cores"
+                : "Primero hay que crear su marker en Agrupación de cores"
             }
             className="bg-emerald-600 text-white hover:bg-emerald-700"
           >
@@ -207,6 +210,24 @@ export function MarkerDetail({ orden, cores, onBack }: Props) {
               {core?.estado === "Abierto"
                 ? "El marker está armado pero el trazo aún no se ha entregado; por eso la orden sigue en proceso."
                 : `Trazo entregado el ${fmt(core?.fecha_entrega_marker)}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Sin marker no puede pasar a Corte. Se dice aquí para que no haya
+          que adivinar por qué el botón de entrega está deshabilitado. */}
+      {!enCore && !entregado && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">
+              Esta orden todavía no tiene marker
+            </p>
+            <p className="mt-0.5 text-xs text-amber-800/80">
+              Toda orden necesita un marker para pasar a Corte, aunque se
+              corte sola. Créalo desde la pestaña Agrupación de cores: la
+              orden aparece en la lista &quot;Sin agrupar&quot;.
             </p>
           </div>
         </div>

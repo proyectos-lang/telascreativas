@@ -79,7 +79,11 @@ export interface CoreSugerido {
 
 export interface SugerenciaCores {
   cores: CoreSugerido[]
-  /** Órdenes que quedaron solas: no hay con quién agruparlas. */
+  /**
+   * Órdenes que no tienen con quién agruparse. NO se libran del marker:
+   * para pasar a Corte toda orden necesita uno, aunque sea de una sola
+   * orden. Se listan aparte solo porque la sugerencia no puede juntarlas.
+   */
   sueltas: OrdenEnCore[]
   topePcs: number
 }
@@ -223,7 +227,9 @@ export function sugerirCores(
     cerrar()
   }
 
-  // Un core de una sola orden no aporta agrupación: pasa a sueltas.
+  // Un core de una sola orden no aporta AGRUPACIÓN, así que se muestra en
+  // la lista de sueltas; pero igual va a necesitar su propio marker para
+  // pasar a Corte.
   const realesYSolos = cores.reduce<{
     reales: CoreSugerido[]
     solos: OrdenEnCore[]

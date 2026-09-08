@@ -97,6 +97,8 @@ export function MarkerCoresSugeridos() {
   const [manual, setManual] = useState(false)
   const [enManual, setEnManual] = useState<Set<string>>(new Set())
   const [dialogoManual, setDialogoManual] = useState(false)
+  /** Orden suelta para la que se está creando su marker individual. */
+  const [dialogoSuelta, setDialogoSuelta] = useState<OrdenEnCore | null>(null)
   /** Pedidos con sus referencias (líneas de detalle) desplegadas. */
   const [refsAbiertas, setRefsAbiertas] = useState<Set<string>>(new Set())
   const [entregando, setEntregando] = useState<number | null>(null)
@@ -267,6 +269,45 @@ export function MarkerCoresSugeridos() {
       toast.error("El marker se creó, pero no se registraron las piezas extra", {
         description: r.error,
       })
+  }
+
+  /**
+   * Marker de una sola orden. Para pasar a Corte TODA orden necesita
+   * marker: sin él, Corte no la ve —ese módulo lista markers, no órdenes
+   * sueltas— y se quedaría parada sin que nadie lo note.
+   */
+  const confirmarSuelta = async () => {
+    if (!dialogoSuelta) return
+    const yd = Number(yardas)
+    if (!nombre.trim()) {
+      toast.error("El nombre del marker es obligatorio")
+      return
+    }
+    if (!Number.isFinite(yd) || yd <= 0) {
+      toast.error("Yardas teóricas obligatorias", {
+        description: "Se comparan luego contra el consumo real de Corte.",
+      })
+      return
+    }
+    setGuardando(true)
+    const r = await crearCore({
+      nombre: nombre.trim(),
+      telaPrincipal: dialogoSuelta.telaPrincipal || "SIN TELA",
+      yardasTeoricas: yd,
+      ordenes: [dialogoSuelta],
+      creadoPor: usuarioActual?.nombre ?? null,
+      notas: "Marker individual",
+    })
+    setGuardando(false)
+    if (r.success) {
+      await guardarPiezasExtra(r.id ?? null, dialogoSuelta.telaPrincipal)
+      toast.success(`Marker "${nombre.trim()}" creado`, {
+        description: `Orden ${dialogoSuelta.pedido}.`,
+      })
+      setDialogoSuelta(null)
+    } else {
+      toast.error("No se pudo crear el marker", { description: r.error })
+    }
   }
 
   const abrirDialogo = (core: CoreSugerido) => {
@@ -744,7 +785,8 @@ export function MarkerCoresSugeridos() {
               {sugerencia.sueltas.length}
             </Badge>
             <span className="text-xs text-slate-500">
-              No comparten tela con ninguna otra orden en cola.
+              No comparten tela con ninguna otra orden, pero igual necesitan
+              su propio marker para pasar a Corte.
             </span>
           </div>
           <div className="divide-y divide-slate-100">
@@ -768,11 +810,130 @@ export function MarkerCoresSugeridos() {
                 <span className="w-24 text-right text-xs tabular-nums text-slate-500">
                   {fmtFecha(o.fecha_de_entrega)}
                 </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDialogoSuelta(o)
+                    setNombre("")
+                    setYardas("")
+                    setPiezasExtra("")
+                  }}
+                  className="h-7 text-xs"
+                >
+                  <Check className="mr-1 size-3.5" />
+                  Crear marker
+                </Button>
               </div>
             ))}
           </div>
         </Card>
       )}
+
+      {/* Marker de UNA orden. Mismo formulario, distinto alcance. */}
+      <Dialog
+        open={!!dialogoSuelta}
+        onOpenChange={(v) => !v && setDialogoSuelta(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Boxes className="size-4 text-icon-cyan" />
+              Crear marker individual
+            </DialogTitle>
+            <DialogDescription>
+              {dialogoSuelta && (
+                <>
+                  Orden {dialogoSuelta.pedido} ·{" "}
+                  {dialogoSuelta.telaPrincipal || "sin tela"} ·{" "}
+                  {dialogoSuelta.piezas} pcs
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="mks-nombre" className="text-sm">
+                Nombre del marker <span className="text-rose-600">*</span>
+              </Label>
+              <Input
+                id="mks-nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder={`Ej. MK-${dialogoSuelta?.pedido ?? ""}`}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mks-yardas" className="text-sm">
+                Yardas teóricas del trazo{" "}
+                <span className="text-rose-600">*</span>
+              </Label>
+              <div className="relative">
+                <Ruler className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="mks-yardas"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={yardas}
+                  onChange={(e) => setYardas(e.target.value)}
+                  className="pl-8"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mks-extra" className="text-sm">
+                Piezas extra <span className="text-slate-400">(opcional)</span>
+              </Label>
+              <div className="relative">
+                <Layers className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="mks-extra"
+                  type="number"
+                  min={0}
+                  value={piezasExtra}
+                  onChange={(e) => setPiezasExtra(e.target.value)}
+                  className="pl-8"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <p className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+              Toda orden necesita marker para pasar a Corte, aunque se corte
+              sola. Al entregarlo, Corte la recibe como cualquier otro marker.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoSuelta(null)}
+              disabled={guardando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarSuelta}
+              disabled={guardando}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {guardando ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Check className="mr-1.5 size-3.5" />
+              )}
+              Crear marker
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmación del marker MANUAL */}
       <Dialog open={dialogoManual} onOpenChange={(v) => !v && setDialogoManual(false)}>
