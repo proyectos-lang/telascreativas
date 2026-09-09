@@ -53,6 +53,7 @@ const supabase = createClient(
 /** Campos objetivo y su etiqueta, en orden de flujo. */
 const CAMPOS: { campo: keyof FechasObjetivo; label: string }[] = [
   { campo: "dfecha_objetivo_d", label: "Diseño" },
+  { campo: "mdfecha_objetivo_md", label: "Marker Digital" },
   { campo: "ifecha_objetivo_i", label: "Impresión" },
   { campo: "sfecha_objetivo_s", label: "Sublimación" },
   { campo: "cfecha_objetivo_c", label: "Corte" },
@@ -70,7 +71,9 @@ interface OrdenRecalc {
   solo_corte_costura: boolean | null
   omite_corte_costura: boolean | null
   costura_si_no: boolean | string | null
+  es_marker_digital_si_no: boolean | null
   dfecha_objetivo_d: string | null
+  mdfecha_objetivo_md: string | null
   cfecha_objetivo_c: string | null
   ifecha_objetivo_i: string | null
   sfecha_objetivo_s: string | null
@@ -119,7 +122,7 @@ export function RecalcularFechasModal({
           .schema("telas")
           .from("cabecera")
           .select(
-            "pedido, cliente, fecha_programacion, fecha_de_entrega, es_urgente, tipo_flujo_especial, solo_corte_costura, omite_corte_costura, costura_si_no, dfecha_objetivo_d, cfecha_objetivo_c, ifecha_objetivo_i, sfecha_objetivo_s, cosfecha_objetivo_cs, efecha_objetivo_e"
+            "pedido, cliente, fecha_programacion, fecha_de_entrega, es_urgente, tipo_flujo_especial, solo_corte_costura, omite_corte_costura, costura_si_no, es_marker_digital_si_no, dfecha_objetivo_d, mdfecha_objetivo_md, cfecha_objetivo_c, ifecha_objetivo_i, sfecha_objetivo_s, cosfecha_objetivo_cs, efecha_objetivo_e"
           )
           .eq("estado_aprobado_rechazado", "Aprobado")
           .is("efecha_de_empaque", null)
@@ -141,6 +144,7 @@ export function RecalcularFechasModal({
           omiteCorteCostura: o.omite_corte_costura,
           tipoFlujo: o.tipo_flujo_especial,
           costuraSiNo: o.costura_si_no,
+          esMarkerDigital: o.es_marker_digital_si_no,
         })
         const cambiosArea: CambioArea[] = []
         const updates: Partial<Record<keyof FechasObjetivo, string | null>> = {}

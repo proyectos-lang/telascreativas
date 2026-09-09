@@ -471,6 +471,7 @@ export function OrderDetail({
         omiteCorteCostura: orden.omite_corte_costura,
         tipoFlujo: orden.tipo_flujo_especial,
         costuraSiNo: orden.costura_si_no,
+        esMarkerDigital: orden.es_marker_digital_si_no,
       }),
     }
 

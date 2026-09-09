@@ -141,6 +141,7 @@ export function ApprovalModal({
       omiteCorteCostura: formData.omite_corte_costura,
       tipoFlujo,
       costuraSiNo: formData.costura_si_no,
+      esMarkerDigital: formData.es_marker_digital_si_no,
     })
 
     // Construye el CSV de accesorios. Solo se persiste cuando el flujo
