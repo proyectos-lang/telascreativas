@@ -14,7 +14,7 @@
  * que el visor pueda inventar.
  */
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Environment, OrbitControls, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
@@ -59,35 +59,35 @@ function useTexturaDiseno(diseno: DisenoEstudio, vista: Vista) {
     return t
   }, [canvas])
 
-  const pendiente = useRef(true)
+  /** Repinta el canvas y avisa a la GPU. */
+  const repintar = useCallback(() => {
+    componerCara(canvas, diseno, vista)
+    textura.needsUpdate = true
+  }, [canvas, textura, diseno, vista])
 
   useEffect(() => {
     let vivo = true
-    pendiente.current = true
-    void precargarDiseno(diseno).then(() => {
-      if (!vivo) return
-      componerCara(canvas, diseno, vista)
-      textura.needsUpdate = true
-      pendiente.current = false
-    })
     // Pintado inmediato con lo que ya esté cargado, para que la edición
     // se sienta instantánea aunque falte alguna imagen por llegar.
-    componerCara(canvas, diseno, vista)
-    textura.needsUpdate = true
+    repintar()
+    void precargarDiseno(diseno).then(() => {
+      if (vivo) repintar()
+    })
     return () => {
       vivo = false
     }
-  }, [canvas, textura, diseno, vista])
+  }, [repintar, diseno])
 
-  // Mientras falten imágenes se sigue repintando: es la única forma de
-  // que una capa que acaba de cargar aparezca sin tocar nada.
+  /**
+   * Mientras falte alguna imagen se repinta en cada cuadro: es la única
+   * forma de que un logo o una textura recién cargados aparezcan sobre el
+   * modelo sin que el usuario tenga que tocar nada.
+   *
+   * En cuanto están todas se deja de repintar, así que no cuesta nada en
+   * reposo; cualquier edición posterior entra por el efecto de arriba.
+   */
   useFrame(() => {
-    if (pendiente.current && !disenoListo(diseno)) return
-    if (pendiente.current) {
-      componerCara(canvas, diseno, vista)
-      textura.needsUpdate = true
-      pendiente.current = false
-    }
+    if (!disenoListo(diseno)) repintar()
   })
 
   useEffect(() => () => textura.dispose(), [textura])

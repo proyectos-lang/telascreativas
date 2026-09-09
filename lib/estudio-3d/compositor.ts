@@ -22,6 +22,16 @@ export const LADO_TEXTURA = 1024
 const cacheImagenes = new Map<string, Promise<HTMLImageElement>>()
 
 /**
+ * Imágenes YA resueltas, para poder consultarlas de forma síncrona.
+ *
+ * Va en el mismo sitio que la caché de promesas y se llena desde
+ * `cargarImagen`: tenerlas separadas fue un fallo real —`precargarDiseno`
+ * llenaba las promesas pero no este mapa, así que `componerCara` no veía
+ * nunca las imágenes y los logos y texturas no llegaban al modelo 3D.
+ */
+const resueltas = new Map<string, HTMLImageElement>()
+
+/**
  * Carga una imagen una sola vez por URL.
  *
  * El editor repinta en cada arrastre del ratón; sin caché, cada cuadro
@@ -34,7 +44,12 @@ export function cargarImagen(url: string): Promise<HTMLImageElement> {
   const p = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = "anonymous"
-    img.onload = () => resolve(img)
+    img.onload = () => {
+      // Se registra aquí, en el único punto por el que pasan TODAS las
+      // cargas, para que no puedan volver a desincronizarse.
+      resueltas.set(url, img)
+      resolve(img)
+    }
     img.onerror = () => {
       // Se saca de la caché para que un fallo de red no deje la URL
       // envenenada para siempre.
@@ -163,23 +178,20 @@ export function componerCara(
  * Devuelve la imagen solo si ya está cargada.
  *
  * `componerCara` es síncrona a propósito; esto le permite saltarse las
- * capas que aún no llegaron en vez de bloquear el cuadro entero.
+ * capas que aún no llegaron en vez de bloquear el cuadro entero. La que
+ * falte dispara su carga y aparecerá en el siguiente repintado.
  */
-const listas = new Map<string, HTMLImageElement>()
-
 function imagenLista(url: string): HTMLImageElement | null {
-  const ya = listas.get(url)
+  const ya = resueltas.get(url)
   if (ya) return ya
-  void cargarImagen(url)
-    .then((img) => listas.set(url, img))
-    .catch(() => undefined)
-  return listas.get(url) ?? null
+  void cargarImagen(url).catch(() => undefined)
+  return null
 }
 
 /** True si todas las imágenes del diseño ya están en memoria. */
 export function disenoListo(d: DisenoEstudio): boolean {
   for (const cara of Object.values(d.caras)) {
-    if (cara.textura?.url && !listas.has(cara.textura.url)) return false
+    if (cara.textura?.url && !resueltas.has(cara.textura.url)) return false
   }
-  return d.logos.every((l) => listas.has(l.url))
+  return d.logos.every((l) => resueltas.has(l.url))
 }
