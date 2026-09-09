@@ -16,13 +16,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import {
-  Bounds,
-  Center,
-  Environment,
-  OrbitControls,
-  useGLTF,
-} from "@react-three/drei"
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
 import { Loader2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -122,32 +116,67 @@ function Prenda({
       ? new Set(modelo.materiales.map((m) => m.toLowerCase()))
       : null
 
+    /** Crea el material del diseno conservando el nombre del original. */
+    const pintar = (m: THREE.Material | undefined) => {
+      // Partes que no se pintan (cremalleras, botones): se dejan como
+      // vienen del modelo.
+      if (permitidos && !permitidos.has((m?.name ?? "").toLowerCase()))
+        return m as THREE.Material
+
+      const nuevo = new THREE.MeshStandardMaterial({
+        map: textura,
+        roughness: 0.75,
+        metalness: 0.02,
+        side: THREE.DoubleSide,
+      })
+      nuevo.name = m?.name ?? ""
+      return nuevo
+    }
+
     clon.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
-      obj.material = mats.map((m) => {
-        // Partes que no se pintan (cremalleras, botones): se dejan como
-        // vienen del modelo.
-        if (permitidos && !permitidos.has((m?.name ?? "").toLowerCase())) return m
-
-        const nuevo = new THREE.MeshStandardMaterial({
-          map: textura,
-          roughness: 0.75,
-          metalness: 0.02,
-          side: THREE.DoubleSide,
-        })
-        nuevo.name = m?.name ?? ""
-        return nuevo
-      })
+      // Se conserva la FORMA del material: three solo interpreta un array
+      // cuando la geometria tiene grupos, asi que envolver un material
+      // unico en un array de uno lo dejaria sin dibujar.
+      obj.material = Array.isArray(obj.material)
+        ? obj.material.map(pintar)
+        : pintar(obj.material)
     })
   }, [clon, textura, modelo.materiales])
+
+  /**
+   * Normaliza el modelo a tamano ~1 y lo centra en el origen.
+   *
+   * Los .glb vienen en las unidades con que se exportaron: el primero que
+   * se subio aqui media 68 unidades de ancho y estaba centrado a Y=136
+   * (centimetros, no metros). Con una camara pensada para un objeto de
+   * ~1 unidad, esta DENTRO de la prenda y solo se ve el gris de la cara
+   * interna de la tela.
+   *
+   * Escalar aqui, y no en la camara, hace que el visor funcione con
+   * cualquier modelo sin pedirle al usuario que ajuste nada.
+   */
+  const ajuste = useMemo(() => {
+    const caja = new THREE.Box3().setFromObject(clon)
+    const tam = caja.getSize(new THREE.Vector3())
+    const centro = caja.getCenter(new THREE.Vector3())
+    const mayor = Math.max(tam.x, tam.y, tam.z)
+    // Un modelo vacio o degenerado no debe producir una escala infinita.
+    const escala = mayor > 0 && Number.isFinite(mayor) ? 1 / mayor : 1
+    return { escala, centro }
+  }, [clon])
 
   return (
     <group
       rotation={[0, (modelo.rotacion_y * Math.PI) / 180, 0]}
-      scale={modelo.escala || 1}
+      scale={ajuste.escala * (modelo.escala || 1)}
     >
-      <primitive object={clon} />
+      {/* Se desplaza el modelo para que su centro quede en el origen: asi
+          la rotacion de OrbitControls gira alrededor de la prenda y no
+          alrededor de un punto lejano. */}
+      <group position={[-ajuste.centro.x, -ajuste.centro.y, -ajuste.centro.z]}>
+        <primitive object={clon} />
+      </group>
     </group>
   )
 }
@@ -218,7 +247,7 @@ export function EstudioVisorImpl({
 
       <Canvas
         key={key}
-        camera={{ position: [0, 0.2, 2.6], fov: 35 }}
+        camera={{ position: [0, 0, 1.9], fov: 35 }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         dpr={[1, 2]}
       >
@@ -227,19 +256,23 @@ export function EstudioVisorImpl({
         <directionalLight position={[-4, 2, -3]} intensity={0.45} />
 
         <Suspense fallback={null}>
-          <Bounds fit clip observe margin={1.15}>
-            <Center>
-              <Prenda modelo={modelo} diseno={diseno} vista={vista} />
-            </Center>
-          </Bounds>
+          {/* El modelo llega ya normalizado a ~1 unidad y centrado en el
+              origen, asi que no hace falta encuadrarlo: `Bounds` medía
+              antes de que la malla estuviera lista y dejaba la camara
+              dentro de la prenda. */}
+          <Prenda modelo={modelo} diseno={diseno} vista={vista} />
           <Environment preset="studio" />
         </Suspense>
 
+        {/* Margen amplio a proposito: el limite anterior (1.2-6) estaba
+            pensado para un modelo de ~1 unidad e impedia alejarse lo
+            suficiente cuando el .glb venia en otra escala. */}
         <OrbitControls
           makeDefault
           enablePan={false}
-          minDistance={1.2}
-          maxDistance={6}
+          minDistance={0.6}
+          maxDistance={5}
+          target={[0, 0, 0]}
         />
         <Capturador onListo={onCapturaLista} />
       </Canvas>

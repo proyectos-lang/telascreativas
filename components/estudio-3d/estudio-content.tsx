@@ -292,6 +292,25 @@ export function EstudioContent() {
               placeholder="Nombre del diseño"
               className="h-8 w-56 text-sm"
             />
+            {/* Elegir prenda. Antes se tomaba modelos[0] en silencio: con
+                mas de un modelo cargado no habia forma de cambiarlo. */}
+            {modelos.length > 0 && (
+              <select
+                value={modelo?.id ?? ""}
+                onChange={(e) =>
+                  editar((d) => ({ ...d, modeloId: Number(e.target.value) }))
+                }
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                title="Modelo 3D de la prenda"
+              >
+                {modelos.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                    {m.categoria ? ` · ${m.categoria}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
             {idAbierto && (
               <Badge variant="outline" className="text-[10px]">
                 editando #{idAbierto}
