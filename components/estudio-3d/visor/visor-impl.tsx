@@ -8,22 +8,23 @@
  * se marca `needsUpdate` cuando el diseño cambia: recrear la textura en
  * cada cambio dispararía una subida a GPU por cada movimiento del ratón.
  *
- * Se usa la cara FRONTAL como mapa del modelo. La trasera se compone
- * igual y se muestra en el editor 2D; separar ambas caras sobre la malla
- * exige un GLB con UVs partidas, que es una condición del modelo y no algo
- * que el visor pueda inventar.
+ * Las dos caras se ven a la vez: la textura es un atlas frente|espalda y
+ * las UVs que se regeneran aqui mandan cada cara a su mitad, separandolas
+ * por la normal en Z. Basta con girar la camara para revisar la espalda;
+ * `vista` solo dice cual se esta editando en el panel 2D.
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Environment, OrbitControls, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
+import { aplicarMapeo } from "@/lib/estudio-3d/analisis"
 import { Loader2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   LADO_TEXTURA,
-  componerCara,
+  componerAtlas,
   disenoListo,
   precargarDiseno,
 } from "@/lib/estudio-3d/compositor"
@@ -44,10 +45,11 @@ export interface Props {
  * Devuelve siempre la MISMA instancia de THREE.CanvasTexture; lo que
  * cambia es su contenido. Así el material no se recompila en cada edición.
  */
-function useTexturaDiseno(diseno: DisenoEstudio, vista: Vista) {
+function useTexturaDiseno(diseno: DisenoEstudio) {
   const canvas = useMemo(() => {
     const c = document.createElement("canvas")
-    c.width = LADO_TEXTURA
+    // Atlas de las dos caras: frente | espalda.
+    c.width = LADO_TEXTURA * 2
     c.height = LADO_TEXTURA
     return c
   }, [])
@@ -55,15 +57,19 @@ function useTexturaDiseno(diseno: DisenoEstudio, vista: Vista) {
   const textura = useMemo(() => {
     const t = new THREE.CanvasTexture(canvas)
     t.colorSpace = THREE.SRGBColorSpace
-    t.flipY = false // convención de glTF
+      // Las UVs se regeneran aqui a partir de la Y del modelo, que crece
+    // hacia ARRIBA, mientras el canvas crece hacia abajo. Con flipY en
+    // false el diseño saldria del reves; la convencion glTF no aplica
+    // porque el mapeo original del archivo no se usa.
+    t.flipY = true
     return t
   }, [canvas])
 
   /** Repinta el canvas y avisa a la GPU. */
   const repintar = useCallback(() => {
-    componerCara(canvas, diseno, vista)
+    componerAtlas(canvas, diseno)
     textura.needsUpdate = true
-  }, [canvas, textura, diseno, vista])
+  }, [canvas, textura, diseno])
 
   useEffect(() => {
     let vivo = true
@@ -98,18 +104,31 @@ function useTexturaDiseno(diseno: DisenoEstudio, vista: Vista) {
 function Prenda({
   modelo,
   diseno,
-  vista,
 }: {
   modelo: ModeloEstudio
   diseno: DisenoEstudio
-  vista: Vista
 }) {
   const { scene } = useGLTF(modelo.archivo_url)
-  const textura = useTexturaDiseno(diseno, vista)
+  // El modelo muestra SIEMPRE las dos caras con su propio diseño: la
+  // prenda es una sola y el usuario gira la camara para ver la espalda.
+  // `vista` solo dice cual esta editando en el panel 2D.
+  const textura = useTexturaDiseno(diseno)
 
   // El GLB se clona: `useGLTF` cachea la escena y mutar sus materiales
   // afectaría a cualquier otro visor que cargue el mismo archivo.
   const clon = useMemo(() => scene.clone(true), [scene])
+
+  /**
+   * Aplica el mapeo que decidio el analisis al subir el modelo.
+   *
+   * La decision no se toma aqui: se tomo una vez, al subir el archivo,
+   * y quedo guardada en `modelo.mapeo`. Repetir el criterio en cada
+   * carga era lo que hacia que el usuario no supiera si su modelo servia
+   * hasta ver el resultado.
+   */
+  useEffect(() => {
+    aplicarMapeo(clon, modelo.mapeo === "original" ? "original" : "proyeccion")
+  }, [clon, modelo.mapeo])
 
   useEffect(() => {
     const permitidos = modelo.materiales?.length
@@ -157,6 +176,20 @@ function Prenda({
    * cualquier modelo sin pedirle al usuario que ajuste nada.
    */
   const ajuste = useMemo(() => {
+    // Medidas del analisis. Se recalculan solo si faltan, que es el caso
+    // de los modelos subidos antes de que el analisis existiera.
+    const guardado =
+      Number.isFinite(modelo.escala) && modelo.escala > 0 && modelo.escala !== 1
+    if (guardado)
+      return {
+        escala: modelo.escala,
+        centro: new THREE.Vector3(
+          modelo.centro_x ?? 0,
+          modelo.centro_y ?? 0,
+          modelo.centro_z ?? 0
+        ),
+      }
+
     const caja = new THREE.Box3().setFromObject(clon)
     const tam = caja.getSize(new THREE.Vector3())
     const centro = caja.getCenter(new THREE.Vector3())
@@ -164,12 +197,12 @@ function Prenda({
     // Un modelo vacio o degenerado no debe producir una escala infinita.
     const escala = mayor > 0 && Number.isFinite(mayor) ? 1 / mayor : 1
     return { escala, centro }
-  }, [clon])
+  }, [clon, modelo.escala, modelo.centro_x, modelo.centro_y, modelo.centro_z])
 
   return (
     <group
       rotation={[0, (modelo.rotacion_y * Math.PI) / 180, 0]}
-      scale={ajuste.escala * (modelo.escala || 1)}
+      scale={ajuste.escala}
     >
       {/* Se desplaza el modelo para que su centro quede en el origen: asi
           la rotacion de OrbitControls gira alrededor de la prenda y no
@@ -260,7 +293,7 @@ export function EstudioVisorImpl({
               origen, asi que no hace falta encuadrarlo: `Bounds` medía
               antes de que la malla estuviera lista y dejaba la camara
               dentro de la prenda. */}
-          <Prenda modelo={modelo} diseno={diseno} vista={vista} />
+          <Prenda modelo={modelo} diseno={diseno} />
           <Environment preset="studio" />
         </Suspense>
 

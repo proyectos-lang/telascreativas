@@ -83,6 +83,37 @@ create index if not exists idx_estudio_modelos_activo
 
 
 -- ---------------------------------------------------------------------
+-- 2b. Analisis del modelo (se calcula al subirlo)
+-- ---------------------------------------------------------------------
+-- El modelo se examina UNA vez, al subirlo, en vez de improvisar en cada
+-- carga del editor. Asi el usuario sabe en el momento si su archivo
+-- sirve, y el visor solo aplica la decision ya tomada.
+alter table telas.estudio_modelos
+  add column if not exists mapeo text not null default 'proyeccion'
+    check (mapeo in ('original','proyeccion'));
+
+comment on column telas.estudio_modelos.mapeo is
+  'original = las UV del archivo sirven para colocar un diseno; '
+  'proyeccion = no sirven y el diseno se proyecta de frente.';
+
+-- Diagnostico completo: vertices, mallas, % de UV utiles y avisos. Se
+-- guarda entero para poder revisar por que se decidio un mapeo sin
+-- volver a descargar el .glb.
+alter table telas.estudio_modelos
+  add column if not exists analisis jsonb;
+
+-- Centro de la caja del modelo, para llevarlo al origen sin recalcular.
+alter table telas.estudio_modelos
+  add column if not exists centro_x numeric not null default 0,
+  add column if not exists centro_y numeric not null default 0,
+  add column if not exists centro_z numeric not null default 0;
+
+-- Los modelos subidos antes del analisis se quedan con escala 1 y sin
+-- analisis: el visor detecta ese caso y los mide al cargarlos, igual que
+-- hacia antes. Para que queden analizados basta con volver a subirlos.
+
+
+-- ---------------------------------------------------------------------
 -- 3. Diseños guardados
 -- ---------------------------------------------------------------------
 create table if not exists telas.estudio_disenos (

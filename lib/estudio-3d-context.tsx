@@ -27,6 +27,7 @@ import type {
   CatalogoColor,
   CatalogoSimbolo,
 } from "@/lib/gestion-disenos-types"
+import type { AnalisisModelo } from "@/lib/estudio-3d/analisis"
 import {
   normalizarDiseno,
   type DisenoEstudio,
@@ -75,6 +76,7 @@ interface Estudio3DContextType {
     archivoUrl: string
     categoria?: string | null
     notas?: string | null
+    analisis: AnalisisModelo
   }) => Promise<Resultado>
   borrarModelo: (id: number) => Promise<Resultado>
 }
@@ -256,10 +258,12 @@ export function Estudio3DProvider({ children }: { children: ReactNode }) {
       archivoUrl: string
       categoria?: string | null
       notas?: string | null
+      analisis: AnalisisModelo
     }): Promise<Resultado> => {
       const nombre = input.nombre.trim()
       if (!nombre) return { success: false, error: "El modelo necesita nombre." }
 
+      const a = input.analisis
       const { error: e } = await supabase
         .schema("telas")
         .from("estudio_modelos")
@@ -269,6 +273,21 @@ export function Estudio3DProvider({ children }: { children: ReactNode }) {
           categoria: input.categoria ?? null,
           notas: input.notas ?? null,
           creado_por: email,
+          // El analisis se hace al subir, no en cada carga del editor:
+          // el visor solo aplica lo que aqui se decidio.
+          mapeo: a.mapeo,
+          escala: a.escala,
+          centro_x: a.centro.x,
+          centro_y: a.centro.y,
+          centro_z: a.centro.z,
+          materiales: a.materiales.length ? a.materiales : null,
+          analisis: {
+            mallas: a.mallas,
+            vertices: a.vertices,
+            uvUtilizables: a.uvUtilizables,
+            avisos: a.avisos,
+            analizadoEn: new Date().toISOString(),
+          },
         })
       if (e) {
         const dup = /duplicate key|unique/i.test(e.message)

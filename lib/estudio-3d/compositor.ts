@@ -14,6 +14,7 @@
  * es público y responde con CORS, así que funciona.
  */
 
+import { VISTAS } from "./tipos"
 import type { CapaLogo, CaraDiseno, DisenoEstudio, Vista } from "./tipos"
 
 /** Lado del canvas de textura. Potencia de dos: lo que espera WebGL. */
@@ -194,4 +195,39 @@ export function disenoListo(d: DisenoEstudio): boolean {
     if (cara.textura?.url && !resueltas.has(cara.textura.url)) return false
   }
   return d.logos.every((l) => resueltas.has(l.url))
+}
+
+/**
+ * Compone las DOS caras en un solo mapa, una al lado de la otra.
+ *
+ * El modelo es una prenda unica: frente y espalda comparten malla y no se
+ * pueden separar de forma fiable en cualquier .glb. En vez de eso se
+ * pinta un atlas —frente en la mitad izquierda, espalda en la derecha— y
+ * las UVs que genera el visor mandan cada cara a su mitad. Asi las dos se
+ * ven a la vez, con su propio color, textura y logos, y basta con girar
+ * la camara para revisar la espalda.
+ *
+ * El canvas queda de 2048x1024: sigue siendo potencia de dos en ambos
+ * lados, que es lo que espera WebGL para poder generar mipmaps.
+ */
+export function componerAtlas(
+  canvas: HTMLCanvasElement,
+  diseno: DisenoEstudio,
+  lado: number = LADO_TEXTURA
+): void {
+  canvas.width = lado * 2
+  canvas.height = lado
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+
+  ctx.clearRect(0, 0, lado * 2, lado)
+
+  // Cada cara se compone en su propio canvas y se copia en su mitad: asi
+  // se reutiliza tal cual la logica de `componerCara` en vez de repetir
+  // aqui el dibujo de texturas y logos, que es donde estan las reglas.
+  const tmp = document.createElement("canvas")
+  VISTAS.forEach((v, i) => {
+    componerCara(tmp, diseno, v, lado)
+    ctx.drawImage(tmp, i * lado, 0)
+  })
 }

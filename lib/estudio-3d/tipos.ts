@@ -94,6 +94,13 @@ export interface ModeloEstudio {
   materiales: string[] | null
   rotacion_y: number
   escala: number
+  /** Como se aplica el diseno; lo decide el analisis al subir el modelo. */
+  mapeo: "original" | "proyeccion"
+  /** Diagnostico completo del analisis, para poder revisarlo despues. */
+  analisis: unknown | null
+  centro_x: number
+  centro_y: number
+  centro_z: number
   activo: boolean
   orden: number
   notas: string | null
