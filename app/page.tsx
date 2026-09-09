@@ -10,6 +10,7 @@ import { OrdersProvider } from "@/lib/orders-context"
 import { DesignProvider } from "@/lib/design-context"
 import { CutProvider } from "@/lib/cut-context"
 import { MarkerProvider } from "@/lib/marker-context"
+import { Estudio3DProvider } from "@/lib/estudio-3d-context"
 import { PrintProvider } from "@/lib/print-context"
 import { SublimationProvider } from "@/lib/sublimation-context"
 import { CosturaProvider } from "@/lib/costura-context"
@@ -21,6 +22,7 @@ import { OrdersContent } from "@/components/orders/orders-content"
 import { DesignContent } from "@/components/design/design-content"
 import { CutContent } from "@/components/cut/cut-content"
 import { MarkerContent } from "@/components/marker/marker-content"
+import { EstudioContent } from "@/components/estudio-3d/estudio-content"
 import { PrintContent } from "@/components/print/print-content"
 import { SublimationContent } from "@/components/sublimation/sublimation-content"
 import { CosturaContent } from "@/components/costura/costura-content"
@@ -62,6 +64,7 @@ const viewTitles: Record<ActiveView, string> = {
   programacion: "Programacion de Ordenes",
   diseno: "Diseno",
   marker: "Marker Digital",
+  "estudio-3d": "Estudio 3D",
   corte: "Corte",
   impresion: "Impresion",
   sublimacion: "Sublimacion",
@@ -107,6 +110,7 @@ const ORDERED_VIEWS: ActiveView[] = [
   "resumendia",
   "incidencias",
   "indicadores",
+  "estudio-3d",
 ]
 
 function MainApp() {
@@ -151,6 +155,8 @@ function MainApp() {
         return <CutContent />
       case "marker":
         return <MarkerContent />
+      case "estudio-3d":
+        return <EstudioContent />
       case "impresion":
         return <PrintContent />
       case "sublimacion":
@@ -203,7 +209,7 @@ function MainApp() {
     <OrdersProvider>
       <DesignProvider>
         <CutProvider>
-          <MarkerProvider><PrintProvider>
+          <Estudio3DProvider><MarkerProvider><PrintProvider>
             <SublimationProvider>
               <CosturaProvider>
                 <EmpaqueProvider>
@@ -256,7 +262,7 @@ function MainApp() {
                 </EmpaqueProvider>
               </CosturaProvider>
             </SublimationProvider>
-          </PrintProvider></MarkerProvider>
+          </PrintProvider></MarkerProvider></Estudio3DProvider>
         </CutProvider>
       </DesignProvider>
     </OrdersProvider>

@@ -36,6 +36,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // El visor 3D se compila aparte: @react-three/fiber amplia el JSX
+    // global de React (declare module 'react') y sus cientos de elementos
+    // 3D hacen que las props comunes de React.ElementType colapsen a
+    // `never`, rompiendo <Icon className/> en TODO el proyecto. Se carga
+    // con next/dynamic, asi que Next lo compila igual en tiempo de build.
+    "components/estudio-3d/visor/**"
   ]
 }

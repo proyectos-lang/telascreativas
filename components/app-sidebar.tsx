@@ -33,6 +33,7 @@ import {
   User,
   Layers,
   Brush,
+  Box,
   Sparkles,
   MessageSquare,
   ClipboardList,
@@ -75,6 +76,7 @@ export type ActiveView =
   | "com-tareas"
   | "com-noticias"
   | "configuracion"
+  | "estudio-3d"
 
 interface AppSidebarProps {
   activeView: ActiveView
@@ -220,6 +222,14 @@ const menuItems: {
     key: "asistente-ia",
     icon: Sparkles,
     iconColor: "text-icon-purple",
+    group: "administrativo",
+  },
+  // Estudio 3D: experimental, solo lo ve quien tenga `mod_estudio_3d`.
+  {
+    title: "Estudio 3D",
+    key: "estudio-3d",
+    icon: Box,
+    iconColor: "text-icon-magenta",
     group: "administrativo",
   },
   {

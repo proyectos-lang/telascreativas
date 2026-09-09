@@ -28,6 +28,8 @@ export interface UsuarioActual {
   mod_programacion?: boolean | null
   mod_diseno?: boolean | null
   mod_marker?: boolean | null
+  /** Estudio 3D: modulo experimental, habilitado por usuario. */
+  mod_estudio_3d?: boolean | null
   mod_corte?: boolean | null
   mod_impresion?: boolean | null
   mod_sublimacion?: boolean | null
@@ -76,6 +78,9 @@ export const VIEW_PERMISSION_MAP: Record<string, keyof UsuarioActual> = {
   programacion: "mod_programacion",
   diseno: "mod_diseno",
   marker: "mod_marker",
+  // Estudio 3D: generador de disenos. Experimental, se habilita
+  // por usuario con la columna `mod_estudio_3d`.
+  "estudio-3d": "mod_estudio_3d",
   corte: "mod_corte",
   impresion: "mod_impresion",
   sublimacion: "mod_sublimacion",
