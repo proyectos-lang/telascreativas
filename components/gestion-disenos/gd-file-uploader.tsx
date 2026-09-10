@@ -82,53 +82,123 @@ export function GDFileUploader({
   value,
   onChange,
   pathPrefix,
-  maxFiles = 5,
+  maxFiles = 10,
   disabled,
 }: GDFileUploaderProps) {
   const { uploadFile } = useGD()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  // Progreso del lote: con archivos pesados, un spinner a secas no dice
+  // si el sistema sigue trabajando o se quedo colgado.
+  const [progreso, setProgreso] = useState<{
+    hecho: number
+    total: number
+    nombre: string
+  } | null>(null)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   const handleFiles = async (files: FileList) => {
     const remaining = maxFiles - value.length
-    const toUpload = Array.from(files).slice(0, remaining)
+    const elegidos = Array.from(files)
 
-    const invalid = toUpload.filter((f) => {
-      const ext = (f.name.split(".").pop() ?? "").toLowerCase()
-      return !ALLOWED_EXT_LIST.includes(ext) && !ALLOWED_TYPES.includes(f.type)
-    })
-    if (invalid.length) {
-      toast.error("Formato no permitido", {
-        description:
-          "Solo se permiten: .ai, .pdf, .png, .jpg, .jpeg, .webp, .xlsx, .xls, .csv",
+    if (remaining <= 0) {
+      toast.error("No caben más archivos", {
+        description: `El máximo es ${maxFiles}. Quita alguno para subir otro.`,
       })
       return
     }
-    const tooBig = toUpload.filter((f) => f.size > MAX_BYTES)
-    if (tooBig.length) {
-      toast.error("Archivo demasiado grande", {
-        description: "Máximo 50 MB por archivo",
-      })
+
+    // Antes se recortaba en silencio: al elegir 10 con 3 huecos libres,
+    // los otros 7 desaparecian sin que nadie lo dijera.
+    const toUpload = elegidos.slice(0, remaining)
+    if (elegidos.length > remaining) {
+      toast.warning(
+        `Solo caben ${remaining} archivo${remaining === 1 ? "" : "s"} más`,
+        {
+          description: `Se subirán los primeros ${remaining} de ${elegidos.length}; el máximo es ${maxFiles}.`,
+        }
+      )
+    }
+
+    // Los invalidos se apartan en vez de abortar el lote entero: un solo
+    // archivo pesado o de formato raro no debe impedir que suban los que
+    // si sirven.
+    const validos: File[] = []
+    const malFormato: string[] = []
+    const muyGrandes: string[] = []
+
+    for (const f of toUpload) {
+      const ext = (f.name.split(".").pop() ?? "").toLowerCase()
+      if (!ALLOWED_EXT_LIST.includes(ext) && !ALLOWED_TYPES.includes(f.type)) {
+        malFormato.push(f.name)
+      } else if (f.size > MAX_BYTES) {
+        muyGrandes.push(f.name)
+      } else {
+        validos.push(f)
+      }
+    }
+
+    if (malFormato.length)
+      toast.error(
+        malFormato.length === 1
+          ? `"${malFormato[0]}" no tiene un formato permitido`
+          : `${malFormato.length} archivos con formato no permitido`,
+        {
+          description:
+            "Solo se permiten: .ai, .pdf, .png, .jpg, .jpeg, .webp, .xlsx, .xls, .csv",
+        }
+      )
+    if (muyGrandes.length)
+      toast.error(
+        muyGrandes.length === 1
+          ? `"${muyGrandes[0]}" supera los 50 MB`
+          : `${muyGrandes.length} archivos superan los 50 MB`,
+        { description: "Máximo 50 MB por archivo." }
+      )
+    if (validos.length === 0) {
+      if (inputRef.current) inputRef.current.value = ""
       return
     }
 
     setUploading(true)
+    // Se sube de uno en uno, esperando a que termine cada archivo: subirlos
+    // a la vez satura la conexion y, con archivos pesados, es lo que hace
+    // que fallen a mitad de camino.
     try {
       const urls: string[] = []
-      for (const file of toUpload) {
+      const fallidos: string[] = []
+
+      for (let i = 0; i < validos.length; i++) {
+        const file = validos[i]
+        setProgreso({ hecho: i, total: validos.length, nombre: file.name })
+
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
         const path = `${pathPrefix}_${Date.now()}_${safe}`
         const res = await uploadFile(file, path)
+
         if (res.success && res.url) {
           urls.push(res.url)
+          // Se publica cada archivo en cuanto sube, en vez de esperar al
+          // final: si el lote se corta, lo ya subido no se pierde.
+          onChange([...value, ...urls])
         } else {
-          toast.error(`Error al subir ${file.name}`, { description: res.error })
+          fallidos.push(file.name)
+          toast.error(`No se pudo subir "${file.name}"`, {
+            description: res.error,
+          })
         }
       }
-      if (urls.length) onChange([...value, ...urls])
+
+      if (urls.length && validos.length > 1)
+        toast.success(
+          `${urls.length} de ${validos.length} archivos subidos`,
+          fallidos.length
+            ? { description: `No subieron: ${fallidos.join(", ")}` }
+            : undefined
+        )
     } finally {
       setUploading(false)
+      setProgreso(null)
       if (inputRef.current) inputRef.current.value = ""
     }
   }
@@ -206,6 +276,30 @@ export function GDFileUploader({
           </button>
         )}
       </div>
+
+      {/* Progreso del lote. Con archivos pesados la subida tarda, y sin
+          esto no hay forma de saber en cual va ni si sigue viva. */}
+      {progreso && progreso.total > 1 && (
+        <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            <Loader2 className="size-3 shrink-0 animate-spin" />
+            <span className="min-w-0 flex-1 truncate">
+              Subiendo {progreso.nombre}
+            </span>
+            <span className="shrink-0 tabular-nums text-slate-500">
+              {progreso.hecho + 1} de {progreso.total}
+            </span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-all"
+              style={{
+                width: `${(progreso.hecho / progreso.total) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <input
         ref={inputRef}

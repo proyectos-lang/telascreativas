@@ -104,11 +104,11 @@ export function GDUploadProposalModal({ gestion, open, onClose }: GDUploadPropos
             )}
 
             <GDFileUploader
-              label="Imágenes del mockup (opcional, máx. 5)"
+              label="Imágenes del mockup (opcional, máx. 10)"
               value={imagenesUrls}
               onChange={setImagenesUrls}
               pathPrefix={prefix}
-              maxFiles={5}
+              maxFiles={10}
             />
 
             <div className="space-y-1.5">
