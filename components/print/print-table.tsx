@@ -79,6 +79,47 @@ export function PrintTable({
     )
   }
 
+  /**
+   * Estatus de Marker Digital.
+   *
+   * Solo el 11% de la cola de Corte y el 32% de la de Impresion pasa por
+   * Marker. Mostrar "Pendiente" en las demas seria mentir: no van a pasar
+   * por ahi nunca. Por eso se distingue explicitamente "No aplica".
+   */
+  const getEstadoMarkerBadge = (orden: Orden) => {
+    if (orden.es_marker_digital_si_no !== true) {
+      return <span className="text-xs text-muted-foreground">No aplica</span>
+    }
+    if (orden.mdentrega_marker) {
+      return (
+        <Badge
+          variant="outline"
+          className="border-emerald-300 bg-emerald-50 text-emerald-700"
+        >
+          <CheckCircle2 className="mr-1 size-3" />
+          Entregado
+        </Badge>
+      )
+    }
+    if (orden.mdfecha_de_recepcion) {
+      return (
+        <Badge
+          variant="outline"
+          className="border-amber-300 bg-amber-50 text-amber-700"
+        >
+          <Clock className="mr-1 size-3" />
+          En Proceso
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="secondary" className="text-muted-foreground">
+        <Circle className="mr-1 size-3" />
+        Pendiente
+      </Badge>
+    )
+  }
+
   // Estatus de Corte (informative badge if cfecha_de_corte)
   const getEstadoCorteBadge = (orden: Orden) => {
     if (orden.cfecha_de_corte) {
@@ -169,6 +210,7 @@ export function PrintTable({
           <TableHead className="text-right">Inches</TableHead>
           <TableHead>Urgencia</TableHead>
           <TableHead>Estatus de Diseno</TableHead>
+          <TableHead>Estatus de Marker</TableHead>
           <TableHead>Estatus de Corte</TableHead>
           <TableHead>Estado Impresion</TableHead>
           <TableHead className="text-right">Accion</TableHead>
@@ -229,6 +271,7 @@ export function PrintTable({
                 )}
               </TableCell>
               <TableCell>{getEstadoDisenoBadge(orden)}</TableCell>
+              <TableCell>{getEstadoMarkerBadge(orden)}</TableCell>
               <TableCell>{getEstadoCorteBadge(orden)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
