@@ -25,6 +25,7 @@ import {
   Download,
   Info,
   Loader2,
+  Package,
   RefreshCw,
   Ruler,
   Search,
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { InventarioConsumoReal } from "./inventario-consumo-real"
 import {
   cargarAuditoria,
   consumoPorSemana,
@@ -94,6 +96,7 @@ export function InventarioAuditoriaConsumo() {
   const [tela, setTela] = useState("todas")
   const [soloDesviadas, setSoloDesviadas] = useState(false)
   const [tolerancia, setTolerancia] = useState(TOLERANCIA_POR_DEFECTO)
+  const [vista, setVista] = useState("real")
 
   const cargar = async () => {
     setCargando(true)
@@ -185,9 +188,10 @@ export function InventarioAuditoriaConsumo() {
 
   return (
     <div className="space-y-4">
-      {/* La cobertura va arriba del todo: sin este dato, cualquier total
-          de abajo se leeria como si cubriera toda la produccion. */}
-      {resumen.comparables < resumen.conReal && (
+      {/* La cobertura solo advierte sobre las vistas COMPARATIVAS. En
+          "Consumo real" no hay nada parcial: estan todas las ordenes con
+          yardas registradas. */}
+      {vista !== "real" && resumen.comparables < resumen.conReal && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
           <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <p className="text-xs text-amber-900">
@@ -201,17 +205,31 @@ export function InventarioAuditoriaConsumo() {
         </div>
       )}
 
-      <Tabs defaultValue="auditoria">
+      <Tabs value={vista} onValueChange={setVista}>
         <TabsList>
+          <TabsTrigger value="real">
+            <Package className="mr-1.5 size-3.5" />
+            Consumo real
+          </TabsTrigger>
           <TabsTrigger value="auditoria">
             <Search className="mr-1.5 size-3.5" />
-            Auditoría por orden
+            Auditoría vs marker
           </TabsTrigger>
           <TabsTrigger value="panel">
             <BarChart3 className="mr-1.5 size-3.5" />
-            Panel de consumo
+            Panel comparativo
           </TabsTrigger>
         </TabsList>
+
+        {/* Consumo real: TODAS las ordenes con yardas registradas, sin
+            exigir que exista un teorico con el que compararlas. Va
+            primero porque cubre la mayor parte del gasto de tela. */}
+        <TabsContent value="real" className="mt-4">
+          <InventarioConsumoReal
+            filas={filas}
+            onRecargar={() => void cargar()}
+          />
+        </TabsContent>
 
         {/* ───────────────── Auditoría ───────────────── */}
         <TabsContent value="auditoria" className="mt-4 space-y-3">

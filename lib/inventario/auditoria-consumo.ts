@@ -44,6 +44,11 @@ export interface FilaAuditoria {
   teoricas: number | null
   /** Yardas registradas por Corte al cerrar. */
   reales: number | null
+  estilo: string | null
+  piezasMalas: number | null
+  comentarioCorte: string | null
+  /** Yardas por pieza cortada. Es la medida de rendimiento sin teorico. */
+  rendimiento: number | null
   coreId: number | null
   coreNombre: string | null
   /** reales - teoricas. Positivo = se gastó de más. */
@@ -109,6 +114,9 @@ function num(v: unknown): number | null {
 interface FilaCabecera {
   pedido: string
   cliente: string | null
+  estilo_de_la_prenda: string | null
+  cpiezas_malas_o_errores: number | string | null
+  ccomentario_corte: string | null
   cfecha_de_corte: string | null
   csemana_de_corte: number | string | null
   cpiezas_cortadas: number | string | null
@@ -136,7 +144,7 @@ export async function cargarAuditoria(): Promise<FilaAuditoria[]> {
       .schema("telas")
       .from("cabecera")
       .select(
-        "pedido, cliente, cfecha_de_corte, csemana_de_corte, cpiezas_cortadas, cyardas, mdyardas_teoricas, mdcore_id"
+        "pedido, cliente, estilo_de_la_prenda, cfecha_de_corte, csemana_de_corte, cpiezas_cortadas, cpiezas_malas_o_errores, ccomentario_corte, cyardas, mdyardas_teoricas, mdcore_id"
       )
       .not("cfecha_de_corte", "is", null)
       .range(from, to) as unknown as PromiseLike<{
@@ -188,13 +196,23 @@ export async function cargarAuditoria(): Promise<FilaAuditoria[]> {
         ? (diferencia / teoricas) * 100
         : null
 
+    const piezas = num(o.cpiezas_cortadas)
+
     return {
       pedido: o.pedido,
       cliente: o.cliente,
+      estilo: o.estilo_de_la_prenda,
       fechaCorte: o.cfecha_de_corte ? String(o.cfecha_de_corte).slice(0, 10) : null,
       semana: num(o.csemana_de_corte),
       tela,
-      piezasCortadas: num(o.cpiezas_cortadas),
+      piezasCortadas: piezas,
+      piezasMalas: num(o.cpiezas_malas_o_errores),
+      comentarioCorte: o.ccomentario_corte,
+      // Rendimiento: sin teorico contra el que medir, es la unica senal de
+      // si una orden consumio lo razonable. Se protege el divisor porque
+      // hay ordenes cerradas con cero piezas.
+      rendimiento:
+        reales !== null && piezas !== null && piezas > 0 ? reales / piezas : null,
       teoricas,
       reales,
       coreId: o.mdcore_id,
@@ -285,4 +303,74 @@ export function consumoPorSemana(filas: FilaAuditoria[]): ConsumoPorSemana[] {
     m.set(f.semana, e)
   }
   return [...m.values()].sort((a, b) => a.semana - b.semana)
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Consumo puro: todo lo que Corte registró, sin exigir teórico
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * El consumo real no depende de que exista un trazo con el que
+ * compararlo. Las funciones de arriba se limitan a las órdenes
+ * comparables —hoy una minoría— y eso deja fuera la mayor parte del gasto
+ * de tela, que es justo lo que hay que vigilar. Estas trabajan sobre
+ * TODAS las órdenes con `cyardas`.
+ */
+
+export interface ResumenConsumo {
+  ordenes: number
+  yardas: number
+  piezas: number
+  /** Yardas por pieza del conjunto. Ojo: es el total sobre el total, no
+   *  el promedio de los rendimientos, que una orden diminuta podría
+   *  distorsionar. */
+  rendimientoGlobal: number | null
+  clientes: number
+  telas: number
+  /** Cuántas de estas órdenes además tienen teórico, como referencia. */
+  conTeorico: number
+}
+
+export function resumirConsumo(filas: FilaAuditoria[]): ResumenConsumo {
+  const con = filas.filter((f) => f.reales !== null)
+  const yardas = con.reduce((s, f) => s + (f.reales ?? 0), 0)
+  const piezas = con.reduce((s, f) => s + (f.piezasCortadas ?? 0), 0)
+
+  return {
+    ordenes: con.length,
+    yardas,
+    piezas,
+    rendimientoGlobal: piezas > 0 ? yardas / piezas : null,
+    clientes: new Set(con.map((f) => f.cliente).filter(Boolean)).size,
+    telas: new Set(con.map((f) => f.tela)).size,
+    conTeorico: con.filter((f) => f.teoricas !== null).length,
+  }
+}
+
+export interface ConsumoAgrupado {
+  clave: string
+  ordenes: number
+  yardas: number
+  piezas: number
+  rendimiento: number | null
+}
+
+/** Agrupa el consumo real por cualquier criterio de la fila. */
+export function agruparConsumo(
+  filas: FilaAuditoria[],
+  clave: (f: FilaAuditoria) => string | null
+): ConsumoAgrupado[] {
+  const m = new Map<string, ConsumoAgrupado>()
+  for (const f of filas) {
+    if (f.reales === null) continue
+    const k = clave(f) ?? "—"
+    const e = m.get(k) ?? { clave: k, ordenes: 0, yardas: 0, piezas: 0, rendimiento: null }
+    e.ordenes++
+    e.yardas += f.reales
+    e.piezas += f.piezasCortadas ?? 0
+    m.set(k, e)
+  }
+  for (const e of m.values())
+    e.rendimiento = e.piezas > 0 ? e.yardas / e.piezas : null
+  return [...m.values()].sort((a, b) => b.yardas - a.yardas)
 }
