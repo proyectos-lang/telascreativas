@@ -58,9 +58,11 @@ import {
   Trash2,
   FileSpreadsheet,
   ChevronsUpDown,
+  Ruler,
   Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { InventarioAuditoriaConsumo } from "./inventario-auditoria-consumo"
 
 // ─── Supabase ──────────────────────────────────────────────────────────────────
 
@@ -1049,7 +1051,7 @@ export function InventarioTelasContent() {
       </div>
 
       <Tabs defaultValue="stock">
-        <TabsList className="grid w-full max-w-xl grid-cols-4">
+        <TabsList className="grid w-full max-w-3xl grid-cols-5">
           <TabsTrigger value="stock" className="flex items-center gap-1.5">
             <PackageCheck className="size-3.5" />
             Stock Actual
@@ -1065,6 +1067,10 @@ export function InventarioTelasContent() {
           <TabsTrigger value="descuento" className="flex items-center gap-1.5">
             <ArrowUpFromLine className="size-3.5" />
             Descuento
+          </TabsTrigger>
+          <TabsTrigger value="consumo" className="flex items-center gap-1.5">
+            <Ruler className="size-3.5" />
+            Consumo en Corte
           </TabsTrigger>
         </TabsList>
 
@@ -1131,6 +1137,11 @@ export function InventarioTelasContent() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Consumo en Corte: teorico del marker vs real del cortador ── */}
+        <TabsContent value="consumo" className="mt-4">
+          <InventarioAuditoriaConsumo />
         </TabsContent>
       </Tabs>
 
