@@ -193,6 +193,10 @@ select
     -- Impresión y Sublimación, pero SÍ pasan por Corte, así que necesitan
     -- trazo igual.
     when omite_corte_costura = true then 'N/A'::text
+    -- Inventario cortado: las piezas ya vienen cortadas, no hay trazo que
+    -- hacer. Va antes de evaluar fechas para que datos viejos no la
+    -- muestren como Terminado.
+    when inventario_cortado_si_no = true then 'N/A'::text
     when mdentrega_marker is not null then 'Terminado'::text
     -- Órdenes anteriores al área: ya se cortaron sin trazo. Mostrarlas como
     -- "Pendiente" anunciaría un paso que nunca va a ocurrir.
@@ -231,6 +235,9 @@ select
   case
     when tipo_flujo_especial = any (array['COMPRA_EXTERNA'::text, 'VENTA_INVENTARIO'::text]) then 'N/A'::text
     when omite_corte_costura = true then 'N/A'::text
+    -- Inventario cortado: la orden entra con las piezas ya cortadas y
+    -- pasa directo a Costura.
+    when inventario_cortado_si_no = true then 'N/A'::text
     when cfecha_de_corte is not null then 'Terminado'::text
     when cfecha_de_recepcion is not null then 'Recibido'::text
     -- Con marker, Corte no puede tomar la orden hasta tener el trazo.

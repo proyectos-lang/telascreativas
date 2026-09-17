@@ -109,6 +109,7 @@ export function ReprogramModal({
     embellecimiento: orden.embellecimiento || "",
     tipo_prediseno: orden.tipo_prediseno || "",
     es_marker_digital_si_no: orden.es_marker_digital_si_no || false,
+    inventario_cortado_si_no: orden.inventario_cortado_si_no || false,
     personalizado_si_no: orden.personalizado_si_no || false,
     es_urgente: orden.es_urgente || false,
     costura_si_no: orden.costura_si_no || false,
@@ -134,6 +135,7 @@ export function ReprogramModal({
         embellecimiento: orden.embellecimiento || "",
         tipo_prediseno: orden.tipo_prediseno || "",
         es_marker_digital_si_no: orden.es_marker_digital_si_no || false,
+        inventario_cortado_si_no: orden.inventario_cortado_si_no || false,
         personalizado_si_no: orden.personalizado_si_no || false,
         es_urgente: orden.es_urgente || false,
         costura_si_no: orden.costura_si_no || false,
@@ -187,6 +189,7 @@ export function ReprogramModal({
         tipoFlujo,
         costuraSiNo: formData.costura_si_no,
         esMarkerDigital: formData.es_marker_digital_si_no,
+        inventarioCortado: formData.inventario_cortado_si_no,
       })
 
       const accesoriosCsv =
@@ -414,6 +417,88 @@ export function ReprogramModal({
                 <p className="text-xs text-sky-800/80">
                   La orden no aparecerá en Corte ni Costura; sí en Diseño,
                   Impresión, Sublimación y Empaque.
+                </p>
+              </div>
+            </label>
+
+            {/* Marker Digital e Inventario Cortado son excluyentes: pedir
+                trazo de piezas que ya estan cortadas no tiene sentido, asi
+                que marcar una desmarca la otra. */}
+            <label
+              htmlFor="es_marker_digital_reprogram"
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                formData.es_marker_digital_si_no
+                  ? "border-cyan-400 bg-cyan-50"
+                  : "border-cyan-200 bg-cyan-50/40 hover:bg-cyan-50/70"
+              }`}
+            >
+              <Checkbox
+                id="es_marker_digital_reprogram"
+                checked={formData.es_marker_digital_si_no}
+                onCheckedChange={() =>
+                  setFormData((prev) => {
+                    const activando = !prev.es_marker_digital_si_no
+                    return {
+                      ...prev,
+                      es_marker_digital_si_no: activando,
+                      inventario_cortado_si_no: activando
+                        ? false
+                        : prev.inventario_cortado_si_no,
+                    }
+                  })
+                }
+                className="mt-0.5"
+                disabled={isSubmitting}
+              />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Ruler className="size-4 text-cyan-700" />
+                  <span className="text-sm font-semibold text-cyan-900">
+                    Es Marker Digital
+                  </span>
+                </div>
+                <p className="text-xs text-cyan-800/80">
+                  La orden necesita trazo antes de pasar a Corte.
+                </p>
+              </div>
+            </label>
+
+            <label
+              htmlFor="inventario_cortado_reprogram"
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                formData.inventario_cortado_si_no
+                  ? "border-emerald-400 bg-emerald-50"
+                  : "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70"
+              }`}
+            >
+              <Checkbox
+                id="inventario_cortado_reprogram"
+                checked={formData.inventario_cortado_si_no}
+                onCheckedChange={() =>
+                  setFormData((prev) => {
+                    const activando = !prev.inventario_cortado_si_no
+                    return {
+                      ...prev,
+                      inventario_cortado_si_no: activando,
+                      es_marker_digital_si_no: activando
+                        ? false
+                        : prev.es_marker_digital_si_no,
+                    }
+                  })
+                }
+                className="mt-0.5"
+                disabled={isSubmitting}
+              />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Warehouse className="size-4 text-emerald-700" />
+                  <span className="text-sm font-semibold text-emerald-900">
+                    Inventario Cortado
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-800/80">
+                  Las piezas ya vienen cortadas de inventario: la orden no
+                  pasa por Marker ni por Corte, entra directo a Costura.
                 </p>
               </div>
             </label>

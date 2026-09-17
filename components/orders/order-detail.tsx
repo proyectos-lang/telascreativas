@@ -472,6 +472,7 @@ export function OrderDetail({
         tipoFlujo: orden.tipo_flujo_especial,
         costuraSiNo: orden.costura_si_no,
         esMarkerDigital: orden.es_marker_digital_si_no,
+        inventarioCortado: orden.inventario_cortado_si_no,
       }),
     }
 

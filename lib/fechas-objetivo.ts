@@ -110,6 +110,12 @@ export interface FechasObjetivoInput {
    * trata como false.
    */
   esMarkerDigital?: boolean | null
+  /**
+   * `cabecera.inventario_cortado_si_no`. La orden entra con las piezas ya
+   * cortadas de inventario, asi que no pasa por Marker ni por Corte. Puede
+   * venir null en ordenes historicas: se trata como false.
+   */
+  inventarioCortado?: boolean | null
 }
 
 export interface FechasObjetivo {
@@ -170,6 +176,7 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
     tipoFlujo,
     costuraSiNo,
     esMarkerDigital,
+    inventarioCortado,
   } = input
 
   if (!fechaBase) return {}
@@ -205,6 +212,10 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
   const saltaDisenoImpresion = soloCorteCostura === true
   const yardajeSinCostura = esYardaje && sinCosturaFlag(costuraSiNo)
   const saltaCorteCostura = omiteCorteCostura === true || yardajeSinCostura
+  // Inventario cortado: las piezas ya vienen cortadas, asi que la orden no
+  // pasa por Marker ni por Corte pero SI por Costura. Darles fecha objetivo
+  // las dejaria vencidas para siempre en Capacidad y Adherencia.
+  const usaInventarioCortado = inventarioCortado === true
   // En yardaje sin costura la orden va de Sublimación directo a Entregas.
   const saltaEmpaque = yardajeSinCostura
 
@@ -215,10 +226,11 @@ export function calcularFechasObjetivo(input: FechasObjetivoInput): FechasObjeti
     // `solo_corte_costura` salta Diseño/Impresión/Sublimación pero SÍ pasa
     // por Corte, así que necesita trazo y por tanto fecha objetivo. Solo se
     // excluye cuando la orden no pasa por Corte.
-    marker: usaMarker && !saltaCorteCostura,
+    marker: usaMarker && !saltaCorteCostura && !usaInventarioCortado,
     impresion: !saltaDisenoImpresion,
     sublimacion: !saltaDisenoImpresion,
-    corte: !saltaCorteCostura,
+    corte: !saltaCorteCostura && !usaInventarioCortado,
+    // Inventario cortado SI cose: solo se salta el trazo y el corte.
     costura: !saltaCorteCostura,
     empaque: !saltaEmpaque,
   }

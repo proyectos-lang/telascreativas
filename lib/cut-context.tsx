@@ -58,6 +58,12 @@ export function CutProvider({ children }: { children: ReactNode }) {
           return estado === "aprobado"
         }
 
+        // Inventario cortado: la orden entra con las piezas ya cortadas y
+        // pasa directo a Costura. Mostrarla en Corte anunciaria un paso que
+        // nunca va a ocurrir.
+        const esInventarioCortado = (o: Orden) =>
+          o.inventario_cortado_si_no === true
+
         const isYardaje = (o: Orden) =>
           (o.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
           "YARDAJE"
@@ -86,6 +92,8 @@ export function CutProvider({ children }: { children: ReactNode }) {
         //    se trata como normal por compatibilidad hacia atrás.
         // 3. Si costura_si_no = false (boolean o string "false") la orden
         //    no requiere Corte ni Costura y se excluye de ambas áreas.
+        // 4. Inventario cortado: la orden entra con las piezas ya cortadas
+        //    y pasa directo a Costura, asi que no aparece en Corte.
         const notRejected = (data || []).filter((o) => {
           const estado = (o.estado_aprobado_rechazado || "")
             .toString()
@@ -101,6 +109,8 @@ export function CutProvider({ children }: { children: ReactNode }) {
           // Excluir si la orden no requiere costura/corte
           const costuraSiNo = String(o.costura_si_no ?? "true").trim().toLowerCase()
           if (costuraSiNo === "false") return false
+          // 4. Inventario cortado: entra con las piezas ya cortadas.
+          if (esInventarioCortado(o)) return false
           return true
         })
 

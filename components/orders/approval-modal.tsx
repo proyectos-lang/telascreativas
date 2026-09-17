@@ -85,6 +85,7 @@ export function ApprovalModal({
     embellecimiento: orden.embellecimiento || "",
     tipo_prediseno: orden.tipo_prediseno || "",
     es_marker_digital_si_no: orden.es_marker_digital_si_no || false,
+    inventario_cortado_si_no: orden.inventario_cortado_si_no || false,
     personalizado_si_no: orden.personalizado_si_no || false,
     es_urgente: orden.es_urgente || false,
     costura_si_no: orden.costura_si_no || false,
@@ -142,6 +143,7 @@ export function ApprovalModal({
       tipoFlujo,
       costuraSiNo: formData.costura_si_no,
       esMarkerDigital: formData.es_marker_digital_si_no,
+      inventarioCortado: formData.inventario_cortado_si_no,
     })
 
     // Construye el CSV de accesorios. Solo se persiste cuando el flujo
@@ -450,10 +452,53 @@ export function ApprovalModal({
               <Checkbox
                 id="es_marker_digital"
                 checked={formData.es_marker_digital_si_no}
-                onCheckedChange={() => handleCheckboxChange("es_marker_digital_si_no")}
+                onCheckedChange={() =>
+                  setFormData((prev) => {
+                    const activando = !prev.es_marker_digital_si_no
+                    return {
+                      ...prev,
+                      es_marker_digital_si_no: activando,
+                      inventario_cortado_si_no: activando
+                        ? false
+                        : prev.inventario_cortado_si_no,
+                    }
+                  })
+                }
               />
               <Label htmlFor="es_marker_digital" className="font-normal cursor-pointer">
                 Es Marker Digital
+              </Label>
+            </div>
+            {/* Inventario cortado: las piezas ya existen, asi que la orden
+                se salta Marker y Corte y entra directo a Costura. Es
+                excluyente con Marker Digital —pedir trazo de piezas que ya
+                estan cortadas no tiene sentido— y por eso marcar una
+                desmarca la otra. */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="inventario_cortado"
+                checked={formData.inventario_cortado_si_no}
+                onCheckedChange={() =>
+                  setFormData((prev) => {
+                    const activando = !prev.inventario_cortado_si_no
+                    return {
+                      ...prev,
+                      inventario_cortado_si_no: activando,
+                      es_marker_digital_si_no: activando
+                        ? false
+                        : prev.es_marker_digital_si_no,
+                    }
+                  })
+                }
+              />
+              <Label
+                htmlFor="inventario_cortado"
+                className="font-normal cursor-pointer"
+              >
+                Inventario Cortado
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  (no pasa por Marker ni Corte)
+                </span>
               </Label>
             </div>
 

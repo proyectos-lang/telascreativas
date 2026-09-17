@@ -54,6 +54,8 @@ export interface Orden {
   embellecimiento?: string
   tipo_prediseno?: string
   es_marker_digital_si_no?: boolean
+  /** Las piezas ya vienen cortadas de inventario: sin Marker ni Corte. */
+  inventario_cortado_si_no?: boolean
   personalizado_si_no?: boolean
   costura_si_no?: boolean
   maquina_costura?: string
