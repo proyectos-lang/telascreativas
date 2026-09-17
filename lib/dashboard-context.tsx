@@ -397,6 +397,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const workloadByArea = useMemo<AreaWorkload[]>(() => {
     const areas: AreaKey[] = [
       "diseno",
+      // Marker Digital iba junto a las demas areas en el resto del
+      // dashboard, pero faltaba en estas listas: statusFor y daysFor
+      // sabian leerlo y nunca se les pedia, asi que su tarjeta del flujo
+      // de planta salia siempre en cero aunque tuviera ordenes.
+      "marker",
       "corte",
       "impresion",
       "sublimacion",
@@ -427,6 +432,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const avgDaysByArea = useMemo<AreaAverage[]>(() => {
     const areas: Exclude<AreaKey, "empaque">[] = [
       "diseno",
+      "marker",
       "corte",
       "impresion",
       "sublimacion",
@@ -457,6 +463,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const avgDaysByAreaAll = useMemo<AreaAverage[]>(() => {
     const areas: Exclude<AreaKey, "empaque">[] = [
       "diseno",
+      "marker",
       "corte",
       "impresion",
       "sublimacion",
