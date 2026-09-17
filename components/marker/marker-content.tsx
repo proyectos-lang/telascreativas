@@ -32,7 +32,7 @@ import {
 import { MarkerTable } from "./marker-table"
 import { MarkerDetail } from "./marker-detail"
 import { MarkerCoresSugeridos } from "./marker-cores-sugeridos"
-import { MarkerPiezasExtraTab } from "./marker-piezas-extra-tab"
+import { PiezasExtraTab } from "@/components/shared/piezas-extra-tab"
 import { MarkerListaTab } from "./marker-lista-tab"
 
 const MARKER_ESTADOS = ["Pendiente", "Recibido", "Terminado"] as const
@@ -144,7 +144,7 @@ export function MarkerContent() {
               value: "piezas-extra",
               label: "Piezas extra",
               icon: Layers,
-              content: <MarkerPiezasExtraTab />,
+              content: <PiezasExtraTab />,
             },
           ]}
           ordenesContent={

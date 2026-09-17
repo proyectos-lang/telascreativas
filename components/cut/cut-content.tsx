@@ -7,7 +7,7 @@ import { CutTable } from "./cut-table"
 import { CutDetail } from "./cut-detail"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertTriangle, RefreshCw, Scissors } from "lucide-react"
+import { AlertTriangle, Layers, RefreshCw, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ProductionFilters,
@@ -22,6 +22,10 @@ import {
 } from "@/components/shared/target-date-filter"
 import { getCorteStatus } from "@/lib/production-status"
 import { ModuleTabs } from "@/components/incidencias/module-tabs"
+// El inventario de piezas extra lo comparten Corte y Marker: es Corte
+// quien las identifica por talla y referencia, y el componente es el
+// mismo que ve Marker, no una copia.
+import { PiezasExtraTab } from "@/components/shared/piezas-extra-tab"
 import { ModuleResumenCard } from "@/components/shared/module-resumen-card"
 import { createClient } from "@supabase/supabase-js"
 import { useEffect } from "react"
@@ -189,6 +193,14 @@ export function CutContent() {
           area="Corte"
           accentClass="text-icon-magenta"
           resumenContent={<ModuleResumenCard areaKey="corte" />}
+          extraTabs={[
+            {
+              value: "piezas-extra",
+              label: "Piezas extra",
+              icon: Layers,
+              content: <PiezasExtraTab />,
+            },
+          ]}
           ordenesContent={
             <>
               {error && (

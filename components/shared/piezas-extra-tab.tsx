@@ -1,7 +1,11 @@
 "use client"
 
 /**
- * Inventario de piezas extra, dentro del módulo de Marker Digital.
+ * Inventario de piezas extra. Lo comparten Marker Digital y Corte.
+ *
+ * Vive fuera de los dos módulos porque el inventario es uno solo: si cada
+ * área tuviera su copia, acabarían mostrando cifras distintas de las
+ * mismas piezas.
  *
  * Acumula lo que registran Marker y Corte. Las dos fuentes se muestran por
  * separado a propósito: las de Marker son una cantidad proyectada sin talla
@@ -48,7 +52,7 @@ function fmt(v: string | null): string {
   return y && m && d ? `${d}/${m}/${y}` : "—"
 }
 
-export function MarkerPiezasExtraTab() {
+export function PiezasExtraTab() {
   const [piezas, setPiezas] = useState<PiezaExtra[]>([])
   const [cargando, setCargando] = useState(true)
   const [filtro, setFiltro] = useState("")
