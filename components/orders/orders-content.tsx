@@ -18,7 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, AlertCircle, RefreshCw, PenLine, Ban, CalendarClock } from "lucide-react"
+import { CalendarDays, AlertCircle, RefreshCw, PenLine, Ban, CalendarClock, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
+import { ReactivateModal } from "./reactivate-modal"
 import { Button } from "@/components/ui/button"
 import { ManualOrderView } from "./manual-order-view"
 import { RecalcularFechasModal } from "./recalcular-fechas-modal"
@@ -46,6 +48,39 @@ export function OrdersContent() {
       vendedoras: Array.from(vendedorasSet).sort(),
     }
   }, [ordenes])
+
+  /** Orden cuya cancelacion se va a reversar; null = modal cerrado. */
+  const [ordenAReactivar, setOrdenAReactivar] = useState<Orden | null>(null)
+
+  /**
+   * Devuelve la orden a su estado anterior a la cancelacion.
+   *
+   * Cancelar solo escribe "cancelado", asi que revertir es restaurar ese
+   * campo: las fechas y el avance nunca se borraron y siguen donde
+   * estaban. El estado destino lo decide `estadoAlReactivar` a partir de
+   * las fechas objetivo (ver reactivate-modal.tsx).
+   */
+  const reversarCancelacion = async (
+    orden: Orden,
+    estado: "Aprobado" | "Pendiente"
+  ) => {
+    const r = await updateOrden(orden.pedido, {
+      estado_aprobado_rechazado: estado,
+    })
+    if (r.success) {
+      setOrdenAReactivar(null)
+      toast.success(`Orden ${orden.pedido} reactivada`, {
+        description:
+          estado === "Aprobado"
+            ? "Vuelve a produccion con sus fechas objetivo."
+            : "Queda pendiente: hay que aprobarla para que entre a produccion.",
+      })
+    } else {
+      toast.error("No se pudo reversar", {
+        description: r.error || "Intenta de nuevo.",
+      })
+    }
+  }
 
   // Historial de canceladas (tab separado)
   const canceladas = useMemo(
@@ -294,6 +329,7 @@ export function OrdersContent() {
                       <TableHead>Fecha Programación</TableHead>
                       <TableHead>Tipo de Orden</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Accion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -348,6 +384,23 @@ export function OrdersContent() {
                               Cancelada
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-right">
+                            {/* stopPropagation: la fila entera abre el
+                                detalle, y sin esto el clic haria las dos
+                                cosas a la vez. */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOrdenAReactivar(orden)
+                              }}
+                              className="h-7 text-xs"
+                            >
+                              <RotateCcw className="mr-1.5 size-3.5" />
+                              Reversar
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       )
                     })}
@@ -366,6 +419,13 @@ export function OrdersContent() {
         open={showRecalcular}
         onOpenChange={setShowRecalcular}
         onDone={refreshOrdenes}
+      />
+
+      <ReactivateModal
+        orden={ordenAReactivar}
+        open={ordenAReactivar !== null}
+        onClose={() => setOrdenAReactivar(null)}
+        onConfirm={reversarCancelacion}
       />
     </Card>
   )
