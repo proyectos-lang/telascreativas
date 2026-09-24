@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { CutPiezasExtra, aAltas, type FilaExtra } from "./cut-piezas-extra"
 import { registrarPiezasCorte } from "@/lib/marker/piezas-extra"
+import { registrarSalidaCorte } from "@/lib/inventario/salida-corte"
+import { CutTelaInventario } from "./cut-tela-inventario"
 import { createClient } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Orden } from "@/lib/types"
@@ -89,6 +91,39 @@ export function CutFinishModal({
 }: CutFinishModalProps) {
     const { usuarioActual } = useAuth()
   const [piezasExtra, setPiezasExtra] = useState<FilaExtra[]>([])
+  /** Tela de inventario que se descuenta; null = no descontar. */
+  const [telaInventario, setTelaInventario] = useState<number | null>(null)
+  /**
+   * Tela segun el detalle del pedido, solo para sugerir en el selector.
+   * No esta en `cabecera`: vive en `detalleorden`, y una orden puede
+   * tener varias; se toma la mayoritaria en piezas, igual criterio que
+   * usa el motor de cores.
+   */
+  const [telaDelPedido, setTelaDelPedido] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    let vivo = true
+    void (async () => {
+      const { data } = await supabase
+        .schema("telas")
+        .from("detalleorden")
+        .select("tela, pcs")
+        .eq("pedido", orden.pedido)
+      if (!vivo) return
+      const porTela = new Map<string, number>()
+      for (const l of (data as { tela: string | null; pcs: unknown }[]) ?? []) {
+        const t = String(l.tela ?? "").trim()
+        if (!t || t.toUpperCase() === "NA") continue
+        porTela.set(t, (porTela.get(t) ?? 0) + (Number(l.pcs) || 0))
+      }
+      const mayor = [...porTela.entries()].sort((a, b) => b[1] - a[1])[0]
+      setTelaDelPedido(mayor ? mayor[0] : null)
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [open, orden.pedido])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [motivosDemora, setMotivosDemora] = useState<string[]>([])
   const [loadingMotivos, setLoadingMotivos] = useState(false)
@@ -310,6 +345,30 @@ export function CutFinishModal({
       }
     }
 
+    // Salida de inventario. Va despues de las piezas extra y antes de
+    // cerrar, por el mismo motivo: si falla se avisa, pero el corte ya
+    // ocurrio y no tiene sentido bloquearlo por un dato de inventario.
+    if (telaInventario && cyardasNum && cyardasNum > 0) {
+      updates.ctela_inventario_id = telaInventario
+      const r = await registrarSalidaCorte({
+        telaId: telaInventario,
+        yardas: cyardasNum,
+        pedido: orden.pedido,
+        usuario: usuarioActual?.nombre ?? null,
+      })
+      if (r.success) {
+        toast.success(`${cyardasNum} yd descontadas del inventario`, {
+          description: r.quedoNegativo
+            ? `Atencion: el stock quedo en ${r.stockFinalYardas} yd.`
+            : undefined,
+        })
+      } else {
+        toast.error("No se pudo descontar del inventario", {
+          description: r.error,
+        })
+      }
+    }
+
     await onFinish(updates)
     setIsSubmitting(false)
   }
@@ -402,6 +461,18 @@ export function CutFinishModal({
                 />
               </div>
             </div>
+
+            {/* Tela que se descuenta del inventario. La elige el cortador
+                porque el detalle del pedido no guarda el color y el
+                inventario si lo distingue. */}
+            <CutTelaInventario
+              telaSugerida={telaDelPedido}
+              yardas={Number(formData.cyardas) || 0}
+              valor={telaInventario}
+              onChange={setTelaInventario}
+            />
+
+            <Separator />
 
             {/* Piezas que sobraron del corte. Van al inventario de piezas
                 extra con su talla y referencia. */}

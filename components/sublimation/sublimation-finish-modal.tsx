@@ -1,9 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Orden } from "@/lib/types"
+import { useAuth } from "@/lib/auth-context"
+import { registrarSalidaCorte } from "@/lib/inventario/salida-corte"
+import { CutTelaInventario } from "@/components/cut/cut-tela-inventario"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -44,6 +47,7 @@ import {
   Gauge,
   Timer,
   Layers,
+  Ruler,
   XCircle,
   PenLine,
   PackagePlus,
@@ -114,10 +118,74 @@ export function SublimationFinishModal({
   // Nota: stiempo_sublimacion ya NO es editable, se calcula automaticamente
   // sobre la marcha (dias habiles entre sfecha_de_ingreso_sub y hoy,
   // saltandose los domingos). Por eso lo sacamos del formData.
+  const { usuarioActual } = useAuth()
+
+  /**
+   * True cuando la orden NO pasa por Corte y por tanto su consumo de
+   * tela no se registra en ningun otro sitio.
+   *
+   * Es el mismo criterio que usa el motor de fechas objetivo para
+   * saltarse Corte: yardaje sin costura, u omite_corte_costura. De 310
+   * ordenes de yardaje, 181 caen aqui y ninguna tenia consumo
+   * registrado.
+   */
+  const registraConsumo = useMemo(() => {
+    const esYardaje =
+      (orden.tipo_flujo_especial ?? "").toString().trim().toUpperCase() ===
+      "YARDAJE"
+    const sinCostura =
+      orden.costura_si_no === false ||
+      String(orden.costura_si_no).toLowerCase() === "false"
+    return (esYardaje && sinCostura) || orden.omite_corte_costura === true
+  }, [orden.tipo_flujo_especial, orden.costura_si_no, orden.omite_corte_costura])
+
+  /**
+   * Tela segun el detalle del pedido, solo para sugerir en el selector.
+   * Vive en `detalleorden`, no en cabecera; se toma la mayoritaria en
+   * piezas, mismo criterio que el motor de cores.
+   */
+  const [telaDelPedido, setTelaDelPedido] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !registraConsumo) return
+    let vivo = true
+    void (async () => {
+      const cli = supabase
+      if (!cli) return
+      const { data } = await cli
+        .schema("telas")
+        .from("detalleorden")
+        .select("tela, pcs")
+        .eq("pedido", orden.pedido)
+      if (!vivo) return
+      const porTela = new Map<string, number>()
+      for (const l of (data as { tela: string | null; pcs: unknown }[]) ?? []) {
+        const t = String(l.tela ?? "").trim()
+        if (!t || t.toUpperCase() === "NA") continue
+        porTela.set(t, (porTela.get(t) ?? 0) + (Number(l.pcs) || 0))
+      }
+      const mayor = [...porTela.entries()].sort((a, b) => b[1] - a[1])[0]
+      setTelaDelPedido(mayor ? mayor[0] : null)
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [open, orden.pedido, registraConsumo])
+
+
+  /**
+   * Tela de inventario que se descuenta al cerrar.
+   *
+   * Solo se pide cuando la orden NO pasa por Corte: si pasa, el consumo
+   * se registra alla y pedirlo aqui lo duplicaria.
+   */
+  const [telaInventario, setTelaInventario] = useState<number | null>(null)
+
   const [formData, setFormData] = useState({
     stemperatura: "",
     svelocidad: "",
     scantidad_sublimada: "",
+    syardas: "",
     serrores: "",
     saprobacion_cliente_si_no: false,
     smotivo_demora_terminado_s: "",
@@ -140,6 +208,10 @@ export function SublimationFinishModal({
         orden.scantidad_sublimada !== undefined &&
         orden.scantidad_sublimada !== null
           ? String(orden.scantidad_sublimada)
+          : "",
+      syardas:
+        orden.syardas !== undefined && orden.syardas !== null
+          ? String(orden.syardas)
           : "",
       serrores: orden.serrores || "",
       saprobacion_cliente_si_no: orden.saprobacion_cliente_si_no ?? false,
@@ -333,12 +405,37 @@ export function SublimationFinishModal({
     // 2. Parse numeric fields
     const temperaturaNum = parseFloat(formData.stemperatura)
     const velocidadNum = parseFloat(formData.svelocidad)
+    const syardasNum = parseFloat(formData.syardas)
     const cantidadSublimadaNum = parseInt(formData.scantidad_sublimada, 10)
 
     // 3. Build UPDATE payload - seta_sublimacion is auto-set to today.
     //    stiempo_sublimacion se calcula automaticamente (dias habiles desde
     //    sfecha_de_ingreso_sub hasta hoy, saltando domingos).
     //    s_firma_recibe_costura recibe la URL publica de la firma.
+    // Salida de inventario. Mismo criterio que en Corte: se avisa si
+    // falla pero no se bloquea el cierre, porque la sublimacion ya
+    // ocurrio y no tiene sentido frenarla por un dato de inventario.
+    if (registraConsumo && telaInventario && syardasNum > 0) {
+      const rs = await registrarSalidaCorte({
+        telaId: telaInventario,
+        yardas: syardasNum,
+        pedido: orden.pedido,
+        usuario: usuarioActual?.nombre ?? null,
+        nota: "sublimacion",
+      })
+      if (rs.success) {
+        toast.success(`${syardasNum} yd descontadas del inventario`, {
+          description: rs.quedoNegativo
+            ? `Atencion: el stock quedo en ${rs.stockFinalYardas} yd.`
+            : undefined,
+        })
+      } else {
+        toast.error("No se pudo descontar del inventario", {
+          description: rs.error,
+        })
+      }
+    }
+
     const updates: Partial<Orden> = {
       seta_sublimacion: todayISO,
       stiempo_sublimacion: tiempoSublimacionToSave,
@@ -347,6 +444,14 @@ export function SublimationFinishModal({
       scantidad_sublimada: !isNaN(cantidadSublimadaNum)
         ? cantidadSublimadaNum
         : undefined,
+      // Consumo de tela. Solo lo registra Sublimacion cuando la orden no
+      // pasa por Corte; en las demas, cyardas es el dato bueno.
+      ...(registraConsumo && !isNaN(syardasNum) && syardasNum > 0
+        ? {
+            syardas: syardasNum,
+            ...(telaInventario ? { stela_inventario_id: telaInventario } : {}),
+          }
+        : {}),
       serrores: formData.serrores || undefined,
       saprobacion_cliente_si_no: formData.saprobacion_cliente_si_no,
       smotivo_demora_terminado_s:
@@ -584,6 +689,50 @@ export function SublimationFinishModal({
               />
             </div>
           </div>
+
+          {/* Consumo de tela. Solo para las ordenes que NO pasan por
+              Corte: en las demas el consumo se registra alla y pedirlo
+              aqui lo duplicaria. */}
+          {registraConsumo && (
+            <div className="space-y-3 rounded-lg border border-cyan-200 bg-cyan-50/40 p-3">
+              <p className="text-xs text-cyan-900">
+                Esta orden no pasa por Corte, asi que su consumo de tela se
+                registra aqui.
+              </p>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="syardas"
+                  className="text-sm flex items-center gap-1.5"
+                >
+                  <Ruler className="size-3.5 text-icon-cyan" />
+                  Yardas consumidas
+                </Label>
+                <Input
+                  id="syardas"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formData.syardas}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      syardas: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <CutTelaInventario
+                telaSugerida={telaDelPedido}
+                yardas={Number(formData.syardas) || 0}
+                valor={telaInventario}
+                onChange={setTelaInventario}
+              />
+            </div>
+          )}
 
           {/* Errores / mermas */}
           <div className="space-y-2">

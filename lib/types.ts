@@ -104,6 +104,8 @@ export interface Orden {
   cpiezas_cortadas?: number
   cpiezas_malas_o_errores?: number
   cyardas?: number
+  /** Tela de inventario que Corte declaro haber consumido. */
+  ctela_inventario_id?: number
   cmotivo_demora_terminado_c?: string
   ctiempo_en_corte?: string
   csemana_de_corte?: number
@@ -134,6 +136,10 @@ export interface Orden {
   sfecha_objetivo_s?: string
   sfecha_de_ingreso_sub?: string
   seta_sublimacion?: string
+  /** Yardas consumidas registradas en Sublimacion. */
+  syardas?: number
+  /** Tela de inventario que Sublimacion declaro haber consumido. */
+  stela_inventario_id?: number
   // Campos para recibir en Sublimacion
   smotivo_demora_recibido_s?: string
   scomentario_sublimacion?: string

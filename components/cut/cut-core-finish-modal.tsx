@@ -31,6 +31,8 @@ import { toast } from "sonner"
 import { useCut } from "@/lib/cut-context"
 import { prorratearPorPiezas } from "@/lib/marker/cores"
 import { registrarPiezasCorte } from "@/lib/marker/piezas-extra"
+import { registrarSalidaCorte } from "@/lib/inventario/salida-corte"
+import { CutTelaInventario } from "./cut-tela-inventario"
 import { useAuth } from "@/lib/auth-context"
 import { CutPiezasExtra, aAltas, type FilaExtra } from "./cut-piezas-extra"
 import type { CoreEnCorte } from "./cut-cores-table"
@@ -64,6 +66,8 @@ export function CutCoreFinishModal({ core, open, onClose }: Props) {
   const { refreshOrdenes } = useCut()
   const { usuarioActual } = useAuth()
   const [piezasExtra, setPiezasExtra] = useState<FilaExtra[]>([])
+  /** Tela de inventario del core; null = no descontar. */
+  const [telaInventario, setTelaInventario] = useState<number | null>(null)
   const [yardas, setYardas] = useState("")
   const [piezas, setPiezas] = useState<Record<string, string>>(() =>
     Object.fromEntries(core.ordenes.map((o) => [o.pedido, String(o.pcs ?? "")]))
@@ -134,6 +138,30 @@ export function CutCoreFinishModal({ core, open, onClose }: Props) {
         .update({ estado: "Cortado", fecha_corte: fecha, yardas_reales: yd })
         .eq("id", core.core.id)
       if (coreError) throw new Error(coreError.message)
+
+      // Salida de inventario por el core completo. Un marker agrupa
+      // ordenes que comparten tela, asi que se descuenta una sola vez
+      // con el total de yardas y queda ligado al core, no a un pedido.
+      if (telaInventario && yd > 0) {
+        const rs = await registrarSalidaCorte({
+          telaId: telaInventario,
+          yardas: yd,
+          coreId: core.core.id,
+          usuario: usuarioActual?.nombre ?? null,
+          nota: `marker ${core.core.nombre}`,
+        })
+        if (rs.success) {
+          toast.success(`${yd} yd descontadas del inventario`, {
+            description: rs.quedoNegativo
+              ? `Atencion: el stock quedo en ${rs.stockFinalYardas} yd.`
+              : undefined,
+          })
+        } else {
+          toast.error("No se pudo descontar del inventario", {
+            description: rs.error,
+          })
+        }
+      }
 
       // Piezas extra del core, con su talla y referencia.
       const altas = aAltas(piezasExtra, {
@@ -237,6 +265,13 @@ export function CutCoreFinishModal({ core, open, onClose }: Props) {
               ))}
             </div>
           </div>
+
+          <CutTelaInventario
+            telaSugerida={core.core.tela_principal}
+            yardas={Number(yardas) || 0}
+            valor={telaInventario}
+            onChange={setTelaInventario}
+          />
 
           <CutPiezasExtra
             pedidos={core.ordenes.map((o) => o.pedido)}
