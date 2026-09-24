@@ -59,6 +59,8 @@ import {
 import { MarkerReferencias } from "./marker-referencias"
 import { MarkerTelasOrden } from "./marker-telas-orden"
 import { registrarPiezasMarker } from "@/lib/marker/piezas-extra"
+import { guardarTendidos, type TendidoNuevo } from "@/lib/marker/tendidos"
+import { MarkerTendidosEditor } from "./marker-tendidos-editor"
 
 function fmtFecha(v: string | null | undefined): string {
   if (!v) return "—"
@@ -112,6 +114,8 @@ export function MarkerCoresSugeridos() {
   const [yardas, setYardas] = useState("")
   /** Piezas de mas que deja el trazo. Van al inventario de piezas extra. */
   const [piezasExtra, setPiezasExtra] = useState("")
+  /** Tendidos capturados de la hoja de corte; vacio = marker sin subdividir. */
+  const [tendidos, setTendidos] = useState<TendidoNuevo[]>([])
   const [guardando, setGuardando] = useState(false)
 
   const topeEfectivo = topePcs
@@ -266,6 +270,7 @@ export function MarkerCoresSugeridos() {
     })
     setGuardando(false)
     if (r.success) {
+      await guardarTendidosDelCore(r.id ?? null)
       await guardarPiezasExtra(r.id ?? null, resumenManual.telaPrincipal)
       toast.success(`Marker "${nombre.trim()}" creado`, {
         description: `${seleccionManual.length} órdenes agrupadas a mano.`,
@@ -283,6 +288,25 @@ export function MarkerCoresSugeridos() {
    * fallo aquí NO tumba la creación del marker: el core ya existe y sería
    * peor perderlo por un dato accesorio.
    */
+  /**
+   * Guarda los tendidos recien capturados.
+   *
+   * Un fallo aqui se avisa pero no deshace el marker: el core ya existe
+   * con sus ordenes, y los tendidos se pueden volver a capturar desde la
+   * pestana de markers creados.
+   */
+  const guardarTendidosDelCore = async (coreId: number | null) => {
+    if (!coreId || tendidos.length === 0) return
+    const r = await guardarTendidos(coreId, tendidos)
+    if (r.success) {
+      setTendidos([])
+    } else {
+      toast.error("El marker se creo pero no se guardaron los tendidos", {
+        description: r.error,
+      })
+    }
+  }
+
   const guardarPiezasExtra = async (coreId: number | null, tela: string) => {
     const n = Number(piezasExtra)
     if (!Number.isFinite(n) || n <= 0) return
@@ -331,6 +355,7 @@ export function MarkerCoresSugeridos() {
     })
     setGuardando(false)
     if (r.success) {
+      await guardarTendidosDelCore(r.id ?? null)
       await guardarPiezasExtra(r.id ?? null, dialogoSuelta.telaPrincipal)
       toast.success(`Marker "${nombre.trim()}" creado`, {
         description: `Orden ${dialogoSuelta.pedido}.`,
@@ -376,6 +401,7 @@ export function MarkerCoresSugeridos() {
     })
     setGuardando(false)
     if (r.success) {
+      await guardarTendidosDelCore(r.id ?? null)
       await guardarPiezasExtra(r.id ?? null, dialogo.telaPrincipal)
       toast.success(`Marker "${nombre.trim()}" creado`, {
         description: `${sel.length} órdenes agrupadas.`,
@@ -994,6 +1020,12 @@ export function MarkerCoresSugeridos() {
                   placeholder="0"
                 />
               </div>
+
+            <MarkerTendidosEditor
+              tendidos={tendidos}
+              onChange={setTendidos}
+              telaSugerida={dialogoSuelta?.telaPrincipal}
+            />
             </div>
 
             <p className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
@@ -1103,6 +1135,12 @@ export function MarkerCoresSugeridos() {
                   placeholder="0"
                 />
               </div>
+
+            <MarkerTendidosEditor
+              tendidos={tendidos}
+              onChange={setTendidos}
+              telaSugerida={resumenManual.telaPrincipal}
+            />
               <p className="text-[11px] text-muted-foreground">
                 Piezas de más que deja el trazo. Entran al inventario de
                 piezas extra; Corte registrará luego su talla y referencia.
@@ -1227,6 +1265,12 @@ export function MarkerCoresSugeridos() {
                   placeholder="0"
                 />
               </div>
+
+            <MarkerTendidosEditor
+              tendidos={tendidos}
+              onChange={setTendidos}
+              telaSugerida={dialogo?.telaPrincipal}
+            />
               <p className="text-[11px] text-muted-foreground">
                 Piezas de más que deja el trazo. Entran al inventario de
                 piezas extra; Corte registrará luego su talla y referencia.

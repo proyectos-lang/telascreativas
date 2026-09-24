@@ -18,6 +18,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Orden } from "@/lib/types"
+import { useCut } from "@/lib/cut-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -42,6 +43,7 @@ import { cn } from "@/lib/utils"
 import type { LineaTela, MarkerCore } from "@/lib/marker-context"
 import { MarkerReferencias } from "@/components/marker/marker-referencias"
 import { CutCoreFinishModal } from "./cut-core-finish-modal"
+import { CutTendidosPanel } from "./cut-tendidos-panel"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,6 +106,7 @@ function fmt(v: string | null | undefined) {
 }
 
 export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
+  const { refreshOrdenes } = useCut()
   const [abierto, setAbierto] = useState<Record<number, boolean>>({})
   /** Referencias (lineas de detalleorden) de las ordenes desplegadas. */
   const [refs, setRefs] = useState<Map<string, LineaTela[]>>(new Map())
@@ -302,6 +305,18 @@ export function CutCoresTable({ cores, onRecibir, onSelectOrder }: Props) {
                 </Button>
               </div>
             </div>
+
+            {exp && !c.cortado && (
+              <div className="border-t border-slate-100 p-3">
+                {/* Los tendidos se cortan uno por uno: un marker puede ir a
+                    medias, y cada tendido descuenta su propia tela. */}
+                <CutTendidosPanel
+                  coreId={c.core.id}
+                  coreNombre={c.core.nombre}
+                  onCambio={refreshOrdenes}
+                />
+              </div>
+            )}
 
             {exp && (
               <div className="overflow-x-auto border-t border-slate-100">
