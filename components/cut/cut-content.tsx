@@ -7,6 +7,8 @@ import { CutTable } from "./cut-table"
 import { CutDetail } from "./cut-detail"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AlertTriangle, Layers, RefreshCw, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -43,6 +45,14 @@ const CORTE_ESTADOS = ["Pendiente", "Recibido", "Terminado"] as const
 export function CutContent() {
   const { ordenes, isLoading, error, refreshOrdenes } = useCut()
   const [selectedOrder, setSelectedOrder] = useState<Orden | null>(null)
+  /**
+   * Los terminados se ocultan por defecto.
+   *
+   * De 1.509 ordenes en la cola, 1.441 ya estan cortadas: el 95%. Sin
+   * esto el cortador recorre mil filas para trabajar sobre 68.
+   */
+  const [verTerminados, setVerTerminados] = useState(false)
+
   const [filters, setFilters] = useState<ProductionFilterState>(
     INITIAL_PRODUCTION_FILTERS
   )
@@ -94,7 +104,9 @@ export function CutContent() {
         }
       })
       .filter((c) => c.ordenes.length > 0)
-  }, [cores, ordenes])
+      // Markers ya cortados: mismo criterio que las ordenes sueltas.
+      .filter((c) => verTerminados || !c.cortado)
+  }, [cores, ordenes, verTerminados])
 
   /** Recibe el marker completo: misma fecha para todas sus ordenes. */
   const recibirCore = async (c: CoreEnCorte) => {
@@ -122,10 +134,24 @@ export function CutContent() {
     })
   }
 
+  /** Cuantos hay terminados, para decirlo en la casilla. */
+  const terminados = useMemo(() => {
+    const sueltas = ordenes.filter(
+      (o) => o.mdcore_id == null && o.cfecha_de_corte
+    ).length
+    const markers = cores.filter((core) => {
+      const os = ordenes.filter((o) => o.mdcore_id === core.id)
+      return os.length > 0 && os.every((o) => !!o.cfecha_de_corte)
+    }).length
+    return { sueltas, markers, total: sueltas + markers }
+  }, [ordenes, cores])
+
   const filteredOrdenes = useMemo(() => {
     return ordenes.filter((o) => {
       // Las ordenes agrupadas en un marker se gestionan desde su core.
       if (o.mdcore_id != null) return false
+      // Terminadas: fuera salvo que se pidan expresamente.
+      if (!verTerminados && o.cfecha_de_corte) return false
       // Filtro global por fecha objetivo del area (cfecha_objetivo_c).
       if (!matchesTargetDate(o.cfecha_objetivo_c, targetDateFilter)) return false
       if (
@@ -149,7 +175,7 @@ export function CutContent() {
         return false
       return true
     })
-  }, [ordenes, filters, targetDateFilter])
+  }, [ordenes, filters, targetDateFilter, verTerminados])
 
   if (selectedOrder) {
     const currentOrder =
@@ -221,6 +247,21 @@ export function CutContent() {
                   estadoOptions={CORTE_ESTADOS}
                   accentClass="text-icon-magenta"
                 />
+              )}
+
+              {/* Los terminados se esconden por defecto: son el 95% de la
+                  cola y tapan lo que de verdad queda por cortar. */}
+              {terminados.total > 0 && (
+                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100">
+                  <Checkbox
+                    checked={verTerminados}
+                    onCheckedChange={(v) => setVerTerminados(v === true)}
+                  />
+                  Ver terminados
+                  <Badge variant="outline" className="text-[10px] tabular-nums">
+                    {terminados.total}
+                  </Badge>
+                </label>
               )}
 
               {coresEnCorte.length > 0 && (
