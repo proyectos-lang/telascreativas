@@ -59,10 +59,12 @@ import {
   FileSpreadsheet,
   ChevronsUpDown,
   Ruler,
+  History,
   Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { InventarioAuditoriaConsumo } from "./inventario-auditoria-consumo"
+import { InventarioHistorial } from "./inventario-historial"
 
 // ─── Supabase ──────────────────────────────────────────────────────────────────
 
@@ -1051,7 +1053,7 @@ export function InventarioTelasContent() {
       </div>
 
       <Tabs defaultValue="stock">
-        <TabsList className="grid w-full max-w-3xl grid-cols-5">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6">
           <TabsTrigger value="stock" className="flex items-center gap-1.5">
             <PackageCheck className="size-3.5" />
             Stock Actual
@@ -1071,6 +1073,10 @@ export function InventarioTelasContent() {
           <TabsTrigger value="consumo" className="flex items-center gap-1.5">
             <Ruler className="size-3.5" />
             Consumo en Corte
+          </TabsTrigger>
+          <TabsTrigger value="historial" className="flex items-center gap-1.5">
+            <History className="size-3.5" />
+            Historial
           </TabsTrigger>
         </TabsList>
 
@@ -1142,6 +1148,12 @@ export function InventarioTelasContent() {
         {/* ── Consumo en Corte: teorico del marker vs real del cortador ── */}
         <TabsContent value="consumo" className="mt-4">
           <InventarioAuditoriaConsumo />
+        </TabsContent>
+
+        {/* Historial: todo lo que entro y salio, con su pedido y cliente
+            cuando el movimiento lo genero produccion. */}
+        <TabsContent value="historial" className="mt-4">
+          <InventarioHistorial />
         </TabsContent>
       </Tabs>
 
