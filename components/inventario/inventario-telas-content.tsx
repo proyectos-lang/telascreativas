@@ -65,6 +65,7 @@ import {
 import { cn } from "@/lib/utils"
 import { InventarioAuditoriaConsumo } from "./inventario-auditoria-consumo"
 import { InventarioHistorial } from "./inventario-historial"
+import { InventarioAlertas } from "./inventario-alertas"
 
 // ─── Supabase ──────────────────────────────────────────────────────────────────
 
@@ -525,7 +526,7 @@ function StockActualTab({
       <div className="rounded-md border overflow-x-auto">
         <div className="overflow-y-auto max-h-[420px]">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableHeader className="sticky top-0 z-[5] bg-background">
               <TableRow>
                 <TableHead>Código</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -1053,7 +1054,7 @@ export function InventarioTelasContent() {
       </div>
 
       <Tabs defaultValue="stock">
-        <TabsList className="grid w-full max-w-4xl grid-cols-6">
+        <TabsList className="grid w-full max-w-5xl grid-cols-7">
           <TabsTrigger value="stock" className="flex items-center gap-1.5">
             <PackageCheck className="size-3.5" />
             Stock Actual
@@ -1077,6 +1078,10 @@ export function InventarioTelasContent() {
           <TabsTrigger value="historial" className="flex items-center gap-1.5">
             <History className="size-3.5" />
             Historial
+          </TabsTrigger>
+          <TabsTrigger value="alertas" className="flex items-center gap-1.5">
+            <AlertTriangle className="size-3.5" />
+            Alertas
           </TabsTrigger>
         </TabsList>
 
@@ -1154,6 +1159,11 @@ export function InventarioTelasContent() {
             cuando el movimiento lo genero produccion. */}
         <TabsContent value="historial" className="mt-4">
           <InventarioHistorial />
+        </TabsContent>
+
+        {/* Alertas de compra: cobertura en dias y sugerido de pedido. */}
+        <TabsContent value="alertas" className="mt-4">
+          <InventarioAlertas />
         </TabsContent>
       </Tabs>
 
