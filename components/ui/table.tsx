@@ -23,7 +23,12 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
   return (
     <thead
       data-slot="table-header"
-      className={cn('sticky top-0 z-10 bg-background [&_tr]:border-b', className)}
+      // z-[5]: por DEBAJO del sidebar, que es fixed con z-10. Con el mismo
+      // z-index gana el que se pinta despues, y al desplazarse en
+      // horizontal la cabecera pegajosa se montaba sobre la barra
+      // lateral. Sigue por encima del cuerpo de la tabla, que no tiene
+      // z-index propio.
+      className={cn('sticky top-0 z-[5] bg-background [&_tr]:border-b', className)}
       {...props}
     />
   )

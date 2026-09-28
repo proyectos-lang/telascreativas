@@ -232,7 +232,7 @@ export function DashboardEfficiencyDetailModal({
         {/* Tabla */}
         <div className="flex-1 overflow-auto rounded-md border">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
+            <TableHeader className="sticky top-0 z-[5] bg-muted">
               <TableRow className="hover:bg-muted">
                 <TableHead className="text-xs font-semibold">Pedido</TableHead>
                 <TableHead className="text-xs font-semibold">Cliente</TableHead>
